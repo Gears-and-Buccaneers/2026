@@ -6,7 +6,7 @@ with the [MagicBot](https://robotpy.readthedocs.io/en/latest/frameworks/magicbot
 
 ## Installation
 
-0. If not already installed, install [UV](https://docs.astral.sh/uv/getting-started/installation/)
+0. If not already installed, install [uv](https://docs.astral.sh/uv/getting-started/installation/)
    and [git](https://git-scm.com/downloads).
    * Not used git before? Be sure to [set your username and email](https://stackoverflow.com/a/33024593/405017).
 
@@ -16,7 +16,7 @@ with the [MagicBot](https://robotpy.readthedocs.io/en/latest/frameworks/magicbot
    git clone git@github.com:Gears-and-Buccaneers/2026.git
    ```
 
-2. In a terminal in the working directory for the cloned files (hint: `cd MagicBotTestFramwork`), run:
+2. In a terminal in the working directory for the cloned files (hint: `cd 2026`), run:
 
    ```sh
    uv sync             # Create a virtual python environment with necessary pre-requisites
@@ -43,7 +43,9 @@ Open a Terminal in VS Code (hint: `` ctrl+` ``), and then run `robotpy sim` to s
    * _Note that when you open a Terminal inside VS Code it should automatically activate the virtual environment for you._
      _This is what enables `robotpy` as its own command, without the `uv run` prefix._
 
-     _If VS Code does not activate the virtual environment automatically, you can run `source .venv/bin/activate`._ 🤮
+     _If VS Code does not activate the virtual environment automatically,_
+     _you can run `source .venv/bin/activate` to activate the venv (🤮)_
+     _or you can just run `uv run robotpy sim` to run a command inside the venv._
 
    * If you connect a PS4 controller, you should be able to drive the robot around in the simulator
      using the left and right sticks.
@@ -65,7 +67,7 @@ Here's what they are for:
 * `.github/` - GitHub-specific files, such as for setting up automated testing.
 * `.venv/` - The Python virtual environment created by `uv sync`; contains all the installed libraries and Python interpreter.
 * `.vscode/` - VS Code-specific settings and configurations, so that everyone working on the code can have a consistent experience.
-* `autonomous/` - **ROBOT CODDE**: our autonomous routines go here.
+* `autonomous/` - **ROBOT CODE**: our autonomous routines go here.
 * `components/` - **ROBOT CODE**: our robot components (subsystems) go here.
 * `ctre_sim/` - _simulation spam_
 * `.gitignore` - Lists files and directories that Git should ignore (not track).
