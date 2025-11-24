@@ -13,7 +13,7 @@ with the [MagicBot](https://robotpy.readthedocs.io/en/latest/frameworks/magicbot
 1. Clone the GitHub repo. One way is to run this command in a terminal:
 
    ```sh
-   git clone git@github.com:Phrogz/MagicBotTestFramework.git
+   git clone git@github.com:Gears-and-Buccaneers/2026.git
    ```
 
 2. In a terminal in the working directory for the cloned files (hint: `cd MagicBotTestFramwork`), run:
