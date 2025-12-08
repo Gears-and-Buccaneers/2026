@@ -1,6 +1,8 @@
 """Controllers for both the driver and operator."""
 
 import wpilib
+from wpilib import RobotBase
+from wpilib.simulation import PS4ControllerSim
 
 
 class OurController(wpilib.XboxController):
@@ -23,8 +25,16 @@ class OurController(wpilib.XboxController):
         return (self.getRightX(), self.getRightY())
 
 
-class DriverController(OurController):
-    """Controller with information focused on the driver controls."""
+class DriverController(OurPS4Controller):
+    """Controller with information focused on the driver controls.
+
+    In simulation, keyboard input is supported via the simulation GUI.
+    Drag "Keyboard 0" from System Joysticks to Joystick[0] in the sim GUI.
+
+    Default keyboard mappings in sim GUI:
+    - WASD: Left stick (strafe/forward-back)
+    - Arrow keys or IJKL: Right stick (rotation)
+    """
 
     def should_brake(self) -> bool:
         """Determine if the brake button is actively being pressed."""

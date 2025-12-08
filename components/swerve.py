@@ -1,203 +1,168 @@
-"""Classes related to Serve drive."""
+"""Swerve drivetrain using CTRE Phoenix 6 swerve API."""
 
-import math
+from typing import Optional
 
-import magicbot
-import phoenix6 as p6
-import wpimath.geometry as geom
-import wpimath.kinematics as kinematics
-import wpimath.units as units
+from magicbot import feedback
+from phoenix6.hardware import CANcoder, TalonFX
+from phoenix6.swerve import SwerveDrivetrain
+from phoenix6.swerve.requests import (
+    FieldCentric,
+    Idle,
+    SwerveDriveBrake,
+    SwerveRequest,
+)
+from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
+from wpimath.geometry import Pose2d, Rotation2d
+from wpimath.units import meters_per_second, radians_per_second
 
-import constants as const
+from generated.tuner_constants import TunerConstants
 
-
-# TODO: see https://github.com/robotpy/examples/blob/main/SwerveBot/swervemodule.py
-class SwerveModule:
-    """A single swerve module."""
-
-    # These attributes are automatically set by MagicBot's variable injection
-    # when attributes of the same name are set on the robot.
-    drive_motor: p6.hardware.TalonFX
-    steer_motor: p6.hardware.TalonFX
-
-    def setup(self) -> None:
-        """Called after motor injection. Configure motors here."""
-        # Configure drive motor
-        self.drive_motor.set_position(0)
-        self.drive_motor.configurator.apply(
-            p6.configs.CurrentLimitsConfigs()
-            .with_stator_current_limit(60)  # Max amps that can flow through the motor
-            .with_supply_current_limit(40)  # Max amps that can be drawn by the motor
-            .with_stator_current_limit_enable(True)
-            .with_supply_current_limit_enable(True)
-            .with_supply_current_lower_limit(30)  # Current to drop to after the current has exceeded the supply...
-            .with_supply_current_lower_time(0.1)  # ...for this many seconds.
-        )
-
-        # Configure steer motor
-        self.steer_motor.set_position(0)
-        self.steer_motor.configurator.apply(
-            p6.configs.CurrentLimitsConfigs()
-            .with_stator_current_limit(40)  # Max amps that can flow through the motor
-            .with_supply_current_limit(30)  # Max amps that can be drawn by the motor
-            .with_stator_current_limit_enable(True)
-            .with_supply_current_limit_enable(True)
-            .with_supply_current_lower_limit(20)  # Current to drop to after the current has exceeded the supply...
-            .with_supply_current_lower_time(0.5)  # ...for this many seconds.
-        )
-
-        self._desired_state = kinematics.SwerveModuleState(0, geom.Rotation2d(0))
-        self._current_state = kinematics.SwerveModuleState(0, geom.Rotation2d(0))
-
-    @property
-    def desired_state(self) -> kinematics.SwerveModuleState:
-        """The state we want this module to achieve."""
-        return self._desired_state
-
-    @desired_state.setter
-    def desired_state(self, state: kinematics.SwerveModuleState) -> None:
-        """Set the desired state, optimizing the rotation."""
-        state.optimize(geom.Rotation2d(self.steering_angle))
-        self._desired_state = state
-
-    @property
-    def current_state(self) -> kinematics.SwerveModuleState:
-        """The actual current state of this module.
-
-        Note:
-            The state object returned by this method will be mutated on subsequent calls.
-        """
-        self._current_state.speed = self.drive_velocity
-        self._current_state.angle = geom.Rotation2d(self.steering_angle)
-        return self._current_state
-
-    @property
-    def steering_angle(self) -> units.radians:
-        """Get the current steering angle in radians."""
-        return self.steer_motor.get_position().value * (2 * math.pi)
-
-    @property
-    def drive_velocity(self) -> units.meters_per_second:
-        """Get the current drive velocity in meters per second."""
-        return self.drive_motor.get_velocity().value
-
-    def execute(self) -> None:
-        """Send commands to the motors to achieve desired state."""
-        # Control steering motor - PID to desired angle
-        angle_error = self._desired_state.angle.radians() - self.steering_angle
-
-        # Normalize angle error to [-pi, pi]
-        angle_error = math.atan2(math.sin(angle_error), math.cos(angle_error))
-
-        # Simple P controller for steering
-        steer_output = angle_error * 2.0  # FIXME: Move this P gain of 2.0 to a constant or tunable
-        self.steer_motor.setVoltage(steer_output)
-
-        # Control drive motor - direct velocity control
-        self.drive_motor.set_control(p6.controls.VelocityVoltage(self._desired_state.speed))
+# Simulation period in seconds (20ms = 0.020s for standard robot loop)
+SIM_LOOP_PERIOD = 0.020
 
 
-# TODO: see https://github.com/robotpy/examples/blob/main/SwerveBot/drivetrain.py
 class Drivetrain:
-    """The full swerve drivetrain."""
+    """Swerve drivetrain wrapper using CTRE Phoenix 6 SwerveDrivetrain.
 
-    # These attributes are automatically populated by MagicBot's variable injection
-    # when variables of the same name are set on the robot.
-    front_left_swerve: SwerveModule
-    front_right_swerve: SwerveModule
-    rear_left_swerve: SwerveModule
-    rear_right_swerve: SwerveModule
+    This class wraps the Phoenix 6 SwerveDrivetrain to integrate with MagicBot's
+    component system. The Phoenix 6 API handles all the low-level control.
 
-    # All units are ALWAYS in SI units (meters, seconds, radians, etc.)
-    max_free_drive_meters_per_second = magicbot.tunable(1.0)
-    max_rotation_radians_per_second = magicbot.tunable(math.pi)  # 180 degrees/second
-    max_drive_speed_possible = magicbot.tunable(3.0)
+    Configuration is loaded from generated/tuner_constants.py which is designed
+    to be regenerated by Phoenix Tuner X's Swerve Project Generator.
+    """
 
-    def __init__(self):
-        """Initialize the drivetrain."""
-        self.front_left_loc = geom.Translation2d(
-            const.RobotDimension.SWERVE_FRONT_LEFT_LOCATION_X,
-            const.RobotDimension.SWERVE_FRONT_LEFT_LOCATION_Y,
+    def __init__(self) -> None:
+        """Initialize the swerve drivetrain with all modules."""
+        # Create the Phoenix 6 SwerveDrivetrain using TunerConstants
+        self._drivetrain = SwerveDrivetrain(
+            TalonFX,
+            TalonFX,
+            CANcoder,
+            TunerConstants.drivetrain_constants,
+            [
+                TunerConstants.front_left,
+                TunerConstants.front_right,
+                TunerConstants.back_left,
+                TunerConstants.back_right,
+            ],
         )
-        self.front_right_loc = geom.Translation2d(
-            const.RobotDimension.SWERVE_FRONT_RIGHT_LOCATION_X,
-            const.RobotDimension.SWERVE_FRONT_RIGHT_LOCATION_Y,
-        )
-        self.rear_left_loc = geom.Translation2d(
-            const.RobotDimension.SWERVE_REAR_LEFT_LOCATION_X,
-            const.RobotDimension.SWERVE_REAR_LEFT_LOCATION_Y,
-        )
-        self.rear_right_loc = geom.Translation2d(
-            const.RobotDimension.SWERVE_REAR_RIGHT_LOCATION_X,
-            const.RobotDimension.SWERVE_REAR_RIGHT_LOCATION_Y,
-        )
-        self.desired_velocity = kinematics.ChassisSpeeds()
+
+        # Create swerve requests for different drive modes
+        self._field_centric_request = FieldCentric()
+        self._brake_request = SwerveDriveBrake()
+        self._idle_request = Idle()
+
+        # Configure field-centric request defaults
+        self._field_centric_request = self._field_centric_request.with_deadband(0.05).with_rotational_deadband(0.05)
+
+        # Pending request to apply in execute()
+        self._pending_request: Optional[SwerveRequest] = None
+
+        # Field widget for simulation/dashboard
+        self._field = Field2d()
+        SmartDashboard.putData("Field", self._field)
+
+        # Track if we're running in simulation
+        self._is_simulation = RobotBase.isSimulation()
 
     def setup(self) -> None:
-        """Called after component injection. Initialize kinematics here."""
-        # Create kinematics object for swerve calculations
-        self.kinematics = kinematics.SwerveDrive4Kinematics(
-            self.front_left_loc, self.front_right_loc, self.rear_left_loc, self.rear_right_loc
-        )
+        """Called by MagicBot after injection. Perform any additional setup here."""
+        pass
 
-    @property
-    def module_states(self) -> list[kinematics.SwerveModuleState]:
-        """Get current states of all modules."""
-        return [
-            module.current_state
-            for module in (
-                self.front_left_swerve,
-                self.front_right_swerve,
-                self.rear_left_swerve,
-                self.rear_right_swerve,
-            )
-        ]
+    def drive_field_centric(
+        self,
+        velocity_x: meters_per_second,
+        velocity_y: meters_per_second,
+        rotation_rate: radians_per_second,
+    ) -> None:
+        """Drive the robot using field-centric control.
+
+        Args:
+            velocity_x: Forward velocity in m/s (positive = forward on field).
+            velocity_y: Left velocity in m/s (positive = left on field).
+            rotation_rate: Counter-clockwise rotation rate in rad/s.
+        """
+        self._pending_request = (
+            self._field_centric_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_rotational_rate(rotation_rate)
+        )
 
     def drive(
         self,
-        *,
-        forward_speed: units.meters_per_second = 0,
-        left_speed: units.meters_per_second = 0,
-        ccw_speed: units.radians_per_second = 0,
+        forward_speed: meters_per_second = 0,
+        left_speed: meters_per_second = 0,
+        ccw_speed: radians_per_second = 0,
     ) -> None:
-        """Drive the robot using field-relative speeds."""
-        self.desired_velocity.vx = forward_speed
-        self.desired_velocity.vy = left_speed
-        self.desired_velocity.omega = ccw_speed
+        """Drive using field-centric control (legacy API for compatibility).
 
-    @property
-    def cross_brake(self) -> bool:
-        """Whether to use cross-brake mode."""
-        return self._cross_brake
+        Args:
+            forward_speed: Forward velocity in m/s.
+            left_speed: Left velocity in m/s.
+            ccw_speed: Counter-clockwise rotation rate in rad/s.
+        """
+        self.drive_field_centric(forward_speed, left_speed, ccw_speed)
 
-    @cross_brake.setter
-    def cross_brake(self, enable_cross_brake: bool) -> None:
-        """Set cross-brake mode."""
-        self._cross_brake = enable_cross_brake
-        if enable_cross_brake:
-            # In cross-brake mode, set desired velocity to zero...
-            self.desired_velocity = kinematics.ChassisSpeeds(0, 0, 0)
+    def brake(self) -> None:
+        """Set wheels to X-pattern brake configuration."""
+        self._pending_request = self._brake_request
 
-            # ...and set swerve module steering to cross-brake angles
-            self.front_left_swerve.desired_state = kinematics.SwerveModuleState(0, geom.Rotation2d(math.pi / 4))
-            self.front_right_swerve.desired_state = kinematics.SwerveModuleState(0, geom.Rotation2d(-math.pi / 4))
-            self.rear_left_swerve.desired_state = kinematics.SwerveModuleState(0, geom.Rotation2d(-math.pi / 4))
-            self.rear_right_swerve.desired_state = kinematics.SwerveModuleState(0, geom.Rotation2d(math.pi / 4))
+    def stop(self) -> None:
+        """Stop all motors (coast)."""
+        self._pending_request = self._idle_request
+
+    def reset_pose(self, pose: Pose2d) -> None:
+        """Reset the robot's estimated pose.
+
+        Args:
+            pose: The new pose to set.
+        """
+        self._drivetrain.reset_pose(pose)
+
+    def reset_heading(self) -> None:
+        """Reset the robot's heading to 0 (forward)."""
+        current_pose = self.get_pose()
+        self._drivetrain.reset_pose(Pose2d(current_pose.translation(), Rotation2d(0)))
+
+    def get_pose(self) -> Pose2d:
+        """Get the robot's current estimated pose."""
+        return self._drivetrain.get_state().pose
+
+    def get_heading(self) -> Rotation2d:
+        """Get the robot's current heading."""
+        return self.get_pose().rotation()
+
+    @feedback
+    def heading_degrees(self) -> float:
+        """Report heading in degrees to the dashboard."""
+        return self.get_heading().degrees()
+
+    @feedback
+    def pose_x(self) -> float:
+        """Report X position to the dashboard."""
+        return self.get_pose().X()
+
+    @feedback
+    def pose_y(self) -> float:
+        """Report Y position to the dashboard."""
+        return self.get_pose().Y()
 
     def execute(self) -> None:
-        """Calculate and command module states based on desired velocity."""
-        # TODO: calculate the center of rotation and pass it along also
-        swerve_module_states = self.kinematics.toSwerveModuleStates(self.desired_velocity)
+        """Called by MagicBot every loop iteration.
 
-        # Normalize wheel speeds if any exceed maximum speed
-        max_speed = max(state.speed for state in swerve_module_states)
-        if max_speed > self.max_drive_speed_possible:
-            factor = self.max_drive_speed_possible / max_speed
-            for state in swerve_module_states:
-                state.speed *= factor
+        Applies any pending swerve request and updates telemetry.
+        """
+        # Update simulation state if running in simulation
+        if self._is_simulation:
+            self._drivetrain.update_sim_state(SIM_LOOP_PERIOD, RobotController.getBatteryVoltage())
 
-        # Command each module
-        self.front_left_swerve.desired_state = swerve_module_states[0]
-        self.front_right_swerve.desired_state = swerve_module_states[1]
-        self.rear_left_swerve.desired_state = swerve_module_states[2]
-        self.rear_right_swerve.desired_state = swerve_module_states[3]
+        # Apply pending request or idle if none
+        if self._pending_request is not None:
+            self._drivetrain.set_control(self._pending_request)
+            self._pending_request = None
+        else:
+            # Default to idle if no request was made this cycle
+            self._drivetrain.set_control(self._idle_request)
+
+        # Update field visualization
+        self._field.setRobotPose(self.get_pose())

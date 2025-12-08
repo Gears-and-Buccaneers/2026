@@ -3,21 +3,21 @@
 import math
 
 import magicbot
-import phoenix6.hardware as p6
 import wpilib
 
 import components
 import constants as const
+from generated.tuner_constants import TunerConstants
+
+# Maximum rotation speed in rad/s
+MAX_ROTATION_SPEED = math.pi
 
 
 class Scurvy(magicbot.MagicRobot):
     """The main class for the robot."""
 
+    # Components - the drivetrain now manages motors internally via CTRE swerve API
     drivetrain: components.Drivetrain
-    front_left_swerve: components.SwerveModule
-    front_right_swerve: components.SwerveModule
-    rear_left_swerve: components.SwerveModule
-    rear_right_swerve: components.SwerveModule
     pewpew: components.Shooter
     driver_controller: components.DriverController
 
@@ -72,19 +72,11 @@ class Scurvy(magicbot.MagicRobot):
     # ------------------------------------------------------------------------------------------------------------------
 
     def createMotors(self) -> None:
-        """Instantiate all the motors."""
-        # Because the robot has a component named `front_left_swerve`,
-        # and that class has an attribute `drive_motor`,
-        # the next line automatically sets the drive_motor value on the specific swerve component.
-        self.front_left_swerve_drive_motor = p6.TalonFX(const.CANID.FRONT_LEFT_DRIVE, const.SWERVE_CAN_NAME)
-        self.front_left_swerve_steer_motor = p6.TalonFX(const.CANID.FRONT_LEFT_STEER, const.SWERVE_CAN_NAME)
-        self.front_right_swerve_drive_motor = p6.TalonFX(const.CANID.FRONT_RIGHT_DRIVE, const.SWERVE_CAN_NAME)
-        self.front_right_swerve_steer_motor = p6.TalonFX(const.CANID.FRONT_RIGHT_STEER, const.SWERVE_CAN_NAME)
-        self.rear_left_swerve_drive_motor = p6.TalonFX(const.CANID.REAR_LEFT_DRIVE, const.SWERVE_CAN_NAME)
-        self.rear_left_swerve_steer_motor = p6.TalonFX(const.CANID.REAR_LEFT_STEER, const.SWERVE_CAN_NAME)
-        self.rear_right_swerve_drive_motor = p6.TalonFX(const.CANID.REAR_RIGHT_DRIVE, const.SWERVE_CAN_NAME)
-        self.rear_right_swerve_steer_motor = p6.TalonFX(const.CANID.REAR_RIGHT_STEER, const.SWERVE_CAN_NAME)
+        """Instantiate all the motors.
 
+        Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
+        Only create motors for non-swerve mechanisms here.
+        """
         self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
 
     def createControllers(self) -> None:
@@ -101,10 +93,16 @@ class Scurvy(magicbot.MagicRobot):
         strafe_right_percent, reverse_percent = self.driver_controller.getLeftStick()
         rotate_right_percent = self.driver_controller.getRightX()
 
-        # We happen to need to invert every value from the joystick to get the desired robot motion
-        self.drivetrain.drive(
-            forward_speed=-reverse_percent * self.drivetrain.max_free_drive_meters_per_second,
-            left_speed=-strafe_right_percent * self.drivetrain.max_free_drive_meters_per_second,
-            ccw_speed=-rotate_right_percent * self.drivetrain.max_rotation_radians_per_second,
-        )
-        self.drivetrain.cross_brake = self.driver_controller.should_brake()
+        # Check if brake button is pressed
+        if self.driver_controller.should_brake():
+            self.drivetrain.brake()
+        else:
+            # We invert joystick values to get the desired robot motion
+            # Joystick: down=positive, right=positive
+            # Robot: forward=positive, left=positive, CCW=positive
+            max_speed = TunerConstants.speed_at_12_volts
+            self.drivetrain.drive(
+                forward_speed=-reverse_percent * max_speed,
+                left_speed=-strafe_right_percent * max_speed,
+                ccw_speed=-rotate_right_percent * MAX_ROTATION_SPEED,
+            )
