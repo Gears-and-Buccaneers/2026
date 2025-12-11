@@ -89,19 +89,22 @@ class TunedConstants(TunerConstants):
     #   Deploy an empty project (or comment out `self.manuallyDrive()` in robot.py).
     # PHOENIX TUNER X INSTRUCTIONS:
     # 1. Open Phoenix Tuner X and connect to the robot.
-    # 2. Select one of the Steer motors (e.g., "Front Left Steer").
-    # 3. Go to the "Control" tab.
-    #    - Control Mode: Position TorqueCurrentFOC
+    # 2. Put the robot on the ground (carpet is best).
+    #    (Note: Tuning on the ground accounts for real-world tire scrub friction).
+    # 3. Select one of the Steer motors (e.g., "Front Left Steer").
+    # 4. Go to the "Control" tab.
+    #    - Control Mode: TorqueCurrentFOC
     #    - Gains: Slot 0
-    # 4. Go to the "Plot" tab (or "Graph").
+    # 5. Go to the "Plot" tab (or "Graph").
     #    - Add Signals: Position, ClosedLoopTarget, ClosedLoopError, StatorCurrent.
-    # 5. Enable the robot (Driver Station Enabled).
+    # 6. Enable the robot (Driver Station Enabled).
     #
     # TUNING STEPS:
     #
     # kS (Static Friction Feedforward) - Amps to overcome friction
     #   - Test: In Control tab, set Control Mode to "TorqueCurrentFOC".
-    #     Slowly increase the main control slider (labeled "Output" or "Current") until the wheel just starts to move.
+    #     Slowly increase the main control slider
+    #     until the wheel just starts to move (rotates in place against the carpet).
     #     That current value is your kS.
     #   - Start: 0.0 Amps | Increment: 0.05 Amps | Typical range: 0.1 - 0.5 Amps
     #
@@ -143,9 +146,11 @@ class TunedConstants(TunerConstants):
     # ==========================================================================
     # TUNING GUIDE FOR FOC MODE:
     #
-    # PHOENIX TUNER X INSTRUCTIONS:
+    # PHOENIX TUNER X INSTRUCTIONS (kS and kV ONLY):
     # 1. Open Phoenix Tuner X and connect to the robot.
-    # 2. Put the robot on blocks (wheels off the ground).
+    # 2. Put the robot on BLOCKS (wheels off the ground).
+    #    (CRITICAL: We only use Tuner X to find kS (gearbox friction) and verify kV.
+    #     We DO NOT tune kP here because the wheel has no load/mass on it).
     # 3. Select one of the Drive motors (e.g., "Front Left Drive").
     # 4. Go to the "Control" tab.
     #    - Control Mode: Velocity TorqueCurrentFOC
@@ -158,8 +163,9 @@ class TunedConstants(TunerConstants):
     #
     # kS (Static Friction Feedforward) - Amps to overcome friction
     #   - Test: In Control tab, set Control Mode to "TorqueCurrentFOC".
-    #     Slowly increase the main control slider (labeled "Output" or "Current") until wheel spins consistently.
-    #     That current value is your kS.
+    #     Slowly increase the main control slider (labeled "Feedforward" or "Output")
+    #     until wheel spins consistently.
+    #     That current value is your kS (for the gearbox/motor internal friction).
     #   - Start: 0.0 Amps | Increment: 0.05 Amps | Typical range: 0.1 - 0.4 Amps
     #
     # kV (Velocity Feedforward) - DERIVED from motor specs, usually no tuning needed
@@ -170,9 +176,13 @@ class TunedConstants(TunerConstants):
     #     If above, decrease kV.
     #
     # kP (Proportional Gain) - Amps per RPS of velocity error
-    #   - Test: Step changes in Velocity slider.
-    #     Watch how quickly "Velocity" reaches "ClosedLoopTarget".
-    #   - Goal: Fast rise time without oscillation.
+    #   - NOTE: Do NOT tune this fully on blocks. The wheel has no load.
+    #   - Tuner X: Set a safe starting value (e.g., 2.0) just to verify the wheel spins.
+    #   - Real World Tuning: Put robot on ground. Drive in Teleop.
+    #     (Note: Tuner X controls individual motors, not the whole robot. You cannot
+    #      use it to "drive" the robot on the ground without dragging wheels).
+    #     If robot feels sluggish or velocity lags target, increase kP.
+    #     If robot stutters or oscillates, decrease kP.
     #   - Start: 0.0 Amps/RPS | Increment: 1.0 Amps/RPS | Typical range: 1.0 - 10.0 Amps/RPS
     #
     # kD (Derivative Gain) - Usually leave at 0 for drive motors

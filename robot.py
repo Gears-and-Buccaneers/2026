@@ -4,6 +4,7 @@ import math
 
 import magicbot
 import wpilib
+from wpimath.geometry import Pose2d, Rotation2d
 
 import components
 import constants as const
@@ -57,11 +58,49 @@ class Scurvy(magicbot.MagicRobot):
 
     def testInit(self) -> None:
         """Called when starting test mode."""
-        pass
+        # Reset pose to (0,0,0) so our distance check works
+        self.drivetrain.reset_pose(Pose2d(0, 0, Rotation2d(0)))
+
+        self.test_timer = wpilib.Timer()
+        self.test_timer.restart()
+        self.test_state = "forward"
+        print("Test Mode Started: Driving Forward 1m")
 
     def testPeriodic(self) -> None:
         """Called periodically while in test mode."""
-        pass
+        # Simple ping-pong for tuning drive velocity
+        # Drive forward for 1 meter (approx 3ft), then backward
+
+        pose = self.drivetrain.get_pose()
+        test_speed = 2.0  # m/s
+
+        if self.test_state == "forward":
+            if pose.X() < 1.0:
+                self.drivetrain.drive(forward_speed=test_speed, left_speed=0, ccw_speed=0)
+            else:
+                self.test_state = "wait_forward"
+                self.test_timer.restart()
+                print("Reached 1m, Waiting...")
+
+        elif self.test_state == "wait_forward":
+            self.drivetrain.drive(0, 0, 0)
+            if self.test_timer.hasElapsed(1.0):
+                self.test_state = "backward"
+                print("Driving Backward")
+
+        elif self.test_state == "backward":
+            if pose.X() > 0.0:
+                self.drivetrain.drive(forward_speed=-test_speed, left_speed=0, ccw_speed=0)
+            else:
+                self.test_state = "wait_backward"
+                self.test_timer.restart()
+                print("Reached 0m, Waiting...")
+
+        elif self.test_state == "wait_backward":
+            self.drivetrain.drive(0, 0, 0)
+            if self.test_timer.hasElapsed(1.0):
+                self.test_state = "forward"
+                print("Driving Forward")
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
