@@ -64,15 +64,20 @@
         {
           "decKey": 73,
           "incKey": 75
+        },
+        {
+          "decKey": 93,
+          "incKey": 91
         }
       ],
-      "axisCount": 2,
-      "buttonCount": 4,
+      "axisCount": 3,
+      "buttonCount": 5,
       "buttonKeys": [
         77,
         44,
         46,
-        47
+        47,
+        39
       ],
       "povCount": 0
     },
@@ -96,9 +101,11 @@
     }
   ],
   "robotJoysticks": [
-    {},
     {
       "guid": "Keyboard0"
+    },
+    {
+      "guid": "Keyboard1"
     }
   ],
   "zeroDisconnectedJoysticks": false
