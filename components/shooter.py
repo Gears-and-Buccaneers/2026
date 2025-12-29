@@ -1,7 +1,6 @@
 """A hypothetical shooter component on the robot."""
 
-import magicbot
-import wpilib
+import phoenix6.hardware as p6hw
 
 
 class Shooter:
@@ -10,7 +9,7 @@ class Shooter:
     Pew! Pew!
     """
 
-    shooter_motor: wpilib.Talon
+    shooter_motor: p6hw.TalonFX
     should_intake: bool = False
     should_output: bool = False
 

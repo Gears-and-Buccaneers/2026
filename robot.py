@@ -3,6 +3,7 @@
 import math
 
 import magicbot
+import phoenix6.hardware as p6hw
 import wpilib
 from wpimath.geometry import Pose2d, Rotation2d
 
@@ -117,8 +118,7 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.pewpew_shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
-        print(const.CANID.SHOOTER_MOTOR)
+        self.pewpew_shooter_motor = p6hw.TalonFX(const.CANID.SHOOTER_MOTOR)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here."""
