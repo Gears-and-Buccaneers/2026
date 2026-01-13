@@ -28,6 +28,7 @@ robotpy_extras = [
     # "romi",
     "sim",
     # "xrp",
+    "sleipnirgroup-choreolib",
 ]
 
 # Other python packages to install ON the RoboRIO
