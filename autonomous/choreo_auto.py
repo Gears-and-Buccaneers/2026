@@ -274,6 +274,14 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
 
     drivetrain: components.Drivetrain
 
+    def __init__(self) -> None:
+        """Initialize the autonomous state machine."""
+        super().__init__()
+        self._trajectories: ListNamedCallbacks = []
+        self._current_trajectory_index = 0
+        self._current_trajectory: SwerveTrajectory | None = None
+        self._timer = wpilib.Timer()
+
     def setup_trajectories(self) -> ListNamedCallbacks:
         """Define the sequence of trajectories and actions.
 
@@ -313,16 +321,6 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
     def on_enable(self) -> None:
         """Called when autonomous mode starts."""
         super().on_enable()
-
-        # Initialize instance variables (MagicBot doesn't call __init__)
-        if not hasattr(self, "_timer"):
-            self._timer = wpilib.Timer()
-        if not hasattr(self, "_trajectories"):
-            self._trajectories = []
-        if not hasattr(self, "_current_trajectory_index"):
-            self._current_trajectory_index = 0
-        if not hasattr(self, "_current_trajectory"):
-            self._current_trajectory = None
 
         self._trajectories = self.setup_trajectories()
         self._current_trajectory_index = 0
