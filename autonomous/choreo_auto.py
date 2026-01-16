@@ -144,10 +144,6 @@ class ChoreoAuto(mb.AutonomousStateMachine):
         # Call the user-defined start hook
         self.on_trajectory_start()
 
-    def on_iteration(self, tm: float) -> None:
-        """Delegate to the base on_iteration."""
-        return super().on_iteration(tm)
-
     def on_trajectory_start(self) -> None:
         """Called when the trajectory starts. Override this to add custom behavior.
 
