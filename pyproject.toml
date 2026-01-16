@@ -8,7 +8,7 @@ requires-python = ">=3.13,<3.14"
 # Packages installed by `uv sync` in your local .venv;
 # these are NOT deployed to RoboRIO by `robotpy deploy`.
 dependencies = [
-    "robotpy>=2025.3.2.2",
+    "robotpy==2025.3.2.2",
     "sleipnirgroup-choreolib",
     "phoenix6",
 ]
