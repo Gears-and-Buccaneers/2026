@@ -22,8 +22,9 @@ class JustLeavePlease(mb.AutonomousStateMachine):
         """Give other robots time to do their autos."""
         pass
 
-    # …then do this for 5 seconds (and then do nothing more)
-    @mb.timed_state(duration=5)
+    # …then do this for 3 seconds (and then do nothing more)
+    @mb.timed_state(duration=3)
     def gogogo(self):
         """Drive forward for a bit."""
-        self.drivetrain.drive(ccw_speed=2)  # FIXME: a hardcoded speed does not belong here; probably should be tunable
+        # FIXME: a hardcoded speed does not belong here; probably should be tunable
+        self.drivetrain.drive(forward_speed=1)

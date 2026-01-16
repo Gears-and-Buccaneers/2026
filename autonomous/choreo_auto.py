@@ -66,6 +66,13 @@ class ChoreoAuto(mb.AutonomousStateMachine):
     # Class-level trajectory cache to avoid reloading
     _trajectory_cache: dict[str, SwerveTrajectory | None] = {}
 
+    def __init__(self) -> None:
+        """Initialize the autonomous state machine."""
+        super().__init__()
+        self._trajectory: SwerveTrajectory | None = None
+        self._timer = wpilib.Timer()
+        self._trajectory_finished = False
+
     @classmethod
     def load_trajectory(cls, name: str) -> SwerveTrajectory | None:
         """Load a trajectory by name, with caching.
@@ -112,13 +119,7 @@ class ChoreoAuto(mb.AutonomousStateMachine):
 
     def on_enable(self) -> None:
         """Called when autonomous mode starts."""
-        # Initialize instance variables (MagicBot doesn't call __init__)
-        if not hasattr(self, "_timer"):
-            self._timer = wpilib.Timer()
-        if not hasattr(self, "_trajectory"):
-            self._trajectory = None
-        if not hasattr(self, "_trajectory_finished"):
-            self._trajectory_finished = False
+        super().on_enable()
 
         # Load the trajectory if not already loaded
         if self.TRAJECTORY_NAME:
@@ -142,6 +143,10 @@ class ChoreoAuto(mb.AutonomousStateMachine):
 
         # Call the user-defined start hook
         self.on_trajectory_start()
+
+    def on_iteration(self, tm: float) -> None:
+        """Delegate to the base on_iteration."""
+        return super().on_iteration(tm)
 
     def on_trajectory_start(self) -> None:
         """Called when the trajectory starts. Override this to add custom behavior.
@@ -311,6 +316,8 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
 
     def on_enable(self) -> None:
         """Called when autonomous mode starts."""
+        super().on_enable()
+
         # Initialize instance variables (MagicBot doesn't call __init__)
         if not hasattr(self, "_timer"):
             self._timer = wpilib.Timer()

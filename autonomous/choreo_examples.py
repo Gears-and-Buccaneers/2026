@@ -26,8 +26,8 @@ class SimpleChoreoAuto(ChoreoAuto):
     3. Select "Simple Choreo Path" on the driver station
     """
 
-    MODE_NAME = "Kistner Winner Chicken Dinner Yo"
-    TRAJECTORY_NAME = "KistnerWinnerChickenDinner"
+    MODE_NAME = "Some Sassy Swerve Slide"
+    TRAJECTORY_NAME = "swerve"
     DISABLED = False  # Enable this auto mode (base class is disabled by default)
     DEFAULT = True
 
