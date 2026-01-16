@@ -12,7 +12,7 @@ class JustLeavePlease(mb.AutonomousStateMachine):
     MODE_NAME = "Just Leave"
 
     # Set this as the default auto mode. [GK: Ick; what if two files have this?]
-    DEFAULT = True
+    DEFAULT = False
 
     drivetrain: components.Drivetrain
 

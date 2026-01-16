@@ -26,9 +26,10 @@ class SimpleChoreoAuto(ChoreoAuto):
     3. Select "Simple Choreo Path" on the driver station
     """
 
-    MODE_NAME = "Simple Choreo Path"
-    TRAJECTORY_NAME = "simple_path"
+    MODE_NAME = "Kistner Winner Chicken Dinner Yo"
+    TRAJECTORY_NAME = "KistnerWinnerChickenDinner"
     DISABLED = False  # Enable this auto mode (base class is disabled by default)
+    DEFAULT = True
 
     # You can add other components here that will be injected by MagicBot
     # shooter: components.Shooter

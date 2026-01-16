@@ -7,33 +7,39 @@ requires-python = ">=3.13,<3.14"
 
 # Packages installed by `uv sync` in your local .venv;
 # these are NOT deployed to RoboRIO by `robotpy deploy`.
+# NOTE: robotpy extras and vendor packages are duplicated here from components/requires below
+# so that `uv sync` doesn't remove packages later installed by `robotpy sync`.
 dependencies = [
-    "robotpy>=2025.3.2.2",
-    "sleipnirgroup-choreolib",
+    "robotpy[apriltag,sim]>=2026.1.1",
+    "robotpy-pathplannerlib",
     "phoenix6",
+    "sleipnirgroup-choreolib",
 ]
 
 [tool.robotpy]
-robotpy_version = "2025.3.2.2"
+robotpy_version = "2026.1.1"
 
 # Extra RobotPy components to install, locally (via `robotpy sync`) and on the RoboRIO (via `robotpy deploy`).
-robotpy_extras = [
+# NOTE: 'robotpy_extras' was renamed to 'components' in RobotPy 2026.1.1
+# Only actual robotpy extras go here (apriltag, commands2, cscore, sim, etc.)
+components = [
     # "all",
     "apriltag",
     # "commands2",
     # "cscore",
     # "navx",
-    "pathplannerlib",
-    "phoenix6",
     # "rev",
     # "romi",
     "sim",
     # "xrp",
-    "sleipnirgroup-choreolib",
 ]
 
-# Other python packages to install ON the RoboRIO
-requires = []
+# Other python packages to install ON the RoboRIO (vendor libraries, etc.)
+requires = [
+    "robotpy-pathplannerlib",
+    "phoenix6",
+    "sleipnirgroup-choreolib",
+]
 
 [tool.ruff]
 line-length = 120 # Allow much longer lines before forcing line wrap via formatting
