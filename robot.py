@@ -38,7 +38,7 @@ class Scurvy(magicbot.MagicRobot):
 
     def teleopInit(self) -> None:
         """Called when teleop starts, after all components' on_enable()."""
-        pass
+        self.timer = wpilib.Timer
 
     def teleopPeriodic(self) -> None:
         """Called periodically during teleop (and autonomous, if `self.use_teleop_in_autonomous==True`).
@@ -46,6 +46,17 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
+        time_remaining = self.timer.getMatchTime()
+        can_score = True
+        won_auto = False
+
+        if time_remaining < 30:
+            can_score = True
+
+        elif time_remaining < 130:  # Checks what block we are and if we can score
+            block = int((130 - time_remaining) // 25)
+            can_score = (block % 2 == 0) != won_auto
+
         # self.driveForward()
 
     def disabledInit(self) -> None:
