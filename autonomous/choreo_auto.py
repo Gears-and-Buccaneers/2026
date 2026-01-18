@@ -17,15 +17,18 @@ Example usage:
             self.shooter.shoot()
 """
 
-from typing import Callable, Optional
+from typing import Callable, TypeAlias
 
 import magicbot as mb
 import wpilib
-from choreo import SwerveSample, SwerveTrajectory, load_swerve_trajectory
+from choreo import load_swerve_trajectory
+from choreo.trajectory import SwerveSample, SwerveTrajectory
 from wpilib import DriverStation
 from wpimath.geometry import Pose2d
 
 import components
+
+ListNamedCallbacks: TypeAlias = list[tuple[str, Callable[[], None] | None]]
 
 
 class ChoreoAuto(mb.AutonomousStateMachine):
@@ -61,17 +64,17 @@ class ChoreoAuto(mb.AutonomousStateMachine):
     drivetrain: components.Drivetrain
 
     # Class-level trajectory cache to avoid reloading
-    _trajectory_cache: dict[str, Optional[SwerveTrajectory]] = {}
+    _trajectory_cache: dict[str, SwerveTrajectory | None] = {}
 
     def __init__(self) -> None:
         """Initialize the autonomous state machine."""
         super().__init__()
-        self._trajectory: Optional[SwerveTrajectory] = None
+        self._trajectory: SwerveTrajectory | None = None
         self._timer = wpilib.Timer()
         self._trajectory_finished = False
 
     @classmethod
-    def load_trajectory(cls, name: str) -> Optional[SwerveTrajectory]:
+    def load_trajectory(cls, name: str) -> SwerveTrajectory | None:
         """Load a trajectory by name, with caching.
 
         Trajectories are cached at the class level so they only need to be
@@ -90,12 +93,12 @@ class ChoreoAuto(mb.AutonomousStateMachine):
                 trajectory = load_swerve_trajectory(name)
                 cls._trajectory_cache[name] = trajectory
                 if trajectory is None:
-                    DriverStation.reportWarning(
+                    wpilib.reportWarning(
                         f"Choreo: Could not load trajectory '{name}'. Make sure deploy/choreo/{name}.traj exists.",
                         False,
                     )
             except Exception as e:
-                DriverStation.reportError(f"Choreo: Error loading trajectory '{name}': {e}", True)
+                wpilib.reportError(f"Choreo: Error loading trajectory '{name}': {e}", True)
                 cls._trajectory_cache[name] = None
 
         return cls._trajectory_cache[name]
@@ -116,11 +119,13 @@ class ChoreoAuto(mb.AutonomousStateMachine):
 
     def on_enable(self) -> None:
         """Called when autonomous mode starts."""
+        super().on_enable()
+
         # Load the trajectory if not already loaded
         if self.TRAJECTORY_NAME:
             self._trajectory = self.load_trajectory(self.TRAJECTORY_NAME)
         else:
-            DriverStation.reportError(f"{self.MODE_NAME} has no TRAJECTORY_NAME set!", False)
+            wpilib.reportError(f"{self.MODE_NAME} has no TRAJECTORY_NAME set!", False)
             self._trajectory = None
 
         # Reset state
@@ -131,8 +136,8 @@ class ChoreoAuto(mb.AutonomousStateMachine):
             initial_pose = self._trajectory.get_initial_pose(self.is_red_alliance())
             if initial_pose is not None:
                 self.drivetrain.reset_pose(initial_pose)
-                DriverStation.reportError(
-                    f"DRIVERS ATTENTION: Starting pose set to {initial_pose}, make sure that the right alliance is selected.",
+                wpilib.reportError(
+                    f"ATTENTION: Starting pose set to {initial_pose}, make sure that the right alliance is selected.",
                     False,
                 )
 
@@ -272,12 +277,12 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
     def __init__(self) -> None:
         """Initialize the autonomous state machine."""
         super().__init__()
-        self._trajectories: list[tuple[str, Optional[Callable[[], None]]]] = []
+        self._trajectories: ListNamedCallbacks = []
         self._current_trajectory_index = 0
-        self._current_trajectory: Optional[SwerveTrajectory] = None
+        self._current_trajectory: SwerveTrajectory | None = None
         self._timer = wpilib.Timer()
 
-    def setup_trajectories(self) -> list[tuple[str, Optional[Callable[[], None]]]]:
+    def setup_trajectories(self) -> ListNamedCallbacks:
         """Define the sequence of trajectories and actions.
 
         Override this method to define your autonomous sequence.
@@ -315,6 +320,8 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
 
     def on_enable(self) -> None:
         """Called when autonomous mode starts."""
+        super().on_enable()
+
         self._trajectories = self.setup_trajectories()
         self._current_trajectory_index = 0
         self._load_current_trajectory()
