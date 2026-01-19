@@ -46,7 +46,6 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
-        # self.driveForward()
 
     def disabledInit(self) -> None:
         """Called afer the on_disable() of all components."""
@@ -76,28 +75,28 @@ class Scurvy(magicbot.MagicRobot):
 
         if self.test_state == "forward":
             if pose.X() < 1.0:
-                self.drivetrain.drive(forward_speed=test_speed, left_speed=0, ccw_speed=0)
+                self.drivetrain.drive_field_centric(velocity_x=test_speed)
             else:
                 self.test_state = "wait_forward"
                 self.test_timer.restart()
                 print("Reached 1m, Waiting...")
 
         elif self.test_state == "wait_forward":
-            self.drivetrain.drive(0, 0, 0)
+            self.drivetrain.drive_field_centric()
             if self.test_timer.hasElapsed(1.0):
                 self.test_state = "backward"
                 print("Driving Backward")
 
         elif self.test_state == "backward":
             if pose.X() > 0.0:
-                self.drivetrain.drive(forward_speed=-test_speed, left_speed=0, ccw_speed=0)
+                self.drivetrain.drive_field_centric(velocity_x=-test_speed)
             else:
                 self.test_state = "wait_backward"
                 self.test_timer.restart()
                 print("Reached 0m, Waiting...")
 
         elif self.test_state == "wait_backward":
-            self.drivetrain.drive(0, 0, 0)
+            self.drivetrain.drive_field_centric(velocity_x=0, velocity_y=0, rotation_rate=0)
             if self.test_timer.hasElapsed(1.0):
                 self.test_state = "forward"
                 print("Driving Forward")
@@ -136,12 +135,17 @@ class Scurvy(magicbot.MagicRobot):
         if self.driver_controller.should_brake():
             self.drivetrain.brake()
         else:
-            # We invert joystick values to get the desired robot motion
+            # We invert joystick values to get the desired robot motion for blue alliance
             # Joystick: down=positive, right=positive
-            # Robot: forward=positive, left=positive, CCW=positive
+            # Blue alliance: forward=positive, left=positive, CCW=positive
             max_speed = TunerConstants.speed_at_12_volts
-            self.drivetrain.drive(
-                forward_speed=-reverse_percent * max_speed,
-                left_speed=-strafe_right_percent * max_speed,
-                ccw_speed=-rotate_right_percent * MAX_ROTATION_SPEED,
+
+            # Invert the X and Y values if we are on the red alliance, so pushing joystick forward moves us towards blue
+            if wpilib.DriverStation.getAlliance() == wpilib.DriverStation.Alliance.kRed:
+                max_speed = -max_speed
+
+            self.drivetrain.drive_field_centric(
+                velocity_x=-reverse_percent * max_speed,
+                velocity_y=-strafe_right_percent * max_speed,
+                rotation_rate=-rotate_right_percent * MAX_ROTATION_SPEED,
             )

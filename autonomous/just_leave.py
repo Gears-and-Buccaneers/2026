@@ -1,8 +1,16 @@
 """A simple auto mode that drives forward to leave the start area."""
 
 import magicbot as mb
+import phoenix6.units as units
+from wpilib import DriverStation  # optional if you want alliance-based starts
+from wpimath.geometry import Pose2d, Rotation2d
 
+import autonomous
 import components
+
+START_POSE_BLUE = Pose2d(2, 2.5, Rotation2d.fromDegrees(0))
+START_POSE_RED = autonomous.mirror_pose(START_POSE_BLUE)
+DRIVE_SPEED: units.meters_per_second = 1.5
 
 
 class JustLeavePlease(mb.AutonomousStateMachine):
@@ -16,6 +24,20 @@ class JustLeavePlease(mb.AutonomousStateMachine):
 
     drivetrain: components.Drivetrain
 
+    def on_enable(self):
+        """Called when this auto starts."""
+        super().on_enable()
+        alliance = DriverStation.getAlliance()
+
+        # FIXME: a hardcoded speed does not belong here; probably should be tunable
+        self.x_speed: units.meters_per_second = DRIVE_SPEED
+
+        if alliance == DriverStation.Alliance.kRed:
+            self.drivetrain.reset_pose(START_POSE_RED)
+            self.x_speed *= -1
+        else:
+            self.drivetrain.reset_pose(START_POSE_BLUE)
+
     # Start here, and do nothing for 5 seconds.
     @mb.timed_state(duration=5, next_state="gogogo", first=True)
     def wait(self):
@@ -25,6 +47,5 @@ class JustLeavePlease(mb.AutonomousStateMachine):
     # …then do this for 3 seconds (and then do nothing more)
     @mb.timed_state(duration=3)
     def gogogo(self):
-        """Drive forward for a bit."""
-        # FIXME: a hardcoded speed does not belong here; probably should be tunable
-        self.drivetrain.drive(forward_speed=1)
+        """Drive towards the other alliance for a bit."""
+        self.drivetrain.drive_field_centric(velocity_x=self.x_speed)

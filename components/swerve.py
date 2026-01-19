@@ -3,7 +3,7 @@
 import math
 from typing import Optional
 
-from choreo import SwerveSample
+from choreo.trajectory import SwerveSample
 from magicbot import feedback
 from phoenix6.hardware import CANcoder, TalonFX
 from phoenix6.swerve import SwerveDrivetrain
@@ -87,15 +87,16 @@ class Drivetrain:
 
     def drive_field_centric(
         self,
-        velocity_x: meters_per_second,
-        velocity_y: meters_per_second,
-        rotation_rate: radians_per_second,
+        *,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        rotation_rate: radians_per_second = 0.0,
     ) -> None:
         """Drive the robot using field-centric control.
 
         Args:
-            velocity_x: Forward velocity in m/s (positive = forward on field).
-            velocity_y: Left velocity in m/s (positive = left on field).
+            velocity_x: Forward velocity in m/s (positive = toward red alliance).
+            velocity_y: Left velocity in m/s (positive = left on field for blue alliance).
             rotation_rate: Counter-clockwise rotation rate in rad/s.
         """
         self._pending_request = (
@@ -103,21 +104,6 @@ class Drivetrain:
             .with_velocity_y(velocity_y)
             .with_rotational_rate(rotation_rate)
         )
-
-    def drive(
-        self,
-        forward_speed: meters_per_second = 0,
-        left_speed: meters_per_second = 0,
-        ccw_speed: radians_per_second = 0,
-    ) -> None:
-        """Drive using field-centric control (legacy API for compatibility).
-
-        Args:
-            forward_speed: Forward velocity in m/s.
-            left_speed: Left velocity in m/s.
-            ccw_speed: Counter-clockwise rotation rate in rad/s.
-        """
-        self.drive_field_centric(forward_speed, left_speed, ccw_speed)
 
     def brake(self) -> None:
         """Set wheels to X-pattern brake configuration."""
@@ -157,7 +143,7 @@ class Drivetrain:
         )
 
         # Apply the speeds using field-relative control
-        self.drive_field_centric(speeds.vx, speeds.vy, speeds.omega)
+        self.drive_field_centric(velocity_x=speeds.vx, velocity_y=speeds.vy, rotation_rate=speeds.omega)
 
     def reset_pose(self, pose: Pose2d) -> None:
         """Reset the robot's estimated pose.
