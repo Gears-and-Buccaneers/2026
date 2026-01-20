@@ -16,30 +16,19 @@
           "incKey": 83
         },
         {
-          "decayRate": 5.0,
-          "incKey": 69
-        },
-        {
-          "incKey": 81
-        },
-        {
-          "decKey": 264,
-          "incKey": 265
-        },
-        {
-          "decKey": 263,
-          "incKey": 262
+          "decKey": 69,
+          "decayRate": 0.0,
+          "incKey": 82,
+          "keyRate": 0.009999999776482582
         }
       ],
-      "axisCount": 6,
-      "buttonCount": 6,
+      "axisCount": 3,
+      "buttonCount": 4,
       "buttonKeys": [
         90,
         88,
         67,
-        86,
-        66,
-        78
+        86
       ],
       "povConfig": [
         {
@@ -77,6 +66,16 @@
       "povCount": 0
     },
     {
+      "axisConfig": [
+        {
+          "decKey": 263,
+          "incKey": 262
+        },
+        {
+          "decKey": 265,
+          "incKey": 264
+        }
+      ],
       "axisCount": 2,
       "buttonCount": 6,
       "buttonKeys": [
@@ -96,7 +95,6 @@
     }
   ],
   "robotJoysticks": [
-    {},
     {
       "guid": "Keyboard0"
     }

@@ -22,7 +22,7 @@
 .AppleDouble
 .LSOverride
 
-# Icon must end with two
+# Icon must end with two 
 Icon
 
 # Thumbnails
@@ -76,7 +76,6 @@ out/
 # Simulation GUI and other tools window save file
 networktables.json
 simgui.json
-simgui-ds.json
 *-window.json
 
 # Simulation data log directory
@@ -225,3 +224,4 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+    
