@@ -13,6 +13,7 @@ dependencies = [
     "robotpy[apriltag,sim]>=2026.1.1",
     "phoenix6",
     "sleipnirgroup-choreolib",
+    "photonlibpy",
 ]
 
 [tool.robotpy]
@@ -37,6 +38,7 @@ components = [
 requires = [
     "phoenix6",
     "sleipnirgroup-choreolib",
+    "photonlibpy",
 ]
 
 [tool.ruff]
