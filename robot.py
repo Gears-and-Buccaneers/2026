@@ -1,6 +1,7 @@
 """Starting point for Robot code."""
 
 import math
+import os
 
 import magicbot
 import wpilib
@@ -21,6 +22,13 @@ class Scurvy(magicbot.MagicRobot):
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
     driver_controller: components.DriverController
+
+    def __init__(self) -> None:
+        """Initialize the robot."""
+        super().__init__()
+
+        # Have we told the Drivetrain which alliance we are on yet?
+        self._has_applied_operator_perspective = False
 
     # ------------------------------------------------------------------------------------------------------------------
     # MagicBot methods called at the right time; implement these as desired.
@@ -103,7 +111,7 @@ class Scurvy(magicbot.MagicRobot):
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
-        pass
+        self.maybe_set_operator_perspective()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Helper methods
@@ -119,7 +127,11 @@ class Scurvy(magicbot.MagicRobot):
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here."""
-        self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+        # Check if we're supposed to be using a USB gamepad for the driver, or XBox controller
+        if os.getenv("USE_DRIVER_USB_GAMEPAD") == "1":
+            self.driver_controller = components.DriverUSBGamepad(const.ControllerPort.DRIVER_CONTROLLER)
+        else:
+            self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
 
     def createLights(self) -> None:
         """Set up CAN objects for lights."""
@@ -127,25 +139,30 @@ class Scurvy(magicbot.MagicRobot):
 
     def manuallyDrive(self) -> None:
         """Drive the robot based on controller input."""
-        # Joystick values are positive to the right and down
-        strafe_right_percent, reverse_percent = self.driver_controller.getLeftStick()
-        rotate_right_percent = self.driver_controller.getRightX()
-
-        # Check if brake button is pressed
+        # Check if X-stance button is pressed
         if self.driver_controller.should_brake():
             self.drivetrain.brake()
         else:
-            # We invert joystick values to get the desired robot motion for blue alliance
-            # Joystick: down=positive, right=positive
-            # Blue alliance: forward=positive, left=positive, CCW=positive
             max_speed = TunerConstants.speed_at_12_volts
 
-            # Invert the X and Y values if we are on the red alliance, so pushing joystick forward moves us towards blue
-            if wpilib.DriverStation.getAlliance() == wpilib.DriverStation.Alliance.kRed:
-                max_speed = -max_speed
-
+            # Note that the drivetrain automatically handles field-centric control
+            # so that "forward" on the joystick is always away from the driver,
+            # regardless of which alliance the team is assigned to.
             self.drivetrain.drive_field_centric(
-                velocity_x=-reverse_percent * max_speed,
-                velocity_y=-strafe_right_percent * max_speed,
-                rotation_rate=-rotate_right_percent * MAX_ROTATION_SPEED,
+                velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
+                velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
+                rotation_rate=self.driver_controller.get_rotate_counter_clockwise_percent() * MAX_ROTATION_SPEED,
             )
+
+        if self.driver_controller.should_zero_gyro():
+            self.drivetrain.zero_heading()
+
+    def maybe_set_operator_perspective(self) -> None:
+        """See if we need to set the "perspective" for operator-centric control."""
+        if self._has_applied_operator_perspective:
+            return
+
+        alliance: wpilib.DriverStation.Alliance | None = wpilib.DriverStation.getAlliance()
+        if alliance is not None and alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
+            self.drivetrain.set_operator_perspective_forward_orientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
+            self._has_applied_operator_perspective = True

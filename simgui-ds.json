@@ -23,12 +23,12 @@
           "incKey": 81
         },
         {
-          "decKey": 264,
-          "incKey": 265
-        },
-        {
           "decKey": 263,
           "incKey": 262
+        },
+        {
+          "decKey": 265,
+          "incKey": 264
         }
       ],
       "axisCount": 6,

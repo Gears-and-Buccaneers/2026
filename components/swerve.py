@@ -85,6 +85,22 @@ class Drivetrain:
         """Called by MagicBot after injection. Perform any additional setup here."""
         pass
 
+    def set_operator_perspective_forward_orientation(self, rotation: Rotation2d) -> None:
+        """Set the forward orientation for operator perspective control.
+
+        This tells the CTRE swerve library which direction is "forward"
+        from the operator's perspective, allowing for intuitive field-centric
+        control.
+
+        Args:
+            rotation: The rotation that defines the forward direction.
+        """
+        self._drivetrain.set_operator_perspective_forward(rotation)
+
+    def zero_heading(self) -> None:
+        """Tell the CTRE drivetrain that the robot's current forward heading is directly away from the driver."""
+        self._drivetrain.seed_field_centric()
+
     def drive_field_centric(
         self,
         *,
