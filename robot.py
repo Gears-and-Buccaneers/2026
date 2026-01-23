@@ -28,7 +28,7 @@ class Scurvy(magicbot.MagicRobot):
         super().__init__()
 
         # Have we told the Drivetrain which alliance we are on yet?
-        self._has_applied_operator_perspective = False
+        self._alliance_perspective: wpilib.DriverStation.Alliance | None = None
 
     # ------------------------------------------------------------------------------------------------------------------
     # MagicBot methods called at the right time; implement these as desired.
@@ -159,10 +159,14 @@ class Scurvy(magicbot.MagicRobot):
 
     def maybe_set_operator_perspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""
-        if self._has_applied_operator_perspective:
+        alliance: wpilib.DriverStation.Alliance | None = wpilib.DriverStation.getAlliance()
+        if alliance == self._alliance_perspective:
             return
 
-        alliance: wpilib.DriverStation.Alliance | None = wpilib.DriverStation.getAlliance()
-        if alliance is not None and alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
+        if alliance is None:
+            return  # Mostly to make static type checking happy.
+
+        # To be safe, be sure we didn't get put on an unknown alliance
+        if alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
             self.drivetrain.set_operator_perspective_forward_orientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
-            self._has_applied_operator_perspective = True
+            self._alliance_perspective = alliance
