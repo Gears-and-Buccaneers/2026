@@ -5,6 +5,7 @@ import os
 
 import magicbot
 import wpilib
+from magicbot import feedback
 from wpimath.geometry import Pose2d, Rotation2d
 
 import components
@@ -54,6 +55,7 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
+        self.hubIsActive()
 
     def disabledInit(self) -> None:
         """Called afer the on_disable() of all components."""
@@ -170,3 +172,28 @@ class Scurvy(magicbot.MagicRobot):
         if alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
             self.drivetrain.set_operator_perspective_forward_orientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
             self._alliance_perspective = alliance
+
+    @feedback
+    def hubIsActive(self) -> bool:
+        """Check if our alliance's hub is currently active for scoring."""
+        alliance = wpilib.DriverStation.getAlliance()
+        data = wpilib.DriverStation.getGameSpecificMessage()
+        if data in ("B", "R"):  # Checks if we won auto
+            self.won_auto = (data == "B") == (alliance == wpilib.DriverStation.Alliance.kBlue)
+        else:
+            return False
+
+        time_remaining = wpilib.Timer.getMatchTime()
+        can_score = True
+
+        if time_remaining < 30:
+            can_score = True
+
+        elif time_remaining < 130:  # Checks what block we are and if we can score
+            block = int((130 - time_remaining) // 25)
+            can_score = (block % 2 == 0) != self.won_auto
+
+        else:
+            can_score = True
+
+        return can_score

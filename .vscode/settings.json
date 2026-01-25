@@ -40,4 +40,31 @@
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true
 
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+
+    // Configure Outline to only show constants, classes, methods, and functions
+    "outline.showConstants": true,
+    "outline.showClasses": true,
+    "outline.showMethods": true,
+    "outline.showFunctions": true,
+    "outline.showVariables": false,
+    "outline.showModules": false,
+    "outline.showPackages": false,
+    "outline.showProperties": false,
+    "outline.showFields": false,
+    "outline.showConstructors": false,
+    "outline.showEnums": false,
+    "outline.showInterfaces": false,
+    "outline.showNamespaces": false,
+    "outline.showStrings": false,
+    "outline.showKeys": false,
+    "outline.showNumbers": false,
+    "outline.showBooleans": false,
+    "outline.showArrays": false,
+    "outline.showObjects": false,
+    "outline.showNull": false,
+    "outline.showEnumMembers": false,
+    "outline.showEvents": false,
+    "outline.showOperators": false,
+    "outline.showTypeParameters": false
 }
