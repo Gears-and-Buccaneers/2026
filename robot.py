@@ -56,7 +56,7 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
-        self.manuallyOperator()  # Assumes we always want to operate manually in teleop
+        self.manuallyOperate()  # Assumes we always want to operate manually in teleop
         self.hubIsActive()
 
     def disabledInit(self) -> None:
@@ -160,6 +160,10 @@ class Scurvy(magicbot.MagicRobot):
 
         if self.driver_controller.should_zero_gyro():
             self.drivetrain.zero_heading()
+
+    def manuallyOperate(self) -> None:
+        """Operate the robot based on controller input."""
+        pass
 
     def maybe_set_operator_perspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""

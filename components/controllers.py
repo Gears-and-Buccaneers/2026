@@ -77,6 +77,8 @@ class DriverUSBGamepad(DriverController):
 
 
 class OperatorController(wpilib.XboxController):
+    """Controller with information focused on the operator controls."""
+
     @feedback
     def shouldVomit(self) -> bool:
         """Determine if the outtake button is actively being pressed."""
