@@ -37,3 +37,15 @@ class Shooter:
             self.shooter_motor.set(0)
 
         self.enabled = False
+
+    def fallbackSpin(self):
+        """Gets the speed to a known location for the robot to shoot."""
+        print("Wow! good job, you called fallbackSpin!")
+
+    def shoot(self):
+        """Shoots the fuel from the robot."""
+        print("Wow! good job, you called shoot!")
+
+    def autoShooterMotorPower(self):
+        """Automatically spins the shooter motor to the correct positiono to shoot into the hub."""
+        print("Wow! good job, you called autoShooterMotorPower!")
