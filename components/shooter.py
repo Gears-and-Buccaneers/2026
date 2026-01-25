@@ -10,10 +10,10 @@ class Shooter:
     Pew! Pew!
     """
 
-    shooter_motor: wpilib.Talon
+    shooterMotor: wpilib.Talon
 
     # Shooter motor speed is tunable via NetworkTables
-    shoot_speed = magicbot.tunable(1.0)
+    shootSpeed = magicbot.tunable(1.0)
 
     def __init__(self):
         """Code to run when initially creating the shooter."""
@@ -23,7 +23,7 @@ class Shooter:
         """Causes the shooter motor to spin."""
         self.enabled = True
 
-    def is_ready(self):
+    def isReady(self):
         """Determine if the shooter is ready to fire."""
         # in a real robot, you'd be using an encoder to determine if the
         # shooter were at the right speed..
@@ -32,8 +32,8 @@ class Shooter:
     def execute(self):
         """This gets called at the end of the control loop."""
         if self.enabled:
-            self.shooter_motor.set(self.shoot_speed)
+            self.shooterMotor.set(self.shootSpeed)
         else:
-            self.shooter_motor.set(0)
+            self.shooterMotor.set(0)
 
         self.enabled = False

@@ -61,7 +61,10 @@ select = [
 
 
 ignore = [
-    "N802"   # Allow camelCase function names (required for MagicBot)
+    "N802",  # Allow camelCase function names (required for MagicBot)
+    "N803",  # Allow lowerCamelCase argument names (MagicBot field injection style)
+    "N806",  # Allow non-lowercase variable names (e.g., injected components/constants)
+    "N815",  # Allow mixedCase attributes
 ]
 
 

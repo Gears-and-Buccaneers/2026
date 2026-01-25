@@ -8,7 +8,7 @@ To create a new Choreo auto:
 2. Save the trajectory to deploy/choreo/your_trajectory.traj
 3. Create a new class that extends ChoreoAuto
 4. Set MODE_NAME, TRAJECTORY_NAME, and DISABLED = False
-5. Optionally override on_trajectory_start() and on_trajectory_end()
+5. Optionally override onTrajectoryStart() and onTrajectoryEnd()
 """
 
 from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto
@@ -34,7 +34,7 @@ class SimpleChoreoAuto(ChoreoAuto):
     # You can add other components here that will be injected by MagicBot
     # shooter: components.Shooter
 
-    def on_trajectory_start(self) -> None:
+    def onTrajectoryStart(self) -> None:
         """Called when the trajectory starts.
 
         Use this to start mechanisms at the beginning of auto.
@@ -43,7 +43,7 @@ class SimpleChoreoAuto(ChoreoAuto):
         # Example: self.shooter.spin_up()
         pass
 
-    def on_trajectory_end(self) -> None:
+    def onTrajectoryEnd(self) -> None:
         """Called when the trajectory ends.
 
         Use this to perform actions after the robot stops moving.
@@ -73,19 +73,19 @@ class SimpleChoreoAuto(ChoreoAuto):
 #     # Add components that will be injected
 #     shooter: components.Shooter
 #
-#     def setup_trajectories(self):
+#     def setupTrajectories(self):
 #         """Define the sequence of trajectories and actions."""
 #         return [
-#             ("start_to_piece1", self.intake_piece),
-#             ("piece1_to_speaker", self.score_piece),
-#             ("speaker_to_piece2", self.intake_piece),
-#             ("piece2_to_speaker", self.score_piece),
+#             ("start_to_piece1", self.intakePiece),
+#             ("piece1_to_speaker", self.scorePiece),
+#             ("speaker_to_piece2", self.intakePiece),
+#             ("piece2_to_speaker", self.scorePiece),
 #         ]
 #
-#     def intake_piece(self):
+#     def intakePiece(self):
 #         """Called after reaching each game piece position."""
 #         self.shooter.intake()
 #
-#     def score_piece(self):
+#     def scorePiece(self):
 #         """Called after reaching the scoring position."""
 #         self.shooter.shoot()

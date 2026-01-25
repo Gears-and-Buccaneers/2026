@@ -9,7 +9,7 @@ FIELD_LENGTH: units.meter = 16.541  # 651.22 inches
 FIELD_WIDTH: units.meter = 8.069  # 317.69 inches
 
 
-def mirror_pose(pose: Pose2d) -> Pose2d:
+def mirrorPose(pose: Pose2d) -> Pose2d:
     """Rotationally mirror a pose around the field center."""
     return Pose2d(
         FIELD_LENGTH - pose.X(),

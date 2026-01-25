@@ -9,7 +9,7 @@ import autonomous
 import components
 
 START_POSE_BLUE = Pose2d(2, 2.5, Rotation2d.fromDegrees(0))
-START_POSE_RED = autonomous.mirror_pose(START_POSE_BLUE)
+START_POSE_RED = autonomous.mirrorPose(START_POSE_BLUE)
 
 # FIXME: a hardcoded speed does not belong here; probably should be tunable
 DRIVE_SPEED: units.meters_per_second = 1.5
@@ -30,7 +30,7 @@ class JustLeavePlease(mb.AutonomousStateMachine):
         alliance = DriverStation.getAlliance()
 
         # Tell the drivetrain where our robot is on the field at start of auto
-        self.drivetrain.reset_pose(
+        self.drivetrain.resetPose(
             START_POSE_RED
             if alliance == DriverStation.Alliance.kRed
             else START_POSE_BLUE  # Pick the pose based on alliance color
@@ -46,4 +46,4 @@ class JustLeavePlease(mb.AutonomousStateMachine):
     @mb.timed_state(duration=3)
     def gogogo(self):
         """Drive towards the other alliance for a bit."""
-        self.drivetrain.drive(velocity_x=DRIVE_SPEED)
+        self.drivetrain.drive(velocityX=DRIVE_SPEED)
