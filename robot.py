@@ -1,11 +1,12 @@
 """Starting point for Robot code."""
 
 import math
+import os
 
 import magicbot
 import wpilib
-from wpimath.geometry import Pose2d, Rotation2d
 from magicbot import feedback
+from wpimath.geometry import Pose2d, Rotation2d
 
 import components
 import constants as const
@@ -13,7 +14,8 @@ from generated.tuner_constants import TunerConstants
 
 # Maximum rotation speed in rad/s
 MAX_ROTATION_SPEED = math.pi
-    
+
+
 class Scurvy(magicbot.MagicRobot):
     """The main class for the robot."""
 
@@ -21,6 +23,13 @@ class Scurvy(magicbot.MagicRobot):
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
     driver_controller: components.DriverController
+
+    def __init__(self) -> None:
+        """Initialize the robot."""
+        super().__init__()
+
+        # Have we told the Drivetrain which alliance we are on yet?
+        self._alliance_perspective: wpilib.DriverStation.Alliance | None = None
 
     # ------------------------------------------------------------------------------------------------------------------
     # MagicBot methods called at the right time; implement these as desired.
@@ -46,10 +55,7 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
-        
         self.hubIsActive()
-
-        # self.driveForward()
 
     def disabledInit(self) -> None:
         """Called afer the on_disable() of all components."""
@@ -79,35 +85,35 @@ class Scurvy(magicbot.MagicRobot):
 
         if self.test_state == "forward":
             if pose.X() < 1.0:
-                self.drivetrain.drive(forward_speed=test_speed, left_speed=0, ccw_speed=0)
+                self.drivetrain.drive(velocity_x=test_speed)
             else:
                 self.test_state = "wait_forward"
                 self.test_timer.restart()
                 print("Reached 1m, Waiting...")
 
         elif self.test_state == "wait_forward":
-            self.drivetrain.drive(0, 0, 0)
+            self.drivetrain.drive()
             if self.test_timer.hasElapsed(1.0):
                 self.test_state = "backward"
                 print("Driving Backward")
 
         elif self.test_state == "backward":
             if pose.X() > 0.0:
-                self.drivetrain.drive(forward_speed=-test_speed, left_speed=0, ccw_speed=0)
+                self.drivetrain.drive(velocity_x=-test_speed)
             else:
                 self.test_state = "wait_backward"
                 self.test_timer.restart()
                 print("Reached 0m, Waiting...")
 
         elif self.test_state == "wait_backward":
-            self.drivetrain.drive(0, 0, 0)
+            self.drivetrain.drive(velocity_x=0, velocity_y=0, rotation_rate=0)
             if self.test_timer.hasElapsed(1.0):
                 self.test_state = "forward"
                 print("Driving Forward")
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
-        pass
+        self.maybe_set_operator_perspective()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Helper methods
@@ -123,7 +129,11 @@ class Scurvy(magicbot.MagicRobot):
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here."""
-        self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+        # Check if we're supposed to be using a USB gamepad for the driver, or XBox controller
+        if os.getenv("USE_DRIVER_USB_GAMEPAD") == "1":
+            self.driver_controller = components.DriverUSBGamepad(const.ControllerPort.DRIVER_CONTROLLER)
+        else:
+            self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
 
     def createLights(self) -> None:
         """Set up CAN objects for lights."""
@@ -131,27 +141,42 @@ class Scurvy(magicbot.MagicRobot):
 
     def manuallyDrive(self) -> None:
         """Drive the robot based on controller input."""
-        # Joystick values are positive to the right and down
-        strafe_right_percent, reverse_percent = self.driver_controller.getLeftStick()
-        rotate_right_percent = self.driver_controller.getRightX()
-
-        # Check if brake button is pressed
+        # Check if X-stance button is pressed
         if self.driver_controller.should_brake():
             self.drivetrain.brake()
         else:
-            # We invert joystick values to get the desired robot motion
-            # Joystick: down=positive, right=positive
-            # Robot: forward=positive, left=positive, CCW=positive
             max_speed = TunerConstants.speed_at_12_volts
+
+            # Note that the drivetrain automatically handles field-centric control
+            # so that "forward" on the joystick is always away from the driver,
+            # regardless of which alliance the team is assigned to.
             self.drivetrain.drive(
-                forward_speed=-reverse_percent * max_speed,
-                left_speed=-strafe_right_percent * max_speed,
-                ccw_speed=-rotate_right_percent * MAX_ROTATION_SPEED,
+                velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
+                velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
+                rotation_rate=self.driver_controller.get_rotate_counter_clockwise_percent() * MAX_ROTATION_SPEED,
             )
+
+        if self.driver_controller.should_zero_gyro():
+            self.drivetrain.zero_heading()
+
+    def maybe_set_operator_perspective(self) -> None:
+        """See if we need to set the "perspective" for operator-centric control."""
+        alliance: wpilib.DriverStation.Alliance | None = wpilib.DriverStation.getAlliance()
+        if alliance == self._alliance_perspective:
+            return
+
+        if alliance is None:
+            return  # Mostly to make static type checking happy.
+
+        # To be safe, be sure we didn't get put on an unknown alliance
+        if alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
+            self.drivetrain.set_operator_perspective_forward_orientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
+            self._alliance_perspective = alliance
 
     @feedback
     def hubIsActive(self) -> bool:
-        alliance =  wpilib.DriverStation.getAlliance()
+        """Check if our alliance's hub is currently active for scoring."""
+        alliance = wpilib.DriverStation.getAlliance()
         data = wpilib.DriverStation.getGameSpecificMessage()
         if data in ("B", "R"):  # Checks if we won auto
             self.won_auto = (data == "B") == (alliance == wpilib.DriverStation.Alliance.kBlue)
@@ -170,5 +195,5 @@ class Scurvy(magicbot.MagicRobot):
 
         else:
             can_score = True
-        
+
         return can_score
