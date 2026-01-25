@@ -83,28 +83,28 @@ class Scurvy(magicbot.MagicRobot):
 
         if self.test_state == "forward":
             if pose.X() < 1.0:
-                self.drivetrain.drive_field_centric(velocity_x=test_speed)
+                self.drivetrain.drive(velocity_x=test_speed)
             else:
                 self.test_state = "wait_forward"
                 self.test_timer.restart()
                 print("Reached 1m, Waiting...")
 
         elif self.test_state == "wait_forward":
-            self.drivetrain.drive_field_centric()
+            self.drivetrain.drive()
             if self.test_timer.hasElapsed(1.0):
                 self.test_state = "backward"
                 print("Driving Backward")
 
         elif self.test_state == "backward":
             if pose.X() > 0.0:
-                self.drivetrain.drive_field_centric(velocity_x=-test_speed)
+                self.drivetrain.drive(velocity_x=-test_speed)
             else:
                 self.test_state = "wait_backward"
                 self.test_timer.restart()
                 print("Reached 0m, Waiting...")
 
         elif self.test_state == "wait_backward":
-            self.drivetrain.drive_field_centric(velocity_x=0, velocity_y=0, rotation_rate=0)
+            self.drivetrain.drive(velocity_x=0, velocity_y=0, rotation_rate=0)
             if self.test_timer.hasElapsed(1.0):
                 self.test_state = "forward"
                 print("Driving Forward")
@@ -148,7 +148,7 @@ class Scurvy(magicbot.MagicRobot):
             # Note that the drivetrain automatically handles field-centric control
             # so that "forward" on the joystick is always away from the driver,
             # regardless of which alliance the team is assigned to.
-            self.drivetrain.drive_field_centric(
+            self.drivetrain.drive(
                 velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
                 velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
                 rotation_rate=self.driver_controller.get_rotate_counter_clockwise_percent() * MAX_ROTATION_SPEED,

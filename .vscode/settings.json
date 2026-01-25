@@ -33,6 +33,11 @@
 
     "todo-tree.filtering.excludeGlobs": [
         "/.venv/*/**" // Prevent TODO Tree extension from looking inside the virtual environment
-    ]
+    ],
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 
 }

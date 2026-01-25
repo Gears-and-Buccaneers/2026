@@ -16,27 +16,23 @@
           "incKey": 83
         },
         {
-          "decayRate": 5.0,
-          "incKey": 69
-        },
-        {
-          "incKey": 81
+          "decayRate": 5.0
         },
         {
           "decKey": 263,
           "incKey": 262
         },
         {
-          "decKey": 265,
-          "incKey": 264
+          "decKey": 264,
+          "incKey": 265
         }
       ],
       "axisCount": 6,
       "buttonCount": 6,
       "buttonKeys": [
         90,
+        -1,
         88,
-        67,
         86,
         66,
         78
@@ -96,7 +92,6 @@
     }
   ],
   "robotJoysticks": [
-    {},
     {
       "guid": "Keyboard0"
     }

@@ -1,18 +1,11 @@
 """Swerve drivetrain using CTRE Phoenix 6 swerve API."""
 
 import math
-from typing import Optional
 
 from choreo.trajectory import SwerveSample
 from magicbot import feedback
+from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
-from phoenix6.swerve import SwerveDrivetrain
-from phoenix6.swerve.requests import (
-    FieldCentric,
-    Idle,
-    SwerveDriveBrake,
-    SwerveRequest,
-)
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
 from wpimath.geometry import Pose2d, Rotation2d
@@ -44,7 +37,7 @@ class Drivetrain:
     def __init__(self) -> None:
         """Initialize the swerve drivetrain with all modules."""
         # Create the Phoenix 6 SwerveDrivetrain using TunerConstants
-        self._drivetrain = SwerveDrivetrain(
+        self._drivetrain = swerve.SwerveDrivetrain(
             TalonFX,
             TalonFX,
             CANcoder,
@@ -58,15 +51,23 @@ class Drivetrain:
         )
 
         # Create swerve requests for different drive modes
-        self._field_centric_request = FieldCentric()
-        self._brake_request = SwerveDriveBrake()
-        self._idle_request = Idle()
-
-        # Configure field-centric request defaults
-        self._field_centric_request = self._field_centric_request.with_deadband(0.05).with_rotational_deadband(0.05)
+        self._field_centric_request = (
+            swerve.requests.FieldCentric()
+            .with_deadband(0.05)
+            .with_rotational_deadband(0.05)
+            .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.BLUE_ALLIANCE)
+        )
+        self._operator_centric_request = (
+            swerve.requests.FieldCentric()
+            .with_deadband(0.05)
+            .with_rotational_deadband(0.05)
+            .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.OPERATOR_PERSPECTIVE)
+        )
+        self._brake_request = swerve.requests.SwerveDriveBrake()
+        self._idle_request = swerve.requests.Idle()
 
         # Pending request to apply in execute()
-        self._pending_request: Optional[SwerveRequest] = None
+        self._pending_request: swerve.requests.SwerveRequest | None = None
 
         # Field widget for simulation/dashboard
         self._field = Field2d()
@@ -101,6 +102,27 @@ class Drivetrain:
         """Tell the CTRE drivetrain that the robot's current forward heading is directly away from the driver."""
         self._drivetrain.seed_field_centric()
 
+    def drive(
+        self,
+        *,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        rotation_rate: radians_per_second = 0.0,
+    ) -> None:
+        """Drive the robot using operator-centric control.
+
+        Args:
+            velocity_x: Forward velocity in m/s (positive = away from driver).
+            velocity_y: Left velocity in m/s (positive = to driver's left).
+            rotation_rate: Counter-clockwise rotation rate in rad/s.
+        """
+        # Operator perspective rotates the command by the operator's configured forward
+        self._pending_request = (
+            self._operator_centric_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_rotational_rate(rotation_rate)
+        )
+
     def drive_field_centric(
         self,
         *,
@@ -108,11 +130,13 @@ class Drivetrain:
         velocity_y: meters_per_second = 0.0,
         rotation_rate: radians_per_second = 0.0,
     ) -> None:
-        """Drive the robot using field-centric control.
+        """Drive the robot using field-centric control (global frame).
+
+        This is used by trajectory following where commands are field-relative.
 
         Args:
-            velocity_x: Forward velocity in m/s (positive = toward red alliance).
-            velocity_y: Left velocity in m/s (positive = left on field for blue alliance).
+            velocity_x: Forward velocity in m/s (positive = from blue alliance to red).
+            velocity_y: Left velocity in m/s (positive = to left from blue alliance to red).
             rotation_rate: Counter-clockwise rotation rate in rad/s.
         """
         self._pending_request = (

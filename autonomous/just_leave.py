@@ -46,4 +46,4 @@ class JustLeavePlease(mb.AutonomousStateMachine):
     @mb.timed_state(duration=3)
     def gogogo(self):
         """Drive towards the other alliance for a bit."""
-        self.drivetrain.drive_field_centric(velocity_x=DRIVE_SPEED)
+        self.drivetrain.drive(velocity_x=DRIVE_SPEED)
