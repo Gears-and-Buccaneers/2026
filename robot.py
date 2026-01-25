@@ -23,6 +23,7 @@ class Scurvy(magicbot.MagicRobot):
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
     driver_controller: components.DriverController
+    operator_controller: components.OperatorController
 
     def __init__(self) -> None:
         """Initialize the robot."""
@@ -55,6 +56,7 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
+        self.manuallyOperator()  # Assumes we always want to operate manually in teleop
         self.hubIsActive()
 
     def disabledInit(self) -> None:

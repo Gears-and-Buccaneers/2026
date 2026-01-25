@@ -1,6 +1,7 @@
 """Controllers for both the driver and operator."""
 
 import wpilib
+from magicbot import feedback
 
 
 class DriverController(wpilib.XboxController):
@@ -73,3 +74,26 @@ class DriverUSBGamepad(DriverController):
     def should_zero_gyro(self) -> bool:
         """Get whether the right bumper button was pressed since the last check."""
         return self.getRawButtonPressed(6)
+
+
+class OperatorController(wpilib.XboxController):
+    @feedback
+    def shouldVomit(self) -> bool:
+        """Determine if the outtake button is actively being pressed."""
+        return self.getOperatorLeftTriggerButton()
+
+    def shouldSmartAim(self) -> bool:
+        """Determine if the auto aim button is actively being pressed."""
+        return self.getOperatorRightTriggerButton()
+
+    def shouldShoot(self) -> bool:
+        """Determine if the shoot button is actively being pressed."""
+        return self.getOperatorLeftTriggerButton()
+
+    def shouldSetFallbackShooterSpinSpeed(self) -> bool:
+        """Determine if the set-shooter-speed-to-predifened-speed button is actively being pressed."""
+        return self.getOperatorYButton()
+
+    def set_HGV_RGB_LEDs(self) -> float:
+        """Determine if the left joystick has been moved and if so, by how much."""
+        return -self.getOperatorLeftX(), -self.getOperatorLeftY()
