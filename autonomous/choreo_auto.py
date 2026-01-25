@@ -10,10 +10,10 @@ Example usage:
         TRAJECTORY_NAME = "my_trajectory"  # Loads from deploy/choreo/my_trajectory.traj
 
         # Optional: Override to add actions at different points
-        def on_trajectory_start(self):
+        def onTrajectoryStart(self):
             self.shooter.spin_up()
 
-        def on_trajectory_end(self):
+        def onTrajectoryEnd(self):
             self.shooter.shoot()
 """
 
@@ -64,17 +64,17 @@ class ChoreoAuto(mb.AutonomousStateMachine):
     drivetrain: components.Drivetrain
 
     # Class-level trajectory cache to avoid reloading
-    _trajectory_cache: dict[str, SwerveTrajectory | None] = {}
+    _trajectoryCache: dict[str, SwerveTrajectory | None] = {}
 
     def __init__(self) -> None:
         """Initialize the autonomous state machine."""
         super().__init__()
         self._trajectory: SwerveTrajectory | None = None
         self._timer = wpilib.Timer()
-        self._trajectory_finished = False
+        self._trajectoryFinished = False
 
     @classmethod
-    def load_trajectory(cls, name: str) -> SwerveTrajectory | None:
+    def loadTrajectory(cls, name: str) -> SwerveTrajectory | None:
         """Load a trajectory by name, with caching.
 
         Trajectories are cached at the class level so they only need to be
@@ -86,12 +86,12 @@ class ChoreoAuto(mb.AutonomousStateMachine):
         Returns:
             The loaded trajectory, or None if it couldn't be loaded.
         """
-        if name not in cls._trajectory_cache:
+        if name not in cls._trajectoryCache:
             try:
                 # load_swerve_trajectory returns Optional[SwerveTrajectory]
                 # It loads from deploy/choreo/{name}.traj
                 trajectory = load_swerve_trajectory(name)
-                cls._trajectory_cache[name] = trajectory
+                cls._trajectoryCache[name] = trajectory
                 if trajectory is None:
                     wpilib.reportWarning(
                         f"Choreo: Could not load trajectory '{name}'. Make sure deploy/choreo/{name}.traj exists.",
@@ -99,12 +99,12 @@ class ChoreoAuto(mb.AutonomousStateMachine):
                     )
             except Exception as e:
                 wpilib.reportError(f"Choreo: Error loading trajectory '{name}': {e}", True)
-                cls._trajectory_cache[name] = None
+                cls._trajectoryCache[name] = None
 
-        return cls._trajectory_cache[name]
+        return cls._trajectoryCache.get(name)
 
     @staticmethod
-    def is_red_alliance() -> bool:
+    def isRedAlliance() -> bool:
         """Check if we're on the red alliance.
 
         Choreo trajectories can be mirrored for the red alliance.
@@ -123,42 +123,42 @@ class ChoreoAuto(mb.AutonomousStateMachine):
 
         # Load the trajectory if not already loaded
         if self.TRAJECTORY_NAME:
-            self._trajectory = self.load_trajectory(self.TRAJECTORY_NAME)
+            self._trajectory = self.loadTrajectory(self.TRAJECTORY_NAME)
         else:
             wpilib.reportError(f"{self.MODE_NAME} has no TRAJECTORY_NAME set!", False)
             self._trajectory = None
 
         # Reset state
-        self._trajectory_finished = False
+        self._trajectoryFinished = False
 
         # Set the robot's starting pose to match the trajectory
         if self._trajectory is not None:
-            initial_pose = self._trajectory.get_initial_pose(self.is_red_alliance())
+            initial_pose = self._trajectory.get_initial_pose(self.isRedAlliance())
             if initial_pose is not None:
-                self.drivetrain.reset_pose(initial_pose)
+                self.drivetrain.resetPose(initial_pose)
                 wpilib.reportError(
                     f"ATTENTION: Starting pose set to {initial_pose}, make sure that the right alliance is selected.",
                     False,
                 )
 
         # Call the user-defined start hook
-        self.on_trajectory_start()
+        self.onTrajectoryStart()
 
-    def on_trajectory_start(self) -> None:
+    def onTrajectoryStart(self) -> None:
         """Called when the trajectory starts. Override this to add custom behavior.
 
         Example: Start spinning up a shooter, deploy an intake, etc.
         """
         pass
 
-    def on_trajectory_end(self) -> None:
+    def onTrajectoryEnd(self) -> None:
         """Called when the trajectory ends. Override this to add custom behavior.
 
         Example: Shoot a game piece, stop the intake, etc.
         """
         pass
 
-    def during_trajectory(self, elapsed_time: float, total_time: float) -> None:
+    def duringTrajectory(self, elapsedTime: float, totalTime: float) -> None:
         """Called every loop iteration while the trajectory is running.
 
         Override this to perform actions while the robot is moving.
@@ -168,16 +168,16 @@ class ChoreoAuto(mb.AutonomousStateMachine):
         - Deploying mechanisms at specific times
 
         Args:
-            elapsed_time: Seconds since the trajectory started.
-            total_time: Total duration of the trajectory in seconds.
+            elapsedTime: Seconds since the trajectory started.
+            totalTime: Total duration of the trajectory in seconds.
 
         Example:
-            def during_trajectory(self, elapsed_time: float, total_time: float) -> None:
+            def duringTrajectory(self, elapsedTime: float, totalTime: float) -> None:
                 # Run intake the whole time
                 self.intake.run()
 
                 # Spin up shooter when 75% through the path
-                if elapsed_time > total_time * 0.75:
+                if elapsedTime > totalTime * 0.75:
                     self.shooter.spin_up()
         """
         pass
@@ -187,7 +187,7 @@ class ChoreoAuto(mb.AutonomousStateMachine):
     # -------------------------------------------------------------------------
 
     @mb.state(first=True)
-    def start_trajectory(self) -> None:
+    def startTrajectory(self) -> None:
         """Start following the trajectory."""
         if self._trajectory is None:
             # No trajectory loaded, just stop
@@ -196,46 +196,46 @@ class ChoreoAuto(mb.AutonomousStateMachine):
 
         # Start the timer for trajectory sampling
         self._timer.restart()
-        self.next_state("follow_trajectory")
+        self.next_state("followTrajectory")
 
     @mb.state()
-    def follow_trajectory(self) -> None:
+    def followTrajectory(self) -> None:
         """Follow the trajectory by sampling it at the current time."""
         if self._trajectory is None:
-            self.next_state("trajectory_complete")
+            self.next_state("trajectoryComplete")
             return
 
         # Get the current time in the trajectory
-        elapsed_time = self._timer.get()
+        elapsedTime = self._timer.get()
 
         # Check if we've finished the trajectory
-        total_time = self._trajectory.get_total_time()
-        if elapsed_time >= total_time:
-            self.next_state("trajectory_complete")
+        totalTime = self._trajectory.get_total_time()
+        if elapsedTime >= totalTime:
+            self.next_state("trajectoryComplete")
             return
 
-        # Call the during_trajectory hook for user actions while moving
-        self.during_trajectory(elapsed_time, total_time)
+        # Call the duringTrajectory hook for user actions while moving
+        self.duringTrajectory(elapsedTime, totalTime)
 
         # Sample the trajectory at the current time
-        sample = self._trajectory.sample_at(elapsed_time, self.is_red_alliance())
+        sample = self._trajectory.sample_at(elapsedTime, self.isRedAlliance())
 
         if sample is not None:
             # Follow the trajectory sample
-            self.drivetrain.follow_trajectory(sample)
+            self.drivetrain.followTrajectory(sample)
         else:
             # Couldn't get a sample, just stop
             self.drivetrain.stop()
 
     @mb.state()
-    def trajectory_complete(self) -> None:
+    def trajectoryComplete(self) -> None:
         """Called when the trajectory is finished."""
-        if not self._trajectory_finished:
-            self._trajectory_finished = True
+        if not self._trajectoryFinished:
+            self._trajectoryFinished = True
             # Stop the robot
             self.drivetrain.stop()
             # Call user-defined end hook
-            self.on_trajectory_end()
+            self.onTrajectoryEnd()
 
         # Stay stopped
         self.drivetrain.stop()
@@ -245,7 +245,7 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
     """Base class for autonomous routines with multiple Choreo trajectories.
 
     This class allows you to chain multiple trajectories together with
-    custom actions between them. Override the setup_trajectories() method
+    custom actions between them. Override the setupTrajectories() method
     to define your sequence.
 
     Example:
@@ -254,7 +254,7 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
 
             shooter: components.Shooter  # Will be injected
 
-            def setup_trajectories(self):
+            def setupTrajectories(self):
                 # Define a sequence of (trajectory_name, action_after) tuples
                 return [
                     ("drive_to_piece1", self.intake_piece),
@@ -277,12 +277,12 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
     def __init__(self) -> None:
         """Initialize the autonomous state machine."""
         super().__init__()
-        self._trajectories: ListNamedCallbacks = []
-        self._current_trajectory_index = 0
-        self._current_trajectory: SwerveTrajectory | None = None
+        self._trajectoryList: ListNamedCallbacks = []
+        self._currentTrajectoryIndex = 0
+        self._currentTrajectory: SwerveTrajectory | None = None
         self._timer = wpilib.Timer()
 
-    def setup_trajectories(self) -> ListNamedCallbacks:
+    def setupTrajectories(self) -> ListNamedCallbacks:
         """Define the sequence of trajectories and actions.
 
         Override this method to define your autonomous sequence.
@@ -294,108 +294,106 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
         """
         return []
 
-    def during_trajectory(
-        self, trajectory_index: int, trajectory_name: str, elapsed_time: float, total_time: float
-    ) -> None:
+    def duringTrajectory(self, trajectoryIndex: int, trajectoryName: str, elapsedTime: float, totalTime: float) -> None:
         """Called every loop iteration while any trajectory is running.
 
         Override this to perform actions while the robot is moving.
 
         Args:
-            trajectory_index: Which trajectory we're on (0, 1, 2, ...).
-            trajectory_name: Name of the current trajectory.
-            elapsed_time: Seconds since this trajectory started.
-            total_time: Total duration of this trajectory in seconds.
+            trajectoryIndex: Which trajectory we're on (0, 1, 2, ...).
+            trajectoryName: Name of the current trajectory.
+            elapsedTime: Seconds since this trajectory started.
+            totalTime: Total duration of this trajectory in seconds.
 
         Example:
-            def during_trajectory(self, trajectory_index, trajectory_name, elapsed_time, total_time):
+            def duringTrajectory(self, trajectoryIndex, trajectoryName, elapsedTime, totalTime):
                 # Always run intake while moving
                 self.intake.run()
 
                 # Spin up shooter during the "drive_to_speaker" trajectory
-                if trajectory_name == "drive_to_speaker" and elapsed_time > total_time * 0.5:
+                if trajectoryName == "drive_to_speaker" and elapsedTime > totalTime * 0.5:
                     self.shooter.spin_up()
         """
         pass
 
-    def on_enable(self) -> None:
+    def onEnable(self) -> None:
         """Called when autonomous mode starts."""
         super().on_enable()
 
-        self._trajectories = self.setup_trajectories()
-        self._current_trajectory_index = 0
-        self._load_current_trajectory()
+        self._trajectoryList = self.setupTrajectories()
+        self._currentTrajectoryIndex = 0
+        self._loadCurrentTrajectory()
 
         # Set initial pose from first trajectory
-        if self._current_trajectory is not None:
-            initial_pose = self._current_trajectory.get_initial_pose(ChoreoAuto.is_red_alliance())
+        if self._currentTrajectory is not None:
+            initial_pose = self._currentTrajectory.get_initial_pose(ChoreoAuto.isRedAlliance())
             if initial_pose is not None:
-                self.drivetrain.reset_pose(initial_pose)
+                self.drivetrain.resetPose(initial_pose)
 
-    def _load_current_trajectory(self) -> None:
+    def _loadCurrentTrajectory(self) -> None:
         """Load the current trajectory from the sequence."""
-        if self._current_trajectory_index < len(self._trajectories):
-            name, _ = self._trajectories[self._current_trajectory_index]
-            self._current_trajectory = ChoreoAuto.load_trajectory(name)
+        if self._currentTrajectoryIndex < len(self._trajectoryList):
+            name, _ = self._trajectoryList[self._currentTrajectoryIndex]
+            self._currentTrajectory = ChoreoAuto.loadTrajectory(name)
         else:
-            self._current_trajectory = None
+            self._currentTrajectory = None
 
     @mb.state(first=True)
-    def start_trajectory(self) -> None:
+    def startTrajectory(self) -> None:
         """Start following the current trajectory."""
-        if self._current_trajectory is None:
-            self.next_state("all_complete")
+        if self._currentTrajectory is None:
+            self.next_state("allComplete")
             return
 
         self._timer.restart()
-        self.next_state("follow_trajectory")
+        self.next_state("followTrajectory")
 
     @mb.state()
-    def follow_trajectory(self) -> None:
+    def followTrajectory(self) -> None:
         """Follow the current trajectory."""
-        if self._current_trajectory is None:
-            self.next_state("run_action")
+        if self._currentTrajectory is None:
+            self.next_state("runAction")
             return
 
-        elapsed_time = self._timer.get()
-        total_time = self._current_trajectory.get_total_time()
+        elapsedTime = self._timer.get()
+        totalTime = self._currentTrajectory.get_total_time()
 
-        if elapsed_time >= total_time:
-            self.next_state("run_action")
+        if elapsedTime >= totalTime:
+            self.next_state("runAction")
             return
 
-        # Call the during_trajectory hook for user actions while moving
-        if self._current_trajectory_index < len(self._trajectories):
-            trajectory_name, _ = self._trajectories[self._current_trajectory_index]
-            self.during_trajectory(self._current_trajectory_index, trajectory_name, elapsed_time, total_time)
+        # Call the duringTrajectory hook for user actions while moving
+        if self._currentTrajectoryIndex < len(self._trajectoryList):
+            trajectoryName, _ = self._trajectoryList[self._currentTrajectoryIndex]
+            self.duringTrajectory(self._currentTrajectoryIndex, trajectoryName, elapsedTime, totalTime)
 
-        sample = self._current_trajectory.sample_at(elapsed_time, ChoreoAuto.is_red_alliance())
+        sample = self._currentTrajectory.sample_at(elapsedTime, ChoreoAuto.isRedAlliance())
         if sample is not None:
-            self.drivetrain.follow_trajectory(sample)
+            self.drivetrain.followTrajectory(sample)
         else:
             self.drivetrain.stop()
 
     @mb.state()
-    def run_action(self) -> None:
+    def runAction(self) -> None:
         """Run the action for the current trajectory, then move to the next."""
         self.drivetrain.stop()
 
         # Run the action if one was defined
-        if self._current_trajectory_index < len(self._trajectories):
-            _, action = self._trajectories[self._current_trajectory_index]
+        if self._currentTrajectoryIndex < len(self._trajectoryList):
+            _, action = self._trajectoryList[self._currentTrajectoryIndex]
             if action is not None:
                 action()
 
         # Move to the next trajectory
-        self._current_trajectory_index += 1
-        self._load_current_trajectory()
+        self._currentTrajectoryIndex += 1
+        self._loadCurrentTrajectory()
 
-        if self._current_trajectory is not None:
-            self.next_state("start_trajectory")
+        if self._currentTrajectory is not None:
+            self.next_state("startTrajectory")
         else:
-            self.next_state("all_complete")
+            self.next_state("allComplete")
 
     @mb.state()
-    def all_complete(self) -> None:
+    def allComplete(self) -> None:
         """All trajectories complete, just stay stopped."""
         self.drivetrain.stop()

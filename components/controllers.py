@@ -14,7 +14,7 @@ class DriverController(wpilib.XboxController):
     - Arrow keys: Right stick (strafe/forward-back)
     """
 
-    def get_move_forward_percent(self) -> float:
+    def getMoveForwardPercent(self) -> float:
         """Get the desired forward/reverse percent from the "move" stick.
 
         Returns:
@@ -23,7 +23,7 @@ class DriverController(wpilib.XboxController):
         # Invert so that pushing up on the stick is positive
         return -self.getRightY()
 
-    def get_move_left_percent(self) -> float:
+    def getMoveLeftPercent(self) -> float:
         """Get the desired left/right percent from the "move" stick.
 
         Returns:
@@ -32,7 +32,7 @@ class DriverController(wpilib.XboxController):
         # Invert so that pushing left on the stick is positive
         return -self.getRightX()
 
-    def get_rotate_counter_clockwise_percent(self) -> float:
+    def getRotateCounterClockwisePercent(self) -> float:
         """Get the desired rotation percent from the "rotate" stick.
 
         Returns:
@@ -41,11 +41,11 @@ class DriverController(wpilib.XboxController):
         # Invert so that pushing left on the stick is positive
         return -self.getLeftX()
 
-    def should_brake(self) -> bool:
+    def shouldBrake(self) -> bool:
         """Determine if the brake button is actively being pressed."""
         return self.getXButton()
 
-    def should_zero_gyro(self) -> bool:
+    def shouldZeroGyro(self) -> bool:
         """Determine if the zero gyro button is actively being pressed."""
         # TODO: should this use "getRightBumperButtonPressed" or "getRightBumperButton" (which can be held)?
         return self.getRightBumperButtonPressed()
@@ -54,22 +54,22 @@ class DriverController(wpilib.XboxController):
 class DriverUSBGamepad(DriverController):
     """Driver controller using a generic USB gamepad."""
 
-    def get_rotate_counter_clockwise_percent(self) -> float:
+    def getRotateCounterClockwisePercent(self) -> float:
         """The rotation axis."""
         return -self.getRawAxis(0)
 
-    def get_move_left_percent(self) -> float:
+    def getMoveLeftPercent(self) -> float:
         """The left/right axis."""
         return -self.getRawAxis(3)
 
-    def get_move_forward_percent(self) -> float:
+    def getMoveForwardPercent(self) -> float:
         """The forward/reverse axis."""
         return self.getRawAxis(4)
 
-    def should_brake(self) -> bool:
+    def shouldBrake(self) -> bool:
         """Get the state of the X button."""
         return self.getRawButton(3)
 
-    def should_zero_gyro(self) -> bool:
+    def shouldZeroGyro(self) -> bool:
         """Get whether the right bumper button was pressed since the last check."""
         return self.getRawButtonPressed(6)
