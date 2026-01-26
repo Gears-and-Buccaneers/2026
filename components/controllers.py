@@ -92,7 +92,7 @@ class OperatorController(wpilib.XboxController):
 
     def shouldShoot(self) -> bool:
         """Determine if the shoot button is actively being pressed."""
-        return self.getOperatorLeftTriggerButton()
+        return self.getRightBumperButton()
 
     def shouldSetFallbackShooterSpinSpeed(self) -> bool:
         """Determine if the set-shooter-speed-to-predifened-speed button is actively being pressed."""
