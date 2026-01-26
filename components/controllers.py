@@ -82,7 +82,8 @@ class OperatorController(wpilib.XboxController):
     @feedback
     def shouldVomit(self) -> bool:
         """Determine if the outtake button is actively being pressed."""
-        return self.getOperatorLeftTriggerButton()
+        # Check if the left trigger is more than halfway down
+        return self.getLeftTriggerAxis() > 0.5
 
     def shouldSmartAim(self) -> bool:
         """Determine if the auto aim button is actively being pressed."""
