@@ -87,7 +87,8 @@ class OperatorController(wpilib.XboxController):
 
     def shouldSmartAim(self) -> bool:
         """Determine if the auto aim button is actively being pressed."""
-        return self.getOperatorRightTriggerButton()
+        # Check if the right trigger is more than halfway down
+        return self.getRightTriggerAxis() > 0.5
 
     def shouldShoot(self) -> bool:
         """Determine if the shoot button is actively being pressed."""
