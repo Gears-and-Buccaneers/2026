@@ -2,6 +2,7 @@
 
 import magicbot
 import wpilib
+import wpimath.units as units
 
 
 class Shooter:
@@ -46,6 +47,6 @@ class Shooter:
         """Shoots the fuel from the robot."""
         print("Wow! good job, you called shoot!")
 
-    def autoShooterMotorPower(self):
+    def autoShooterMotorPower(self, distanceToHub: units.meters):
         """Automatically spins the shooter motor to the correct positiono to shoot into the hub."""
         print("Wow! good job, you called autoShooterMotorPower!")
