@@ -137,6 +137,11 @@ class Scurvy(magicbot.MagicRobot):
         else:
             self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
 
+        if os.getenv("USE_OPERATOR_USB_GAMEPAD") == "1":
+            self.operator_controller = components.OperatorUSBGamepad(const.ControllerPort.OPERATOR_CONTROLLER)
+        else:
+            self.operator_controller = components.OperatorController(const.ControllerPort.OPERATOR_CONTROLLER)
+
     def createLights(self) -> None:
         """Set up CAN objects for lights."""
         pass

@@ -99,3 +99,27 @@ class OperatorController(wpilib.XboxController):
     def set_HGV_RGB_LEDs(self) -> float:
         """Determine if the left joystick has been moved and if so, by how much."""
         return -self.getOperatorLeftX(), -self.getOperatorLeftY()
+
+
+class OperatorUSBGamepad(OperatorController):
+    """Operator controller using a generic USB gamepad."""
+
+    def shouldVomit(self) -> bool:
+        """The yes/no function for outtaking(Left Trigger)."""
+        return -self.getRawAxis(0) > 0.5
+
+    def shouldSmartAim(self) -> bool:
+        """The yes/no function for auto-aiming(Right Trigger)."""
+        return -self.getRawButton(0)
+
+    def shouldShoot(self) -> bool:
+        """The yes/no function for shooting(Right Bumper)."""
+        return self.getRawAxis(0) > 0.5
+
+    def shouldSetFallbackShooterSpinSpeed(self) -> bool:
+        """The yes/no function for shooting(Y button)."""
+        return self.getRawButton(0)
+
+    def set_HGV_RGB_LEDs(self) -> float:
+        """Determine if the left joystick has been moved and if so, by how much."""
+        return self.getRawAxis(4), self.getRawAxis(3)
