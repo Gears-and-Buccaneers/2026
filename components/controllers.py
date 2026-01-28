@@ -115,11 +115,6 @@ class OperatorController(wpilib.XboxController):
         """Determine if the set-shooter-speed-to-predifened-speed button is actively being pressed."""
         return self.getYButton()
 
-<<<<<<< HEAD
-    def set_HGV_RGB_LEDs(self) -> float:
-        """Determine if the left joystick has been moved and if so, by how much."""
-        return -self.getOperatorLeftX(), -self.getOperatorLeftY()
-=======
     def shouldToggleLEDMode(self) -> bool:
         """Determine if the LED mode toggle button was pressed since the last check."""
         return self.getLeftStickButtonPressed()
@@ -147,33 +142,12 @@ class OperatorController(wpilib.XboxController):
             s=255,
             v=round((circularX**2 + circularY**2) ** 0.5 * 255),
         )
->>>>>>> 8f7f72a92bf424e5fadebbaa40faf2f061d69c7e
 
 
 class OperatorUSBGamepad(OperatorController):
     """Operator controller using a generic USB gamepad."""
 
     def shouldVomit(self) -> bool:
-<<<<<<< HEAD
-        """The yes/no function for outtaking(Left Trigger)."""
-        return -self.getRawAxis(0) > 0.5
-
-    def shouldSmartAim(self) -> bool:
-        """The yes/no function for auto-aiming(Right Trigger)."""
-        return -self.getRawButton(0)
-
-    def shouldShoot(self) -> bool:
-        """The yes/no function for shooting(Right Bumper)."""
-        return self.getRawAxis(0) > 0.5
-
-    def shouldSetFallbackShooterSpinSpeed(self) -> bool:
-        """The yes/no function for shooting(Y button)."""
-        return self.getRawButton(0)
-
-    def set_HGV_RGB_LEDs(self) -> float:
-        """Determine if the left joystick has been moved and if so, by how much."""
-        return self.getRawAxis(4), self.getRawAxis(3)
-=======
         """Determine if the outtake button is actively being pressed."""
         return self.getRawAxis(2) > 0
 
@@ -200,4 +174,3 @@ class OperatorUSBGamepad(OperatorController):
         and the distance from center controls the brightness.
         """
         return self._colorFromStickValues(self.getRawAxis(0), self.getRawAxis(1))
->>>>>>> 8f7f72a92bf424e5fadebbaa40faf2f061d69c7e
