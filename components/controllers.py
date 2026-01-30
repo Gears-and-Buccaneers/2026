@@ -5,6 +5,8 @@ import math
 import wpilib
 from magicbot import feedback
 
+import utils
+
 
 def joystickSquareToCircle(x: float, y: float) -> tuple[float, float]:
     """Remap square joystick coordinates to be within a circle.
@@ -119,7 +121,7 @@ class OperatorController(wpilib.XboxController):
         """Determine if the LED mode toggle button was pressed since the last check."""
         return self.getLeftStickButtonPressed()
 
-    def customLEDColor(self) -> wpilib.Color:
+    def customLEDColor(self) -> wpilib.Color8Bit:
         """Use the left stick to pick a color based on its position.
 
         The rotational angle of the stick controls the hue, with red at the top,
@@ -127,7 +129,7 @@ class OperatorController(wpilib.XboxController):
         """
         return self._colorFromStickValues(self.getLeftX(), self.getLeftY())
 
-    def _colorFromStickValues(self, x: float, y: float) -> wpilib.Color:
+    def _colorFromStickValues(self, x: float, y: float) -> wpilib.Color8Bit:
         """Convert joystick x/y values to a color."""
         # The joystick values "move in a square", even when the stick moves in a circle.
         # For example, down and to the left is (-1, 1), which is a Euclidean distance of √2, but we want that
@@ -135,12 +137,10 @@ class OperatorController(wpilib.XboxController):
         # So, we remap the square joystick values to circular values.
         circularX, circularY = joystickSquareToCircle(x, y)
 
-        # The wpilib.Color.fromHSV function expects hue as an integer from [0, 180),
-        # saturation and value as an integer from [0, 255].
-        return wpilib.Color.fromHSV(
-            h=int(math.degrees(math.atan2(-circularX, -circularY) / 2)) % 180,
-            s=255,
-            v=round((circularX**2 + circularY**2) ** 0.5 * 255),
+        return utils.color8FromHSV(
+            h=math.degrees(math.atan2(-circularX, -circularY)),
+            s=1,
+            v=(circularX**2 + circularY**2) ** 0.5,
         )
 
 
@@ -167,7 +167,7 @@ class OperatorUSBGamepad(OperatorController):
         """Determine if the LED mode toggle button was pressed since the last check."""
         return self.getRawButtonPressed(6)
 
-    def customLEDColor(self) -> wpilib.Color:
+    def customLEDColor(self) -> wpilib.Color8Bit:
         """Use the left stick to pick a color based on its position.
 
         The rotational angle of the stick controls the hue, with red at the top,
