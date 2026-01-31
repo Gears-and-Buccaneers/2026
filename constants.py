@@ -46,10 +46,10 @@ class RobotDimension:
         units.inchesToMeters(15.0),  # Height from ground of center of fuel when launched
     )
 
-    SHOOTER_ANGLE: Final[units.radians] = units.degreesToRadians(65.0)
+    SHOOTER_ANGLE: Final[units.radians] = units.degreesToRadians(60.0)  # Selected angle (optimal: 75°)
 
-    # Flywheel radius for shooter
-    FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(4.0)
+    # Flywheel/wheel radius for shooter (wheels only, no flywheel)
+    FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(2.0)  # 4" diameter wheels
 
 
 class ControllerPort:
@@ -99,13 +99,60 @@ class Field:
             return geom.Translation2d(Field.HUB_CENTER_X, Field.HUB_CENTER_Y)
 
 
+class ShooterSpec:
+    """Shooter system specifications based on measured/calculated metrics.
+
+    Hardware Configuration:
+    - Motor: Kraken X60
+    - Motors per Side: 1
+    - Wheels per Side: 2
+    - Gear Ratio: 2:1
+    - Flywheel: None (wheels only)
+    """
+
+    # Motor and mechanical specs
+    MOTORS_PER_SIDE: Final[int] = 1
+    WHEELS_PER_SIDE: Final[int] = 2
+    GEAR_RATIO: Final[float] = 2.0  # 2:1 gear ratio
+
+    # Moment of inertia (converted from lb-in² to kg-m²)
+    # 3.6 lb-in² = 3.6 * 0.0002926397 kg-m² ≈ 0.00105 kg-m²
+    TOTAL_MOI_LB_IN_SQ: Final[float] = 3.6
+    TOTAL_MOI: Final[float] = 3.6 * 0.0002926397  # kg-m²
+
+    # Ball dynamics
+    BALL_INCOMING_VELOCITY: Final[units.meters_per_second] = 0.5  # m/s
+
+    # Performance metrics
+    RPM_MIN: Final[float] = 1479.0  # Minimum operating RPM
+    RPM_MAX: Final[float] = 2215.0  # Maximum operating RPM
+    HEADROOM_PERCENT: Final[float] = 23.6  # Available headroom percentage
+
+    # Spin-up times (in seconds)
+    SPINUP_TIME_8FT: Final[units.seconds] = 0.056  # 56 ms at 8ft
+    SPINUP_TIME_20FT: Final[units.seconds] = 0.096  # 96 ms at 20ft
+    SPINUP_BETWEEN_SHOTS_8FT: Final[units.seconds] = 0.028  # 28 ms between shots at 8ft
+    SPINUP_BETWEEN_SHOTS_20FT: Final[units.seconds] = 0.040  # 40 ms between shots at 20ft
+
+    # Speed drop per shot at different distances
+    SPEED_DROP_20FT_PERCENT: Final[float] = 30.8  # 30.8% speed drop at 20ft [needs attention]
+
+    # Sensitivity metrics
+    VELOCITY_SENSITIVITY: Final[float] = 1.195  # m/(m/s) - impact of velocity change on shot distance
+    ANGLE_SENSITIVITY: Final[float] = 0.065  # m/deg - impact of angle change on shot distance
+
+    # Consistency score (higher is better, 3.0+ is OK)
+    CONSISTENCY_SCORE: Final[float] = 3.06
+
+
 class Simulation:
     """Constants for simulation behavior."""
 
-    # Flywheel physics
-    FLYWHEEL_SPINUP_TIME: Final[units.seconds] = 1.0  # Time to reach full speed
-    # FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 1.0  # 0% reduction per shot
-    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 0.98  # 2% reduction per shot
+    # Flywheel physics - derived from ShooterSpec
+    # Use worst-case spin-up time (20ft) for conservative simulation
+    FLYWHEEL_SPINUP_TIME: Final[units.seconds] = ShooterSpec.SPINUP_TIME_20FT * 20  # Scale for full speed
+    # Speed drop per shot: 30.8% at 20ft = 69.2% retention
+    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 1.0 - (ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
 
     # Time between fuel launches (uniform random distribution)
     # FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.05
@@ -113,15 +160,22 @@ class Simulation:
     FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.1
     FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.5
 
+    # Shot-to-shot variation - minimal (1% total) for consistent simulation
+
     # Launch speed variation (±percentage of target speed)
-    # LAUNCH_SPEED_VARIATION: Final[float] = 0.0  # ±0%
-    LAUNCH_SPEED_VARIATION: Final[float] = 0.02  # ±2%
+    LAUNCH_SPEED_VARIATION: Final[float] = 0.005  # ±0.5%
 
     # Launch angle variation (random offset from ideal trajectory)
-    # LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° left/right
-    # LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° up/down
-    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(2.0)  # ±2° left/right
-    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(1.0)  # ±1° up/down
+    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.5)  # ±0.5° left/right
+    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.3)  # ±0.3° up/down
+
+    # Ball-to-ball variation (simulates inconsistent ball feed, compression, grip)
+    BALL_SPEED_JITTER: Final[float] = 0.003  # ±0.3% additional random per ball
+    BALL_ANGLE_JITTER: Final[units.radians] = units.degreesToRadians(0.2)  # ±0.2° random per ball
+
+    # Wheel slip variation (simulates inconsistent contact between wheels and ball)
+    WHEEL_SLIP_BASE: Final[float] = 0.005  # 0.5% base slip (ball exits slower than wheel surface)
+    WHEEL_SLIP_VARIATION: Final[float] = 0.002  # ±0.2% random slip variation
 
     # Fuel bounce physics
     FUEL_BOUNCE_VELOCITY_RETENTION: Final[float] = 0.5  # Keep 50% of velocity on bounce

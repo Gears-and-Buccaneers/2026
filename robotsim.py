@@ -73,22 +73,46 @@ class FuelSim:
         self._timer.start()
         self._lastTime: float = 0.0
 
-    def launchFuel(self, speed: units.meters_per_second, shooterPosition: geom.Translation2d) -> None:
+    def launchFuel(
+        self, speed: units.meters_per_second, shooterPosition: geom.Translation2d, wheelRecoveryFactor: float = 1.0
+    ) -> None:
         """Launch a new fuel from the shooter at the given speed.
 
         Adds random variation to speed and launch angle to simulate
-        real-world inconsistencies.
+        real-world inconsistencies including:
+        - Base speed variation (mechanical tolerances)
+        - Ball-to-ball jitter (ball compression, grip)
+        - Wheel slip (contact inconsistency)
+        - Angle variations (yaw and pitch)
 
         Args:
             speed: The base launch speed in m/s (before random variation).
             shooterPosition: The shooter's 2D position in field coordinates.
+            wheelRecoveryFactor: 0-1 indicating wheel speed recovery (1 = full speed).
         """
-        # Apply random speed variation
+        # Apply wheel slip (ball exits slower than wheel surface speed)
+        slipFactor = 1.0 - const.Simulation.WHEEL_SLIP_BASE
+        slipVariation = random.uniform(
+            -const.Simulation.WHEEL_SLIP_VARIATION,
+            const.Simulation.WHEEL_SLIP_VARIATION,
+        )
+        # More slip when wheels haven't fully recovered
+        recoveryPenalty = (1.0 - wheelRecoveryFactor) * 0.02  # Up to 2% extra slip
+        effectiveSlip = slipFactor - slipVariation - recoveryPenalty
+
+        # Apply base speed variation (mechanical tolerances)
         speedVariation = 1.0 + random.uniform(
             -const.Simulation.LAUNCH_SPEED_VARIATION,
             const.Simulation.LAUNCH_SPEED_VARIATION,
         )
-        actualSpeed = speed * speedVariation
+
+        # Apply ball-to-ball jitter (compression, grip inconsistency)
+        ballJitter = 1.0 + random.uniform(
+            -const.Simulation.BALL_SPEED_JITTER,
+            const.Simulation.BALL_SPEED_JITTER,
+        )
+
+        actualSpeed = speed * speedVariation * ballJitter * effectiveSlip
 
         # Get robot heading for launch direction
         robotPose = self.drivetrain.get_pose()
@@ -111,8 +135,18 @@ class FuelSim:
             const.Simulation.LAUNCH_PITCH_VARIATION,
         )
 
+        # Add ball-to-ball angle jitter
+        ballYawJitter = random.uniform(
+            -const.Simulation.BALL_ANGLE_JITTER,
+            const.Simulation.BALL_ANGLE_JITTER,
+        )
+        ballPitchJitter = random.uniform(
+            -const.Simulation.BALL_ANGLE_JITTER,
+            const.Simulation.BALL_ANGLE_JITTER,
+        )
+
         # Base launch angle with pitch variation
-        launchPitch = const.RobotDimension.SHOOTER_ANGLE + pitchOffset
+        launchPitch = const.RobotDimension.SHOOTER_ANGLE + pitchOffset + ballPitchJitter
 
         # Calculate velocity components
         # Vertical speed from pitch angle
@@ -120,7 +154,7 @@ class FuelSim:
 
         # Horizontal speed from pitch angle, directed by heading + yaw offset
         horizontalSpeed = actualSpeed * math.cos(launchPitch)
-        effectiveHeading = geom.Rotation2d(robotHeading + yawOffset)
+        effectiveHeading = geom.Rotation2d(robotHeading + yawOffset + ballYawJitter)
 
         # Use Translation2d polar constructor (distance, angle) for horizontal velocity
         horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
@@ -271,15 +305,36 @@ class ShooterSim(components.Shooter):
             self._maybeEmitFuel()
 
     def _updateFlywheelSpeed(self) -> None:
-        """Simulate flywheel spin-up/spin-down dynamics."""
+        """Simulate flywheel spin-up/spin-down dynamics.
+
+        Uses realistic spin-up times based on ShooterSpec measurements:
+        - From 0 to target: ~96ms at 20ft distances (full spin-up)
+        - Between shots: ~40ms at 20ft (recovery from speed drop)
+
+        Kraken X60 motor with 2:1 gear ratio, 3.6 lb-in² MOI.
+        """
         # Target speed comes from parent's _targetFlywheelSpeed (set by setTargetFuelSpeed)
         targetSpeed = self._targetFlywheelSpeed
 
-        # Calculate max flywheel speed for acceleration rate
-        maxFlywheelSpeed = self._fuelSpeedToFlywheelSpeed(self.maxFuelSpeed)
+        # RPM range from spec: 1479-2215 RPM
+        # Convert to rad/s for calculations
+        maxRPM = const.ShooterSpec.RPM_MAX
+        maxRadPerSec = maxRPM * 2.0 * math.pi / 60.0
 
-        # Calculate acceleration rate (reach max speed in FLYWHEEL_SPINUP_TIME)
-        accelRate = maxFlywheelSpeed / const.Simulation.FLYWHEEL_SPINUP_TIME
+        # Use between-shots spin-up time for recovery (more realistic)
+        # Full spin-up from 0 uses the longer time
+        speedDelta = abs(targetSpeed - self._actualFlywheelSpeed)
+        speedDropFromMax = maxRadPerSec * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
+
+        if self._actualFlywheelSpeed < 0.1:
+            # Starting from stopped - use full spin-up time
+            accelRate = maxRadPerSec / const.ShooterSpec.SPINUP_TIME_20FT
+        elif speedDelta <= speedDropFromMax:
+            # Recovering from shot - use between-shots spin-up time
+            accelRate = speedDropFromMax / const.ShooterSpec.SPINUP_BETWEEN_SHOTS_20FT
+        else:
+            # Large speed change - interpolate
+            accelRate = maxRadPerSec / const.ShooterSpec.SPINUP_TIME_20FT
 
         # Assume 20ms loop time
         dt = 0.02
@@ -312,11 +367,22 @@ class ShooterSim(components.Shooter):
         # Calculate exit velocity from flywheel surface speed
         exitSpeed = self._flywheelSpeedToFuelSpeed(self._actualFlywheelSpeed)
 
+        # Calculate wheel recovery factor (how close to target speed)
+        # This affects slip variation - wheels at full speed have better grip
+        if self._targetFlywheelSpeed > 0.1:
+            wheelRecoveryFactor = min(1.0, self._actualFlywheelSpeed / self._targetFlywheelSpeed)
+        else:
+            wheelRecoveryFactor = 1.0
+
         # Slow down flywheel by configured percentage
         self._actualFlywheelSpeed *= const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
 
         # Launch the fuel from the shooter's current position
-        self.fuelSim.launchFuel(speed=exitSpeed, shooterPosition=self.getPosition())
+        self.fuelSim.launchFuel(
+            speed=exitSpeed,
+            shooterPosition=self.getPosition(),
+            wheelRecoveryFactor=wheelRecoveryFactor,
+        )
 
     def getActualFlywheelSpeed(self) -> units.radians_per_second:
         """Get the current actual flywheel speed in rad/s."""
