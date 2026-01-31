@@ -251,7 +251,9 @@ class Drivetrain:
     def get_velocity(self) -> Translation2d:
         """Get the robot's current field-centric velocity as (vx, vy) in m/s."""
         speeds: kinematics.ChassisSpeeds = self._drivetrain.get_state().speeds
-        return Translation2d(speeds.vx, speeds.vy)
+        # ChassisSpeeds is robot-relative, so rotate by heading to get field-relative
+        robotRelativeVelocity = Translation2d(speeds.vx, speeds.vy)
+        return robotRelativeVelocity.rotateBy(self.get_heading())
 
     @feedback
     def heading_degrees(self) -> float:
