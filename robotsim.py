@@ -389,10 +389,26 @@ class ShooterSim(components.Shooter):
             )
 
     def _emitFuel(self) -> None:
-        """Emit a single fuel and slow down the flywheel."""
+        """Emit a single fuel and slow down the flywheel.
+
+        Only fires if:
+        1. Flywheel is spinning
+        2. Wheels are at least 95% of target speed
+        3. Robot heading is within 3° of target (if aiming)
+        """
         # Only emit if flywheel is spinning
         if self._actualFlywheelSpeed < 0.2:
             return
+
+        # Check if wheels are up to speed (must be at threshold % of target)
+        if self._targetFlywheelSpeed > 0.1:
+            speedRatio = self._actualFlywheelSpeed / self._targetFlywheelSpeed
+            if speedRatio < const.ShooterSpec.WHEEL_READY_THRESHOLD:
+                return  # Wheels not ready, don't fire
+
+        # Check if robot is aimed at target (heading within threshold)
+        if not self._isAimedAtTarget():
+            return  # Not aimed, don't fire
 
         # Calculate exit velocity from flywheel surface speed
         exitSpeed = self._flywheelSpeedToFuelSpeed(self._actualFlywheelSpeed)
@@ -421,6 +437,54 @@ class ShooterSim(components.Shooter):
     def getActualFlywheelRPM(self) -> float:
         """Get the current actual flywheel speed in RPM."""
         return self._actualFlywheelSpeed * 60.0 / (2.0 * math.pi)
+
+    def _isAimedAtTarget(self) -> bool:
+        """Check if the robot is aimed at the hub within the heading threshold.
+
+        Returns:
+            True if robot heading is within HEADING_READY_THRESHOLD of the hub.
+        """
+        # Get robot's current heading
+        robotPose = self.drivetrain.get_pose()
+        currentHeading = robotPose.rotation().radians()
+
+        # Calculate angle to hub
+        shooterPos = self.getPosition()
+        alliance = wpilib.DriverStation.getAlliance()
+        hubPos = const.Field.getHubPosition(alliance)
+
+        # Vector from shooter to hub
+        dx = hubPos.X() - shooterPos.X()
+        dy = hubPos.Y() - shooterPos.Y()
+        targetHeading = math.atan2(dy, dx)
+
+        # Calculate heading error (wrapped to -π to π)
+        headingError = targetHeading - currentHeading
+        while headingError > math.pi:
+            headingError -= 2 * math.pi
+        while headingError < -math.pi:
+            headingError += 2 * math.pi
+
+        # Check if within threshold
+        return abs(headingError) <= const.ShooterSpec.HEADING_READY_THRESHOLD
+
+    def isReadyToFire(self) -> bool:
+        """Check if the shooter is ready to fire (wheels up and aimed).
+
+        Returns:
+            True if wheels are at speed and robot is aimed at target.
+        """
+        # Check wheel speed
+        if self._targetFlywheelSpeed > 0.1:
+            speedRatio = self._actualFlywheelSpeed / self._targetFlywheelSpeed
+            if speedRatio < const.ShooterSpec.WHEEL_READY_THRESHOLD:
+                return False
+
+        # Check heading
+        if not self._isAimedAtTarget():
+            return False
+
+        return True
 
 
 class ScurvySim(Scurvy):

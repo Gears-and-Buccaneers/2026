@@ -154,6 +154,12 @@ class ShooterSpec:
     # Consistency score (higher is better, 3.0+ is OK)
     CONSISTENCY_SCORE: Final[float] = 3.06
 
+    # Ready-to-fire thresholds
+    # Wheels must be within this percentage of target speed to fire
+    WHEEL_READY_THRESHOLD: Final[float] = 0.999  # 99.9% of target speed
+    # Robot heading must be within this angle of target to fire (radians)
+    HEADING_READY_THRESHOLD: Final[units.radians] = units.degreesToRadians(0.5)  # ±0.5°
+
 
 class Simulation:
     """Constants for simulation behavior."""
