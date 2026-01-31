@@ -8,6 +8,7 @@ from enum import IntEnum
 from typing import Final
 
 import wpimath.units as units
+from wpimath.geometry import Rotation3d, Transform3d, Translation3d
 
 
 class CANID(IntEnum):
@@ -36,3 +37,46 @@ class ControllerPort:
 
     DRIVER_CONTROLLER: Final[int] = 0
     OPERATOR_CONTROLLER: Final[int] = 1
+
+
+class VisionConfig:
+    """Configuration for PhotonVision cameras.
+
+    Each camera needs:
+    - A name matching the PhotonVision camera name
+    - A Transform3d from robot center to camera position
+
+    Transform3d format: Translation3d(x, y, z), Rotation3d(roll, pitch, yaw)
+    - X: forward from robot center (meters)
+    - Y: left from robot center (meters)
+    - Z: up from robot center (meters)
+    - Roll: rotation around X axis (radians)
+    - Pitch: rotation around Y axis (radians) - positive = camera tilted up
+    - Yaw: rotation around Z axis (radians) - positive = camera rotated left
+
+    IMPORTANT: Update these values to match your actual camera mounting positions!
+    """
+
+    # Camera names - must match names configured in PhotonVision
+    FRONT_CAMERA_NAME: Final[str] = "front_camera"
+    BACK_LEFT_CAMERA_NAME: Final[str] = "back_left_camera"
+    BACK_RIGHT_CAMERA_NAME: Final[str] = "back_right_camera"
+
+    # Robot-to-camera transforms
+    # Front camera: mounted on front of robot, facing forward
+    FRONT_CAMERA_TRANSFORM: Final[Transform3d] = Transform3d(
+        Translation3d(0.3, 0.0, 0.5),  # 30cm forward, 50cm up
+        Rotation3d(0, units.degreesToRadians(-15), 0),  # Tilted down 15 degrees
+    )
+
+    # Back-left camera: mounted on back-left corner, facing backward-left
+    BACK_LEFT_CAMERA_TRANSFORM: Final[Transform3d] = Transform3d(
+        Translation3d(-0.3, 0.25, 0.5),  # 30cm back, 25cm left, 50cm up
+        Rotation3d(0, units.degreesToRadians(-15), units.degreesToRadians(150)),  # Facing back-left
+    )
+
+    # Back-right camera: mounted on back-right corner, facing backward-right
+    BACK_RIGHT_CAMERA_TRANSFORM: Final[Transform3d] = Transform3d(
+        Translation3d(-0.3, -0.25, 0.5),  # 30cm back, 25cm right, 50cm up
+        Rotation3d(0, units.degreesToRadians(-15), units.degreesToRadians(-150)),  # Facing back-right
+    )
