@@ -5,8 +5,9 @@ import os
 
 import magicbot
 import wpilib
+from wpilib import RobotBase
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d
 from magicbot import feedback
-from wpimath.geometry import Pose2d, Rotation2d
 
 import components
 import constants as const
@@ -22,6 +23,7 @@ class Scurvy(magicbot.MagicRobot):
     # Components - the drivetrain now manages motors internally via CTRE swerve API
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
+    vision: components.Vision
     driver_controller: components.DriverController
     operator_controller: components.OperatorController
 
@@ -115,6 +117,20 @@ class Scurvy(magicbot.MagicRobot):
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
+        # Update vision simulation with current robot pose
+        if RobotBase.isSimulation():
+            pose_2d = self.drivetrain.get_pose()
+            pose_3d = Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, Rotation3d(0, 0, pose_2d.rotation().radians()))
+            self.vision.update_sim(pose_3d)
+
+        # Feed vision measurements to drivetrain for pose estimation fusion
+        # Each measurement includes distance-scaled standard deviations
+        for measurement in self.vision.get_measurements():
+            self.drivetrain.add_vision_measurement(
+                measurement.pose,
+                measurement.timestamp,
+                measurement.std_devs,
+            )
         self.maybe_set_operator_perspective()
 
     # ------------------------------------------------------------------------------------------------------------------
