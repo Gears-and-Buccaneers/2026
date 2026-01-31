@@ -104,27 +104,27 @@ class Simulation:
 
     # Flywheel physics
     FLYWHEEL_SPINUP_TIME: Final[units.seconds] = 1.0  # Time to reach full speed
-    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 1.0  # 0% reduction per shot
-    # FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 0.98  # 2% reduction per shot
+    # FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 1.0  # 0% reduction per shot
+    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 0.98  # 2% reduction per shot
 
     # Time between fuel launches (uniform random distribution)
-    FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.05
-    FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.05
-    # FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.1
-    # FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.5
+    # FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.05
+    # FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.05
+    FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.1
+    FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.5
 
     # Launch speed variation (±percentage of target speed)
-    LAUNCH_SPEED_VARIATION: Final[float] = 0.0  # ±0%
-    # LAUNCH_SPEED_VARIATION: Final[float] = 0.02  # ±2%
+    # LAUNCH_SPEED_VARIATION: Final[float] = 0.0  # ±0%
+    LAUNCH_SPEED_VARIATION: Final[float] = 0.02  # ±2%
 
     # Launch angle variation (random offset from ideal trajectory)
-    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° left/right
-    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° up/down
-    # LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(2.0)  # ±2° left/right
-    # LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(1.0)  # ±1° up/down
+    # LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° left/right
+    # LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° up/down
+    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(2.0)  # ±2° left/right
+    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(1.0)  # ±1° up/down
 
     # Fuel bounce physics
-    FUEL_BOUNCE_VELOCITY_RETENTION: Final[float] = 0.5  # Keep 60% of velocity on bounce
+    FUEL_BOUNCE_VELOCITY_RETENTION: Final[float] = 0.5  # Keep 50% of velocity on bounce
     FUEL_MAX_BOUNCES: Final[int] = 5  # Remove fuel after this many bounces
 
     # G is 9.795 in Boulder/Denver, 9.80 in West Valley City, UT
