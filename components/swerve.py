@@ -1,18 +1,11 @@
 """Swerve drivetrain using CTRE Phoenix 6 swerve API."""
 
 import math
-from typing import Optional
 
-from choreo import SwerveSample
+from choreo.trajectory import SwerveSample
 from magicbot import feedback
+from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
-from phoenix6.swerve import SwerveDrivetrain
-from phoenix6.swerve.requests import (
-    FieldCentric,
-    Idle,
-    SwerveDriveBrake,
-    SwerveRequest,
-)
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
 from wpimath.geometry import Pose2d, Pose3d, Rotation2d
@@ -44,7 +37,7 @@ class Drivetrain:
     def __init__(self) -> None:
         """Initialize the swerve drivetrain with all modules."""
         # Create the Phoenix 6 SwerveDrivetrain using TunerConstants
-        self._drivetrain = SwerveDrivetrain(
+        self._drivetrain = swerve.SwerveDrivetrain(
             TalonFX,
             TalonFX,
             CANcoder,
@@ -58,15 +51,23 @@ class Drivetrain:
         )
 
         # Create swerve requests for different drive modes
-        self._field_centric_request = FieldCentric()
-        self._brake_request = SwerveDriveBrake()
-        self._idle_request = Idle()
-
-        # Configure field-centric request defaults
-        self._field_centric_request = self._field_centric_request.with_deadband(0.05).with_rotational_deadband(0.05)
+        self._field_centric_request = (
+            swerve.requests.FieldCentric()
+            .with_deadband(0.05)
+            .with_rotational_deadband(0.05)
+            .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.BLUE_ALLIANCE)
+        )
+        self._operator_centric_request = (
+            swerve.requests.FieldCentric()
+            .with_deadband(0.05)
+            .with_rotational_deadband(0.05)
+            .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.OPERATOR_PERSPECTIVE)
+        )
+        self._brake_request = swerve.requests.SwerveDriveBrake()
+        self._idle_request = swerve.requests.Idle()
 
         # Pending request to apply in execute()
-        self._pending_request: Optional[SwerveRequest] = None
+        self._pending_request: swerve.requests.SwerveRequest | None = None
 
         # Field widget for simulation/dashboard
         self._field = Field2d()
@@ -85,17 +86,57 @@ class Drivetrain:
         """Called by MagicBot after injection. Perform any additional setup here."""
         pass
 
-    def drive_field_centric(
-        self,
-        velocity_x: meters_per_second,
-        velocity_y: meters_per_second,
-        rotation_rate: radians_per_second,
-    ) -> None:
-        """Drive the robot using field-centric control.
+    def set_operator_perspective_forward_orientation(self, rotation: Rotation2d) -> None:
+        """Set the forward orientation for operator perspective control.
+
+        This tells the CTRE swerve library which direction is "forward"
+        from the operator's perspective, allowing for intuitive field-centric
+        control.
 
         Args:
-            velocity_x: Forward velocity in m/s (positive = forward on field).
-            velocity_y: Left velocity in m/s (positive = left on field).
+            rotation: The rotation that defines the forward direction.
+        """
+        self._drivetrain.set_operator_perspective_forward(rotation)
+
+    def zero_heading(self) -> None:
+        """Tell the CTRE drivetrain that the robot's current forward heading is directly away from the driver."""
+        self._drivetrain.seed_field_centric()
+
+    def drive(
+        self,
+        *,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        rotation_rate: radians_per_second = 0.0,
+    ) -> None:
+        """Drive the robot using operator-centric control.
+
+        Args:
+            velocity_x: Forward velocity in m/s (positive = away from driver).
+            velocity_y: Left velocity in m/s (positive = to driver's left).
+            rotation_rate: Counter-clockwise rotation rate in rad/s.
+        """
+        # Operator perspective rotates the command by the operator's configured forward
+        self._pending_request = (
+            self._operator_centric_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_rotational_rate(rotation_rate)
+        )
+
+    def drive_field_centric(
+        self,
+        *,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        rotation_rate: radians_per_second = 0.0,
+    ) -> None:
+        """Drive the robot using field-centric control (global frame).
+
+        This is used by trajectory following where commands are field-relative.
+
+        Args:
+            velocity_x: Forward velocity in m/s (positive = from blue alliance to red).
+            velocity_y: Left velocity in m/s (positive = to left from blue alliance to red).
             rotation_rate: Counter-clockwise rotation rate in rad/s.
         """
         self._pending_request = (
@@ -103,21 +144,6 @@ class Drivetrain:
             .with_velocity_y(velocity_y)
             .with_rotational_rate(rotation_rate)
         )
-
-    def drive(
-        self,
-        forward_speed: meters_per_second = 0,
-        left_speed: meters_per_second = 0,
-        ccw_speed: radians_per_second = 0,
-    ) -> None:
-        """Drive using field-centric control (legacy API for compatibility).
-
-        Args:
-            forward_speed: Forward velocity in m/s.
-            left_speed: Left velocity in m/s.
-            ccw_speed: Counter-clockwise rotation rate in rad/s.
-        """
-        self.drive_field_centric(forward_speed, left_speed, ccw_speed)
 
     def brake(self) -> None:
         """Set wheels to X-pattern brake configuration."""
@@ -157,7 +183,7 @@ class Drivetrain:
         )
 
         # Apply the speeds using field-relative control
-        self.drive_field_centric(speeds.vx, speeds.vy, speeds.omega)
+        self.drive_field_centric(velocity_x=speeds.vx, velocity_y=speeds.vy, rotation_rate=speeds.omega)
 
     def reset_pose(self, pose: Pose2d) -> None:
         """Reset the robot's estimated pose.
