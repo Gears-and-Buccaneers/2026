@@ -8,13 +8,13 @@ from enum import IntEnum
 from typing import Final
 
 import wpilib
-import wpimath.geometry as geo
+import wpimath.geometry as geom
 import wpimath.units as units
 
 # Associate alliances with the field-centric rotation that is forward.
-ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geo.Rotation2d] = {
-    wpilib.DriverStation.Alliance.kBlue: geo.Rotation2d.fromDegrees(0),
-    wpilib.DriverStation.Alliance.kRed: geo.Rotation2d.fromDegrees(180),
+ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geom.Rotation2d] = {
+    wpilib.DriverStation.Alliance.kBlue: geom.Rotation2d.fromDegrees(0),
+    wpilib.DriverStation.Alliance.kRed: geom.Rotation2d.fromDegrees(180),
 }
 
 
@@ -34,9 +34,22 @@ class RobotDimension:
     Note: Swerve module locations are now in generated/tuner_constants.py.
     """
 
-    # Shooter dimensions
-    SHOOTER_Z: Final[units.meters] = 0.421
-    SHOOTER_MAX_ANGLE: Final[units.radians] = units.degreesToRadians(34.0)
+    # Robot frame dimensions (without bumpers)
+    WIDTH: Final[units.meters] = units.inchesToMeters(25.0)  # Side to side
+    LENGTH: Final[units.meters] = units.inchesToMeters(30.0)  # Front to back
+
+    # Shooter location relative to robot center (X=forward, Y=left, Z=up)
+    # At lateral center, at front edge of robot frame, at shooter height
+    SHOOTER_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
+        units.inchesToMeters(12.0),  # Inside the front edge (half of 30" length)
+        0.0,  # Centered laterally on the robot.
+        units.inchesToMeters(15.0),  # Height from ground of center of fuel when launched
+    )
+
+    SHOOTER_ANGLE: Final[units.radians] = units.degreesToRadians(65.0)
+
+    # Flywheel radius for shooter
+    FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(4.0)
 
 
 class ControllerPort:
@@ -44,3 +57,40 @@ class ControllerPort:
 
     DRIVER_CONTROLLER: Final[int] = 0
     OPERATOR_CONTROLLER: Final[int] = 1
+
+
+class Field:
+    """2026 Reefscape field dimensions.
+
+    All measurements are in meters, with origin at the blue alliance corner.
+    Field-centric coordinates: +X toward red alliance, +Y toward scoring table.
+    """
+
+    LENGTH: Final[units.meters] = 16.541  # 651.22"
+    WIDTH: Final[units.meters] = 8.069  # 317.69"
+
+    # Blue alliance hub position (top of funnel opening)
+    # Use alliance mirroring for red alliance
+    HUB_CENTER_X: Final[units.meters] = 4.626  # 182.11" from blue wall
+    HUB_CENTER_Y: Final[units.meters] = 4.035  # Centered on field (317.69" / 2)
+    HUB_TOP_Z: Final[units.meters] = 1.829  # 72" funnel top height
+
+    # Funnel geometry (hexagon with point toward alliances)
+    HUB_FUNNEL_WIDTH: Final[units.meters] = 1.065  # 41.932" across flats
+
+    # Game piece
+    FUEL_DIAMETER: Final[units.meters] = 0.150  # 5.9"
+
+
+class Simulation:
+    """Constants for simulation behavior."""
+
+    # Flywheel physics
+    FLYWHEEL_SPINUP_TIME: Final[units.seconds] = 1.0  # Time to reach full speed
+    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 0.98  # 2% reduction per ball
+
+    # Average time between fuel launches from the shooter
+    BALL_EMIT_INTERVAL: Final[units.seconds] = 0.5  # Time between shots
+
+    # G is 9.795 in Boulder/Denver, 9.80 in West Valley City, UT
+    GRAVITY: Final[units.meters_per_second_squared] = 9.80

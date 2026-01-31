@@ -157,15 +157,15 @@ class OperatorUSBGamepad(OperatorController):
 
     def shouldShoot(self) -> bool:
         """Determine if the shoot button is actively being pressed."""
-        return self.getRawButton(5)
+        return self.getRawButton(6)
 
     def shouldSetFallbackShooterSpinSpeed(self) -> bool:
-        """Determine if the set-shooter-speed-to-predifened-speed button is actively being pressed."""
-        return self.getRawButton(3)
+        """Determine if the set-shooter-speed-to-predefined-speed button is actively being pressed."""
+        return self.getRawButton(4)
 
     def shouldToggleLEDMode(self) -> bool:
         """Determine if the LED mode toggle button was pressed since the last check."""
-        return self.getRawButtonPressed(6)
+        return self.getRawButtonPressed(7)
 
     def customLEDColor(self) -> wpilib.Color:
         """Use the left stick to pick a color based on its position.

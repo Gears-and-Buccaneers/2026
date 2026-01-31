@@ -2,14 +2,14 @@
 
 import math
 
+import wpimath.kinematics as kinematics
 from choreo.trajectory import SwerveSample
 from magicbot import feedback
 from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
-from wpimath.geometry import Pose2d, Rotation2d
-from wpimath.kinematics import ChassisSpeeds
+from wpimath.geometry import Pose2d, Rotation2d, Translation2d
 from wpimath.units import meters_per_second, radians_per_second
 
 from generated.tuner_constants import TunerConstants
@@ -176,7 +176,7 @@ class Drivetrain:
         heading_feedback = self._heading_controller.calculate(pose.rotation().radians(), sample.heading)
 
         # Combine feedforward (from trajectory) with feedback (from PID)
-        speeds = ChassisSpeeds(
+        speeds = kinematics.ChassisSpeeds(
             sample.vx + x_feedback,  # Forward velocity + X correction
             sample.vy + y_feedback,  # Sideways velocity + Y correction
             sample.omega + heading_feedback,  # Angular velocity + heading correction
@@ -205,6 +205,11 @@ class Drivetrain:
     def get_heading(self) -> Rotation2d:
         """Get the robot's current heading."""
         return self.get_pose().rotation()
+
+    def get_velocity(self) -> Translation2d:
+        """Get the robot's current field-centric velocity as (vx, vy) in m/s."""
+        speeds: kinematics.ChassisSpeeds = self._drivetrain.get_state().speeds
+        return Translation2d(speeds.vx, speeds.vy)
 
     @feedback
     def heading_degrees(self) -> float:

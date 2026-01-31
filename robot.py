@@ -5,8 +5,8 @@ import os
 
 import magicbot
 import wpilib
+import wpimath.geometry as geom
 from magicbot import feedback
-from wpimath.geometry import Pose2d, Rotation2d
 
 import components
 import constants as const
@@ -70,7 +70,7 @@ class Scurvy(magicbot.MagicRobot):
     def testInit(self) -> None:
         """Called when starting test mode."""
         # Reset pose to (0,0,0) so our distance check works
-        self.drivetrain.reset_pose(Pose2d(0, 0, Rotation2d(0)))
+        self.drivetrain.reset_pose(geom.Pose2d(0, 0, geom.Rotation2d(0)))
 
         self.test_timer = wpilib.Timer()
         self.test_timer.restart()
@@ -168,7 +168,13 @@ class Scurvy(magicbot.MagicRobot):
 
     def manuallyOperate(self) -> None:
         """Operate the robot based on controller input."""
-        pass
+        # Handle shooter spin-up modes
+        if self.operator_controller.shouldSetFallbackShooterSpinSpeed():
+            self.pewpew.fallbackSpin()
+        elif self.operator_controller.shouldSmartAim():
+            self.pewpew.autoShooterMotorPower()
+        else:
+            self.pewpew.spinDown()
 
     def maybe_set_operator_perspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""
