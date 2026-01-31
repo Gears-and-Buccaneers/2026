@@ -110,10 +110,20 @@ class ShooterSpec:
     - Flywheel: None (wheels only)
     """
 
+    # Kraken X60 Motor Specifications (from CTR Electronics dyno testing)
+    MOTOR_FREE_SPEED_RPM: Final[float] = 6065.0  # Free speed RPM
+    MOTOR_STALL_TORQUE_NM: Final[float] = 7.16  # Stall torque in Nm
+    MOTOR_PEAK_POWER_W: Final[float] = 1136.5  # Peak power in Watts
+    MOTOR_MAX_EFFICIENCY: Final[float] = 0.8564  # 85.64% max efficiency
+
     # Motor and mechanical specs
     MOTORS_PER_SIDE: Final[int] = 1
     WHEELS_PER_SIDE: Final[int] = 2
     GEAR_RATIO: Final[float] = 2.0  # 2:1 gear ratio
+
+    # Derived motor limits at wheel (after gear reduction)
+    # Motor runs 2x faster than wheel, so wheel max = motor free speed / gear ratio
+    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / GEAR_RATIO  # 3032.5 RPM
 
     # Moment of inertia (converted from lb-in² to kg-m²)
     # 3.6 lb-in² = 3.6 * 0.0002926397 kg-m² ≈ 0.00105 kg-m²

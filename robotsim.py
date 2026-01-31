@@ -307,14 +307,34 @@ class ShooterSim(components.Shooter):
     def _updateFlywheelSpeed(self) -> None:
         """Simulate flywheel spin-up/spin-down dynamics.
 
-        Uses realistic spin-up times based on ShooterSpec measurements:
-        - From 0 to target: ~96ms at 20ft distances (full spin-up)
-        - Between shots: ~40ms at 20ft (recovery from speed drop)
+        Uses realistic spin-up times based on ShooterSpec measurements,
+        interpolated by distance:
+        - 8ft (2.44m): 56ms full spin-up, 28ms between shots
+        - 20ft (6.10m): 96ms full spin-up, 40ms between shots
 
         Kraken X60 motor with 2:1 gear ratio, 3.6 lb-in² MOI.
         """
         # Target speed comes from parent's _targetFlywheelSpeed (set by setTargetFuelSpeed)
         targetSpeed = self._targetFlywheelSpeed
+
+        # Get current distance to hub for distance-dependent spin-up
+        distance = self.distanceToHub()
+
+        # Interpolate spin-up times based on distance
+        # 8ft = 2.438m, 20ft = 6.096m
+        DIST_8FT = 2.438
+        DIST_20FT = 6.096
+
+        # Clamp distance to range and calculate interpolation factor (0 = 8ft, 1 = 20ft)
+        t = max(0.0, min(1.0, (distance - DIST_8FT) / (DIST_20FT - DIST_8FT)))
+
+        # Interpolate spin-up times
+        fullSpinupTime = const.ShooterSpec.SPINUP_TIME_8FT + t * (
+            const.ShooterSpec.SPINUP_TIME_20FT - const.ShooterSpec.SPINUP_TIME_8FT
+        )
+        betweenShotsTime = const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT + t * (
+            const.ShooterSpec.SPINUP_BETWEEN_SHOTS_20FT - const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT
+        )
 
         # RPM range from spec: 1479-2215 RPM
         # Convert to rad/s for calculations
@@ -327,24 +347,34 @@ class ShooterSim(components.Shooter):
         speedDropFromMax = maxRadPerSec * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
 
         if self._actualFlywheelSpeed < 0.1:
-            # Starting from stopped - use full spin-up time
-            accelRate = maxRadPerSec / const.ShooterSpec.SPINUP_TIME_20FT
+            # Starting from stopped - use full spin-up time (distance-dependent)
+            accelRate = maxRadPerSec / fullSpinupTime
         elif speedDelta <= speedDropFromMax:
-            # Recovering from shot - use between-shots spin-up time
-            accelRate = speedDropFromMax / const.ShooterSpec.SPINUP_BETWEEN_SHOTS_20FT
+            # Recovering from shot - use between-shots spin-up time (distance-dependent)
+            accelRate = speedDropFromMax / betweenShotsTime
         else:
-            # Large speed change - interpolate
-            accelRate = maxRadPerSec / const.ShooterSpec.SPINUP_TIME_20FT
+            # Large speed change - use full spin-up time
+            accelRate = maxRadPerSec / fullSpinupTime
 
         # Assume 20ms loop time
         dt = 0.02
 
-        if self._actualFlywheelSpeed < targetSpeed:
+        # Calculate motor RPM limit at wheel (after gear reduction)
+        # Kraken X60 free speed is 6065 RPM, with 2:1 ratio wheel max is 3032.5 RPM
+        maxWheelRadPerSec = const.ShooterSpec.WHEEL_MAX_RPM * 2.0 * math.pi / 60.0
+
+        # Clamp target speed to motor capability
+        clampedTarget = min(targetSpeed, maxWheelRadPerSec)
+
+        if self._actualFlywheelSpeed < clampedTarget:
             # Spin up
-            self._actualFlywheelSpeed = min(targetSpeed, self._actualFlywheelSpeed + accelRate * dt)
-        elif self._actualFlywheelSpeed > targetSpeed:
+            self._actualFlywheelSpeed = min(clampedTarget, self._actualFlywheelSpeed + accelRate * dt)
+        elif self._actualFlywheelSpeed > clampedTarget:
             # Spin down (same rate for now)
-            self._actualFlywheelSpeed = max(targetSpeed, self._actualFlywheelSpeed - accelRate * dt)
+            self._actualFlywheelSpeed = max(clampedTarget, self._actualFlywheelSpeed - accelRate * dt)
+
+        # Hard clamp to motor limit (safety)
+        self._actualFlywheelSpeed = min(self._actualFlywheelSpeed, maxWheelRadPerSec)
 
     def _maybeEmitFuel(self) -> None:
         """Emit fuel if enough time has passed since the last one."""
