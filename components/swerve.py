@@ -66,6 +66,19 @@ class Drivetrain:
         self._brake_request = swerve.requests.SwerveDriveBrake()
         self._idle_request = swerve.requests.Idle()
 
+        # Request for driving while facing a target angle (uses internal PID)
+        self._facing_angle_request = (
+            swerve.requests.FieldCentricFacingAngle()
+            .with_deadband(0.05)
+            .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.OPERATOR_PERSPECTIVE)
+        )
+        # Configure the heading controller for the facing angle request
+        self._facing_angle_request.heading_controller.enableContinuousInput(-math.pi, math.pi)
+        self._facing_angle_request.heading_controller.setP(7.5)
+
+        # Track operator perspective for adjusting field-relative angles
+        self._operator_forward: Rotation2d = Rotation2d()
+
         # Pending request to apply in execute()
         self._pending_request: swerve.requests.SwerveRequest | None = None
 
@@ -97,6 +110,7 @@ class Drivetrain:
             rotation: The rotation that defines the forward direction.
         """
         self._drivetrain.set_operator_perspective_forward(rotation)
+        self._operator_forward = rotation
 
     def zero_heading(self) -> None:
         """Tell the CTRE drivetrain that the robot's current forward heading is directly away from the driver."""
@@ -148,6 +162,34 @@ class Drivetrain:
     def brake(self) -> None:
         """Set wheels to X-pattern brake configuration."""
         self._pending_request = self._brake_request
+
+    def drive_facing_angle(
+        self,
+        *,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        target_angle: Rotation2d,
+    ) -> None:
+        """Drive while rotating to face a target angle.
+
+        Uses the CTRE FieldCentricFacingAngle request which has a built-in
+        PID controller to rotate toward the target angle at maximum safe speed.
+
+        Args:
+            velocity_x: Forward velocity in m/s (positive = away from driver).
+            velocity_y: Left velocity in m/s (positive = to driver's left).
+            target_angle: The field-relative angle to face.
+        """
+        # The request uses OPERATOR_PERSPECTIVE which rotates the target angle
+        # by the operator's forward direction. We need to undo that rotation
+        # since target_angle is already field-relative.
+        adjusted_angle = target_angle - self._operator_forward
+
+        self._pending_request = (
+            self._facing_angle_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_target_direction(adjusted_angle)
+        )
 
     def stop(self) -> None:
         """Stop all motors (coast)."""

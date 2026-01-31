@@ -1,6 +1,7 @@
 """All the code needed to simulate the robot and fuel behavior."""
 
 import math
+import random
 from dataclasses import dataclass, field
 
 import wpilib
@@ -37,11 +38,12 @@ class DrivetrainSim(components.Drivetrain):
 
 
 @dataclass
-class Ball:
-    """A simulated fuel ball with 3D position and velocity."""
+class Fuel:
+    """A simulated fuel with 3D position and velocity."""
 
     position: geom.Translation3d
     velocity: geom.Translation3d = field(default_factory=lambda: geom.Translation3d())
+    bounceCount: int = 0
 
     def to_pose3d(self) -> geom.Pose3d:
         """Convert to Pose3d for NetworkTables publishing."""
@@ -49,12 +51,9 @@ class Ball:
 
 
 class FuelSim:
-    """Simulates fuel (balls) in 3D space with physics and publishes to NetworkTables.
+    """Simulates fuel in 3D space with physics; publishes their positions to NetworkTables."""
 
-    AdvantageScope can visualize these as 2026 game pieces on the 3D field.
-    """
-
-    # MagicBot will inject the drivetrain so we can get the robot's pose
+    # MagicBot injects the drivetrain, so we can get the robot's pose
     drivetrain: DrivetrainSim
 
     def __init__(self) -> None:
@@ -66,64 +65,85 @@ class FuelSim:
             .publish(_NT_PUBLISH_OPTIONS)
         )
 
-        # List of active balls in flight
-        self._balls: list[Ball] = []
+        # List of active fuel in flight
+        self._fuel: list[Fuel] = []
 
         # Timer for physics delta time
         self._timer = wpilib.Timer()
         self._timer.start()
         self._lastTime: float = 0.0
 
-    def launchBall(self, speed: units.meters_per_second) -> None:
-        """Launch a new ball from the robot at the given speed.
+    def launchFuel(self, speed: units.meters_per_second, shooterPosition: geom.Translation2d) -> None:
+        """Launch a new fuel from the shooter at the given speed.
 
-        Uses a fixed 65° launch angle and launches from the shooter location
-        (transformed to field coordinates), in the direction the robot is facing.
+        Adds random variation to speed and launch angle to simulate
+        real-world inconsistencies.
 
         Args:
-            speed: The launch speed in m/s.
+            speed: The base launch speed in m/s (before random variation).
+            shooterPosition: The shooter's 2D position in field coordinates.
         """
-        # Get robot pose for position and heading
+        # Apply random speed variation
+        speedVariation = 1.0 + random.uniform(
+            -const.Simulation.LAUNCH_SPEED_VARIATION,
+            const.Simulation.LAUNCH_SPEED_VARIATION,
+        )
+        actualSpeed = speed * speedVariation
+
+        # Get robot heading for launch direction
         robotPose = self.drivetrain.get_pose()
         robotHeading = robotPose.rotation().radians()
 
-        # Transform shooter location from robot-relative to field-relative
-        # Rotate the shooter's X/Y offset by robot heading, then add robot position
-        shooterLocal = const.RobotDimension.SHOOTER_LOCATION
-        cosHeading = math.cos(robotHeading)
-        sinHeading = math.sin(robotHeading)
+        # Use shooter position (2D) and add height from constants
+        position = geom.Translation3d(
+            shooterPosition.X(),
+            shooterPosition.Y(),
+            const.RobotDimension.SHOOTER_LOCATION.Z(),
+        )
 
-        fieldX = robotPose.X() + shooterLocal.X() * cosHeading - shooterLocal.Y() * sinHeading
-        fieldY = robotPose.Y() + shooterLocal.X() * sinHeading + shooterLocal.Y() * cosHeading
+        # Apply random angle variations (pitch and yaw)
+        yawOffset = random.uniform(
+            -const.Simulation.LAUNCH_YAW_VARIATION,
+            const.Simulation.LAUNCH_YAW_VARIATION,
+        )
+        pitchOffset = random.uniform(
+            -const.Simulation.LAUNCH_PITCH_VARIATION,
+            const.Simulation.LAUNCH_PITCH_VARIATION,
+        )
 
-        position = geom.Translation3d(fieldX, fieldY, shooterLocal.Z())
+        # Base launch angle with pitch variation
+        launchPitch = const.RobotDimension.SHOOTER_ANGLE + pitchOffset
 
-        # Calculate velocity components using shooter angle from constants
-        # Horizontal speed = speed * cos(launch_angle)
-        # Vertical speed = speed * sin(launch_angle)
-        horizontalSpeed = speed * math.cos(const.RobotDimension.SHOOTER_ANGLE)
-        verticalSpeed = speed * math.sin(const.RobotDimension.SHOOTER_ANGLE)
+        # Calculate velocity components
+        # Vertical speed from pitch angle
+        verticalSpeed = actualSpeed * math.sin(launchPitch)
 
-        # Split horizontal into X/Y based on robot heading
+        # Horizontal speed from pitch angle, directed by heading + yaw offset
+        horizontalSpeed = actualSpeed * math.cos(launchPitch)
+        effectiveHeading = geom.Rotation2d(robotHeading + yawOffset)
+
+        # Use Translation2d polar constructor (distance, angle) for horizontal velocity
+        horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
+
         velocity = geom.Translation3d(
-            horizontalSpeed * cosHeading,
-            horizontalSpeed * sinHeading,
+            horizontalVelocity.X(),
+            horizontalVelocity.Y(),
             verticalSpeed,
         )
 
-        self._balls.append(Ball(position=position, velocity=velocity))
+        self._fuel.append(Fuel(position=position, velocity=velocity))
 
-    def launchBallWithVelocity(self, position: geom.Translation3d, velocity: geom.Translation3d) -> None:
-        """Launch a new ball with explicit position and velocity.
+    def launchFuelWithVelocity(self, position: geom.Translation3d, velocity: geom.Translation3d) -> None:
+        """Launch a new fuel with explicit position and velocity.
 
         Args:
-            position: Initial 3D position of the ball.
-            velocity: Initial 3D velocity of the ball in m/s.
+            position: Initial 3D position of the fuel.
+            velocity: Initial 3D velocity of the fuel in m/s.
         """
-        self._balls.append(Ball(position=position, velocity=velocity))
+        self._fuel.append(Fuel(position=position, velocity=velocity))
 
     def execute(self) -> None:
-        """Update ball physics and publish positions to NetworkTables."""
+        """Update fuel physics and publish positions to NetworkTables."""
         # Calculate delta time
         currentTime = self._timer.get()
         dt = currentTime - self._lastTime
@@ -131,37 +151,75 @@ class FuelSim:
 
         # Skip physics on first frame or if dt is too large (e.g., after pause)
         if dt <= 0 or dt > 0.1:
-            self._publish_balls()
+            self._publishFuel()
             return
 
-        # Update each ball's physics
-        updatedBalls: list[Ball] = []
-        for ball in self._balls:
+        # Update each fuel's physics
+        fuelRadius = const.Field.FUEL_DIAMETER / 2.0
+        updatedFuel: list[Fuel] = []
+        for fuel in self._fuel:
             # Apply gravity to velocity (negative Z)
-            newVz = ball.velocity.Z() - const.Simulation.GRAVITY * dt
+            newVz = fuel.velocity.Z() - const.Simulation.GRAVITY * dt
             newVelocity = geom.Translation3d(
-                ball.velocity.X(),
-                ball.velocity.Y(),
+                fuel.velocity.X(),
+                fuel.velocity.Y(),
                 newVz,
             )
 
             # Integrate position
             newPosition = geom.Translation3d(
-                ball.position.X() + ball.velocity.X() * dt,
-                ball.position.Y() + ball.velocity.Y() * dt,
-                ball.position.Z() + ball.velocity.Z() * dt,
+                fuel.position.X() + fuel.velocity.X() * dt,
+                fuel.position.Y() + fuel.velocity.Y() * dt,
+                fuel.position.Z() + fuel.velocity.Z() * dt,
             )
 
-            # Keep ball if it hasn't hit the ground
-            if newPosition.Z() > 0:
-                updatedBalls.append(Ball(position=newPosition, velocity=newVelocity))
+            # Check for ground collision (fuel center at radius height)
+            newBounceCount = fuel.bounceCount
+            if newPosition.Z() <= fuelRadius:
+                # Bounce! Reflect velocity and reduce speed
+                newBounceCount += 1
 
-        self._balls = updatedBalls
-        self._publish_balls()
+                # Only keep fuel if under max bounces
+                if newBounceCount > const.Simulation.FUEL_MAX_BOUNCES:
+                    continue  # Remove this fuel
 
-    def _publish_balls(self) -> None:
-        """Publish all ball positions to NetworkTables."""
-        poses = [ball.to_pose3d() for ball in self._balls]
+                # Reflect Z velocity and apply damping to all components
+                retention = const.Simulation.FUEL_BOUNCE_VELOCITY_RETENTION
+                newVelocity = geom.Translation3d(
+                    newVelocity.X() * retention,
+                    newVelocity.Y() * retention,
+                    -newVelocity.Z() * retention,  # Reflect Z
+                )
+
+                # Clamp position to ground level
+                newPosition = geom.Translation3d(
+                    newPosition.X(),
+                    newPosition.Y(),
+                    fuelRadius,
+                )
+
+            # Safety: ensure fuel never penetrates ground
+            if newPosition.Z() < fuelRadius:
+                newPosition = geom.Translation3d(
+                    newPosition.X(),
+                    newPosition.Y(),
+                    fuelRadius,
+                )
+
+            updatedFuel.append(
+                Fuel(
+                    position=newPosition,
+                    velocity=newVelocity,
+                    bounceCount=newBounceCount,
+                )
+            )
+
+        self._fuel = updatedFuel
+        self._publishFuel()
+
+    def _publishFuel(self) -> None:
+        """Publish all fuel positions to NetworkTables."""
+        poses = [fuel.to_pose3d() for fuel in self._fuel]
         self._fuelPublisher.set(poses)
         NetworkTableInstance.getDefault().flush()
 
@@ -186,7 +244,7 @@ class ShooterSim(components.Shooter):
         # Timer for ball emission interval
         self._shootTimer = wpilib.Timer()
         self._shootTimer.start()
-        self._lastBallTime: float = 0.0
+        self._nextEmitTime: float = 0.0
 
         # Whether we're actively feeding balls to the shooter
         self._isShooting: bool = False
@@ -194,20 +252,20 @@ class ShooterSim(components.Shooter):
     def setShooting(self, shooting: bool) -> None:
         """Set whether balls should be emitted (feeder is running)."""
         if shooting and not self._isShooting:
-            # Just started shooting - reset timer for immediate first ball
-            self._lastBallTime = self._shootTimer.get() - const.Simulation.BALL_EMIT_INTERVAL
+            # Just started shooting - schedule immediate first ball
+            self._nextEmitTime = self._shootTimer.get()
         self._isShooting = shooting
 
     def execute(self) -> None:
-        """Update flywheel simulation and emit balls."""
+        """Update flywheel simulation and emit fuel."""
         super().execute()
 
         # Update flywheel speed toward target
         self._updateFlywheelSpeed()
 
-        # Emit balls at regular intervals while shooting
+        # Emit fuel at regular intervals while shooting
         if self._isShooting:
-            self._maybeEmitBall()
+            self._maybeEmitFuel()
 
     def _updateFlywheelSpeed(self) -> None:
         """Simulate flywheel spin-up/spin-down dynamics."""
@@ -230,18 +288,22 @@ class ShooterSim(components.Shooter):
             # Spin down (same rate for now)
             self._actualFlywheelSpeed = max(targetSpeed, self._actualFlywheelSpeed - accelRate * dt)
 
-    def _maybeEmitBall(self) -> None:
-        """Emit a ball if enough time has passed since the last one."""
+    def _maybeEmitFuel(self) -> None:
+        """Emit fuel if enough time has passed since the last one."""
         currentTime = self._shootTimer.get()
 
-        if currentTime - self._lastBallTime >= const.Simulation.BALL_EMIT_INTERVAL:
-            self._emitBall()
-            self._lastBallTime = currentTime
+        if currentTime >= self._nextEmitTime:
+            self._emitFuel()
+            # Schedule next fuel with random interval
+            self._nextEmitTime: units.seconds = currentTime + random.uniform(
+                const.Simulation.FUEL_EMIT_INTERVAL_MIN,
+                const.Simulation.FUEL_EMIT_INTERVAL_MAX,
+            )
 
-    def _emitBall(self) -> None:
-        """Emit a single ball and slow down the flywheel."""
+    def _emitFuel(self) -> None:
+        """Emit a single fuel and slow down the flywheel."""
         # Only emit if flywheel is spinning
-        if self._actualFlywheelSpeed < 1.0:
+        if self._actualFlywheelSpeed < 0.2:
             return
 
         # Calculate exit velocity from flywheel surface speed
@@ -250,8 +312,8 @@ class ShooterSim(components.Shooter):
         # Slow down flywheel by configured percentage
         self._actualFlywheelSpeed *= const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
 
-        # Launch the ball
-        self.fuelSim.launchBall(speed=exitSpeed)
+        # Launch the fuel from the shooter's current position
+        self.fuelSim.launchFuel(speed=exitSpeed, shooterPosition=self.getPosition())
 
     def getActualFlywheelSpeed(self) -> units.radians_per_second:
         """Get the current actual flywheel speed in rad/s."""

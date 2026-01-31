@@ -66,20 +66,37 @@ class Field:
     Field-centric coordinates: +X toward red alliance, +Y toward scoring table.
     """
 
-    LENGTH: Final[units.meters] = 16.541  # 651.22"
-    WIDTH: Final[units.meters] = 8.069  # 317.69"
+    LENGTH: Final[units.meters] = units.inchesToMeters(651.22)
+    WIDTH: Final[units.meters] = units.inchesToMeters(317.69)
 
     # Blue alliance hub position (top of funnel opening)
     # Use alliance mirroring for red alliance
-    HUB_CENTER_X: Final[units.meters] = 4.626  # 182.11" from blue wall
-    HUB_CENTER_Y: Final[units.meters] = 4.035  # Centered on field (317.69" / 2)
-    HUB_TOP_Z: Final[units.meters] = 1.829  # 72" funnel top height
+    HUB_CENTER_X: Final[units.meters] = units.inchesToMeters(182.11)  # from blue wall
+    HUB_CENTER_Y: Final[units.meters] = WIDTH / 2  # Centered on field
+    HUB_TOP_Z: Final[units.meters] = units.inchesToMeters(72.0)  # funnel top height
+    HUB_TARGET_Z: Final[units.meters] = units.inchesToMeters(58.0)  # mid-funnel for reliable scoring
 
     # Funnel geometry (hexagon with point toward alliances)
-    HUB_FUNNEL_WIDTH: Final[units.meters] = 1.065  # 41.932" across flats
+    HUB_FUNNEL_WIDTH: Final[units.meters] = units.inchesToMeters(41.932)  # across flats
 
     # Game piece
-    FUEL_DIAMETER: Final[units.meters] = 0.150  # 5.9"
+    FUEL_DIAMETER: Final[units.meters] = units.inchesToMeters(5.9)
+
+    @staticmethod
+    def getHubPosition(alliance: wpilib.DriverStation.Alliance | None) -> geom.Translation2d:
+        """Get the hub position for the given alliance.
+
+        Args:
+            alliance: The alliance (blue or red). If None, defaults to blue.
+
+        Returns:
+            Translation2d of the hub center position in field coordinates.
+        """
+        if alliance == wpilib.DriverStation.Alliance.kRed:
+            # Mirror X position for red alliance
+            return geom.Translation2d(Field.LENGTH - Field.HUB_CENTER_X, Field.HUB_CENTER_Y)
+        else:
+            return geom.Translation2d(Field.HUB_CENTER_X, Field.HUB_CENTER_Y)
 
 
 class Simulation:
@@ -87,10 +104,28 @@ class Simulation:
 
     # Flywheel physics
     FLYWHEEL_SPINUP_TIME: Final[units.seconds] = 1.0  # Time to reach full speed
-    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 0.98  # 2% reduction per ball
+    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 1.0  # 0% reduction per shot
+    # FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 0.98  # 2% reduction per shot
 
-    # Average time between fuel launches from the shooter
-    BALL_EMIT_INTERVAL: Final[units.seconds] = 0.5  # Time between shots
+    # Time between fuel launches (uniform random distribution)
+    FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.05
+    FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.05
+    # FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.1
+    # FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.5
+
+    # Launch speed variation (±percentage of target speed)
+    LAUNCH_SPEED_VARIATION: Final[float] = 0.0  # ±0%
+    # LAUNCH_SPEED_VARIATION: Final[float] = 0.02  # ±2%
+
+    # Launch angle variation (random offset from ideal trajectory)
+    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° left/right
+    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.0)  # ±0° up/down
+    # LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(2.0)  # ±2° left/right
+    # LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(1.0)  # ±1° up/down
+
+    # Fuel bounce physics
+    FUEL_BOUNCE_VELOCITY_RETENTION: Final[float] = 0.5  # Keep 60% of velocity on bounce
+    FUEL_MAX_BOUNCES: Final[int] = 5  # Remove fuel after this many bounces
 
     # G is 9.795 in Boulder/Denver, 9.80 in West Valley City, UT
     GRAVITY: Final[units.meters_per_second_squared] = 9.80

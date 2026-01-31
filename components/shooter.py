@@ -1,5 +1,7 @@
 """A hypothetical shooter component on the robot."""
 
+import math
+
 import magicbot
 import wpilib
 import wpimath.geometry as geom
@@ -72,8 +74,48 @@ class Shooter:
 
     def distanceToHub(self) -> units.meters:
         """Calculate distance from shooter to hub in meters."""
-        hubPos = geom.Translation2d(const.Field.HUB_CENTER_X, const.Field.HUB_CENTER_Y)
+        alliance = wpilib.DriverStation.getAlliance()
+        hubPos = const.Field.getHubPosition(alliance)
         return self.getPosition().distance(hubPos)
+
+    def calculateLaunchSpeed(self, distance: units.meters) -> units.meters_per_second:
+        """Calculate the required launch speed to reach the hub from a given distance.
+
+        Uses projectile motion physics with a fixed launch angle.
+        For a projectile at angle θ aiming at target (distance d, height h above launch):
+            v₀ = sqrt(g·d² / (2·cos²(θ)·(d·tan(θ) - h)))
+
+        Args:
+            distance: Horizontal distance to hub center in meters.
+
+        Returns:
+            Required fuel exit velocity in m/s, or maxFuelSpeed if trajectory is impossible.
+        """
+        theta = const.RobotDimension.SHOOTER_ANGLE
+        g = const.Simulation.GRAVITY
+
+        # Height difference: target height minus shooter height
+        # Use HUB_TARGET_Z (below rim) so balls land IN the funnel
+        h = const.Field.HUB_TARGET_Z - const.RobotDimension.SHOOTER_LOCATION.Z()
+
+        # The denominator term: d·tan(θ) - h
+        # If this is ≤ 0, the target is too high for this angle (trajectory impossible)
+        denom_term = distance * math.tan(theta) - h
+        if denom_term <= 0:
+            # Target unreachable at this angle - return max speed
+            return self.maxFuelSpeed
+
+        cos_theta = math.cos(theta)
+        v_squared = (g * distance * distance) / (2 * cos_theta * cos_theta * denom_term)
+
+        if v_squared < 0:
+            # Shouldn't happen given the check above, but safety first
+            return self.maxFuelSpeed
+
+        v = math.sqrt(v_squared)
+
+        # Clamp to max speed
+        return min(v, self.maxFuelSpeed)
 
     # TODO: Dual flywheel implementation
     # The real shooter has two TalonFX motors: upperShooterMotor and lowerShooterMotor.
@@ -94,12 +136,8 @@ class Shooter:
 
     def autoShooterMotorPower(self) -> None:
         """Calculate and set the ideal flywheel speed based on distance to hub."""
-        # TODO: Calculate ideal speed based on distance using projectile physics
-        # For now, use a simple linear approximation:
-        # - At 2m: ~10 m/s
-        # - At 6m: ~18 m/s
         distance = self.distanceToHub()
-        fuelSpeed: units.meters_per_second = 6.0 + (distance * 2.0)
+        fuelSpeed = self.calculateLaunchSpeed(distance)
         self._targetFlywheelSpeed = self._fuelSpeedToFlywheelSpeed(fuelSpeed)
 
     def spinDown(self) -> None:
@@ -108,5 +146,5 @@ class Shooter:
 
     def shoot(self) -> None:
         """Shoots the fuel from the robot (triggers feeder)."""
-        # In real robot, this would activate feeder motor
+        # TODO: activate the feeder mechanism to launch fuel
         pass

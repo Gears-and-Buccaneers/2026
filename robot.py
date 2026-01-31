@@ -173,8 +173,27 @@ class Scurvy(magicbot.MagicRobot):
             self.pewpew.fallbackSpin()
         elif self.operator_controller.shouldSmartAim():
             self.pewpew.autoShooterMotorPower()
+            self._rotateTowardHub()
         else:
             self.pewpew.spinDown()
+
+    def _rotateTowardHub(self) -> None:
+        """Rotate the robot to face the hub while allowing normal translation."""
+        # Calculate angle from SHOOTER to hub (not robot center)
+        # This ensures the fuel trajectory passes through the hub center
+        shooterPos = self.pewpew.getPosition()
+        alliance = wpilib.DriverStation.getAlliance()
+        hubPos = const.Field.getHubPosition(alliance)
+        delta = hubPos - shooterPos
+        targetAngle = geom.Rotation2d(delta.X(), delta.Y())
+
+        # Use drivetrain's facing-angle mode which has built-in PID
+        max_speed = TunerConstants.speed_at_12_volts
+        self.drivetrain.drive_facing_angle(
+            velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
+            velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
+            target_angle=targetAngle,
+        )
 
     def maybe_set_operator_perspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""
