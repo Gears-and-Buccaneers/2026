@@ -125,9 +125,12 @@ class FuelSim:
         # Use Translation2d polar constructor (distance, angle) for horizontal velocity
         horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
 
+        # Add robot velocity to fuel velocity (fuel inherits robot's momentum)
+        robotVelocity = self.drivetrain.get_velocity()
+
         velocity = geom.Translation3d(
-            horizontalVelocity.X(),
-            horizontalVelocity.Y(),
+            horizontalVelocity.X() + robotVelocity.X(),
+            horizontalVelocity.Y() + robotVelocity.Y(),
             verticalSpeed,
         )
 
