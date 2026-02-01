@@ -97,24 +97,47 @@ class FuelSim:
         self,
         speed: units.meters_per_second,
         shooterPosition: geom.Translation2d,
+        wheelRecoveryFactor: float = 1.0,
         predictedToF: units.seconds = 0.0,
     ) -> None:
         """Launch a new fuel from the shooter at the given speed.
 
         Adds random variation to speed and launch angle to simulate
-        real-world inconsistencies.
+        real-world inconsistencies including:
+        - Base speed variation (mechanical tolerances)
+        - Ball-to-ball jitter (ball compression, grip)
+        - Wheel slip (contact inconsistency)
+        - Angle variations (yaw and pitch)
 
         Args:
             speed: The base launch speed in m/s (before random variation).
             shooterPosition: The shooter's 2D position in field coordinates.
+            wheelRecoveryFactor: 0-1 indicating wheel speed recovery (1 = full speed).
             predictedToF: Predicted time of flight from shooting solution.
         """
-        # Apply random speed variation
+        # Apply wheel slip (ball exits slower than wheel surface speed)
+        slipFactor = 1.0 - const.Simulation.WHEEL_SLIP_BASE
+        slipVariation = random.uniform(
+            -const.Simulation.WHEEL_SLIP_VARIATION,
+            const.Simulation.WHEEL_SLIP_VARIATION,
+        )
+        # More slip when wheels haven't fully recovered
+        recoveryPenalty = (1.0 - wheelRecoveryFactor) * 0.02  # Up to 2% extra slip
+        effectiveSlip = slipFactor - slipVariation - recoveryPenalty
+
+        # Apply base speed variation (mechanical tolerances)
         speedVariation = 1.0 + random.uniform(
             -const.Simulation.LAUNCH_SPEED_VARIATION,
             const.Simulation.LAUNCH_SPEED_VARIATION,
         )
-        actualSpeed = speed * speedVariation
+
+        # Apply ball-to-ball jitter (compression, grip inconsistency)
+        ballJitter = 1.0 + random.uniform(
+            -const.Simulation.BALL_SPEED_JITTER,
+            const.Simulation.BALL_SPEED_JITTER,
+        )
+
+        actualSpeed = speed * speedVariation * ballJitter * effectiveSlip
 
         # Get robot heading for launch direction
         robotPose = self.drivetrain.get_pose()
@@ -137,8 +160,18 @@ class FuelSim:
             const.Simulation.LAUNCH_PITCH_VARIATION,
         )
 
+        # Add ball-to-ball angle jitter
+        ballYawJitter = random.uniform(
+            -const.Simulation.BALL_ANGLE_JITTER,
+            const.Simulation.BALL_ANGLE_JITTER,
+        )
+        ballPitchJitter = random.uniform(
+            -const.Simulation.BALL_ANGLE_JITTER,
+            const.Simulation.BALL_ANGLE_JITTER,
+        )
+
         # Base launch angle with pitch variation
-        launchPitch = const.RobotDimension.SHOOTER_ANGLE + pitchOffset
+        launchPitch = const.RobotDimension.SHOOTER_ANGLE + pitchOffset + ballPitchJitter
 
         # Calculate velocity components
         # Vertical speed from pitch angle
@@ -146,7 +179,7 @@ class FuelSim:
 
         # Horizontal speed from pitch angle, directed by heading + yaw offset
         horizontalSpeed = actualSpeed * math.cos(launchPitch)
-        effectiveHeading = geom.Rotation2d(robotHeading + yawOffset)
+        effectiveHeading = geom.Rotation2d(robotHeading + yawOffset + ballYawJitter)
 
         # Use Translation2d polar constructor (distance, angle) for horizontal velocity
         horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
@@ -330,25 +363,76 @@ class ShooterSim(components.Shooter):
             self._maybeEmitFuel()
 
     def _updateFlywheelSpeed(self) -> None:
-        """Simulate flywheel spin-up/spin-down dynamics."""
+        """Simulate flywheel spin-up/spin-down dynamics.
+
+        Uses realistic spin-up times based on ShooterSpec measurements,
+        interpolated by distance:
+        - 8ft (2.44m): 56ms full spin-up, 28ms between shots
+        - 20ft (6.10m): 96ms full spin-up, 40ms between shots
+
+        Kraken X60 motor with 2:1 gear ratio, 3.6 lb-in² MOI.
+        """
         # Target speed comes from parent's _targetFlywheelSpeed (set by setTargetFuelSpeed)
         targetSpeed = self._targetFlywheelSpeed
 
-        # Calculate max flywheel speed for acceleration rate
-        maxFlywheelSpeed = self._fuelSpeedToFlywheelSpeed(self.maxFuelSpeed)
+        # Get current distance to hub for distance-dependent spin-up
+        distance = self.distanceToHub()
 
-        # Calculate acceleration rate (reach max speed in FLYWHEEL_SPINUP_TIME)
-        accelRate = maxFlywheelSpeed / const.Simulation.FLYWHEEL_SPINUP_TIME
+        # Interpolate spin-up times based on distance
+        # 8ft = 2.438m, 20ft = 6.096m
+        DIST_8FT = 2.438
+        DIST_20FT = 6.096
+
+        # Clamp distance to range and calculate interpolation factor (0 = 8ft, 1 = 20ft)
+        t = max(0.0, min(1.0, (distance - DIST_8FT) / (DIST_20FT - DIST_8FT)))
+
+        # Interpolate spin-up times
+        fullSpinupTime = const.ShooterSpec.SPINUP_TIME_8FT + t * (
+            const.ShooterSpec.SPINUP_TIME_20FT - const.ShooterSpec.SPINUP_TIME_8FT
+        )
+        betweenShotsTime = const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT + t * (
+            const.ShooterSpec.SPINUP_BETWEEN_SHOTS_20FT - const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT
+        )
+
+        # RPM range from spec: 1479-2215 RPM
+        # Convert to rad/s for calculations
+        maxRPM = const.ShooterSpec.RPM_MAX
+        maxRadPerSec = maxRPM * 2.0 * math.pi / 60.0
+
+        # Use between-shots spin-up time for recovery (more realistic)
+        # Full spin-up from 0 uses the longer time
+        speedDelta = abs(targetSpeed - self._actualFlywheelSpeed)
+        speedDropFromMax = maxRadPerSec * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
+
+        if self._actualFlywheelSpeed < 0.1:
+            # Starting from stopped - use full spin-up time (distance-dependent)
+            accelRate = maxRadPerSec / fullSpinupTime
+        elif speedDelta <= speedDropFromMax:
+            # Recovering from shot - use between-shots spin-up time (distance-dependent)
+            accelRate = speedDropFromMax / betweenShotsTime
+        else:
+            # Large speed change - use full spin-up time
+            accelRate = maxRadPerSec / fullSpinupTime
 
         # Assume 20ms loop time
         dt = 0.02
 
-        if self._actualFlywheelSpeed < targetSpeed:
+        # Calculate motor RPM limit at wheel (after gear reduction)
+        # Kraken X60 free speed is 6065 RPM, with 2:1 ratio wheel max is 3032.5 RPM
+        maxWheelRadPerSec = const.ShooterSpec.WHEEL_MAX_RPM * 2.0 * math.pi / 60.0
+
+        # Clamp target speed to motor capability
+        clampedTarget = min(targetSpeed, maxWheelRadPerSec)
+
+        if self._actualFlywheelSpeed < clampedTarget:
             # Spin up
-            self._actualFlywheelSpeed = min(targetSpeed, self._actualFlywheelSpeed + accelRate * dt)
-        elif self._actualFlywheelSpeed > targetSpeed:
+            self._actualFlywheelSpeed = min(clampedTarget, self._actualFlywheelSpeed + accelRate * dt)
+        elif self._actualFlywheelSpeed > clampedTarget:
             # Spin down (same rate for now)
-            self._actualFlywheelSpeed = max(targetSpeed, self._actualFlywheelSpeed - accelRate * dt)
+            self._actualFlywheelSpeed = max(clampedTarget, self._actualFlywheelSpeed - accelRate * dt)
+
+        # Hard clamp to motor limit (safety)
+        self._actualFlywheelSpeed = min(self._actualFlywheelSpeed, maxWheelRadPerSec)
 
     def _maybeEmitFuel(self) -> None:
         """Emit fuel if enough time has passed since the last one."""
@@ -363,17 +447,28 @@ class ShooterSim(components.Shooter):
             )
 
     def _emitFuel(self) -> None:
-        """Emit a single fuel and slow down the flywheel."""
-        # Only emit if flywheel is spinning fast enough
+        """Emit a single fuel and slow down the flywheel.
+
+        Only fires if isReadyToFire() returns True (which checks wheel speed,
+        valid solution, and heading alignment).
+        """
+        # Only emit if flywheel is spinning
         if self._actualFlywheelSpeed < 0.2:
             return
 
-        # Only emit if we have a valid solution and heading is aligned
+        # Check all firing conditions (wheel speed, valid solution, heading)
         if not self.isReadyToFire():
             return
 
         # Calculate exit velocity from flywheel surface speed
         exitSpeed = self._flywheelSpeedToFuelSpeed(self._actualFlywheelSpeed)
+
+        # Calculate wheel recovery factor (how close to target speed)
+        # This affects slip variation - wheels at full speed have better grip
+        if self._targetFlywheelSpeed > 0.1:
+            wheelRecoveryFactor = min(1.0, self._actualFlywheelSpeed / self._targetFlywheelSpeed)
+        else:
+            wheelRecoveryFactor = 1.0
 
         # Slow down flywheel by configured percentage
         self._actualFlywheelSpeed *= const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
@@ -386,6 +481,7 @@ class ShooterSim(components.Shooter):
         self.fuelSim.launchFuel(
             speed=exitSpeed,
             shooterPosition=self.getPosition(),
+            wheelRecoveryFactor=wheelRecoveryFactor,
             predictedToF=predictedToF,
         )
 
@@ -396,6 +492,58 @@ class ShooterSim(components.Shooter):
     def getActualFlywheelRPM(self) -> float:
         """Get the current actual flywheel speed in RPM."""
         return self._actualFlywheelSpeed * 60.0 / (2.0 * math.pi)
+
+    def _isAimedAtTarget(self) -> bool:
+        """Check if the robot is aimed at the hub within the heading threshold.
+
+        Note: This checks the direct angle to the hub, not the shooting solution's
+        targetHeading. For shoot-while-moving, use isReadyToFire() instead which
+        accounts for lead compensation.
+
+        Returns:
+            True if robot heading is within HEADING_READY_THRESHOLD of the hub.
+        """
+        # Get robot's current heading
+        robotPose = self.drivetrain.get_pose()
+        currentHeading = robotPose.rotation().radians()
+
+        # Calculate angle to hub
+        shooterPos = self.getPosition()
+        alliance = wpilib.DriverStation.getAlliance()
+        hubPos = const.Field.getHubPosition(alliance)
+
+        # Vector from shooter to hub
+        dx = hubPos.X() - shooterPos.X()
+        dy = hubPos.Y() - shooterPos.Y()
+        targetHeading = math.atan2(dy, dx)
+
+        # Calculate heading error (wrapped to -π to π)
+        headingError = targetHeading - currentHeading
+        while headingError > math.pi:
+            headingError -= 2 * math.pi
+        while headingError < -math.pi:
+            headingError += 2 * math.pi
+
+        # Check if within threshold
+        return abs(headingError) <= const.ShooterSpec.HEADING_READY_THRESHOLD
+
+    def isReadyToFire(self) -> bool:
+        """Check if the shooter is ready to fire (wheels up and aimed).
+
+        Extends the base class check (valid solution + heading aligned) with
+        a wheel speed check for the simulation.
+
+        Returns:
+            True if wheels are at speed and base class conditions are met.
+        """
+        # Check wheel speed first
+        if self._targetFlywheelSpeed > 0.1:
+            speedRatio = self._actualFlywheelSpeed / self._targetFlywheelSpeed
+            if speedRatio < const.ShooterSpec.WHEEL_READY_THRESHOLD:
+                return False
+
+        # Use base class logic for solution validity and heading alignment
+        return super().isReadyToFire()
 
 
 class ScurvySim(Scurvy):
