@@ -143,7 +143,7 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
+        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.

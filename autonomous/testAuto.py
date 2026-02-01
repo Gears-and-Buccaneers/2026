@@ -67,7 +67,7 @@ class TwoPieceChoreoAuto(ChoreoMultiTrajectoryAuto):
 
     MODE_NAME = "PID and Tuning Test"
     DISABLED = False  # Enable this auto mode (base class is disabled by default)
-    DEFAULT = True
+    DEFAULT = False
 
     # Add components that will be injected
 
