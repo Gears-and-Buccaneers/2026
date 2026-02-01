@@ -2,7 +2,7 @@
 
 import math
 import random
-from dataclasses import dataclass, field
+from typing import ClassVar
 
 import wpilib
 import wpimath.geometry as geom
@@ -37,13 +37,33 @@ class DrivetrainSim(components.Drivetrain):
         NetworkTableInstance.getDefault().flush()
 
 
-@dataclass
 class Fuel:
     """A simulated fuel with 3D position and velocity."""
 
-    position: geom.Translation3d
-    velocity: geom.Translation3d = field(default_factory=lambda: geom.Translation3d())
-    bounceCount: int = 0
+    _nextId: ClassVar[int] = 1  # Class-level counter for unique IDs
+
+    def __init__(
+        self,
+        position: geom.Translation3d,
+        velocity: geom.Translation3d | None = None,
+    ) -> None:
+        """Initialize a fuel with position and optional velocity.
+
+        Args:
+            position: Initial 3D position of the fuel.
+            velocity: Initial 3D velocity (defaults to zero).
+        """
+        self.position = position
+        self.velocity = velocity if velocity is not None else geom.Translation3d()
+        self.bounceCount = 0
+        self.lastZ = position.Z()
+        self.hasCrossedTarget = False
+        self.launchTime = 0.0
+        self.predictedToF = 0.0
+
+        # Auto-assign unique ID
+        self.id = Fuel._nextId
+        Fuel._nextId += 1
 
     def to_pose3d(self) -> geom.Pose3d:
         """Convert to Pose3d for NetworkTables publishing."""
@@ -73,7 +93,12 @@ class FuelSim:
         self._timer.start()
         self._lastTime: float = 0.0
 
-    def launchFuel(self, speed: units.meters_per_second, shooterPosition: geom.Translation2d) -> None:
+    def launchFuel(
+        self,
+        speed: units.meters_per_second,
+        shooterPosition: geom.Translation2d,
+        predictedToF: units.seconds = 0.0,
+    ) -> None:
         """Launch a new fuel from the shooter at the given speed.
 
         Adds random variation to speed and launch angle to simulate
@@ -82,6 +107,7 @@ class FuelSim:
         Args:
             speed: The base launch speed in m/s (before random variation).
             shooterPosition: The shooter's 2D position in field coordinates.
+            predictedToF: Predicted time of flight from shooting solution.
         """
         # Apply random speed variation
         speedVariation = 1.0 + random.uniform(
@@ -134,7 +160,19 @@ class FuelSim:
             verticalSpeed,
         )
 
-        self._fuel.append(Fuel(position=position, velocity=velocity))
+        newFuel = Fuel(position=position, velocity=velocity)
+        newFuel.launchTime = self._timer.get()
+        newFuel.predictedToF = predictedToF
+        self._fuel.append(newFuel)
+
+        # Log launch details for debugging
+        print(
+            f"LAUNCH #{newFuel.id} t={newFuel.launchTime:.3f}: "
+            f"pos=({position.X():.2f}, {position.Y():.2f}) "
+            f"vel=({velocity.X():.2f}, {velocity.Y():.2f}, {velocity.Z():.2f}) "
+            f"heading={math.degrees(robotHeading):.1f}° "
+            f"predToF={predictedToF:.3f}s"
+        )
 
     def launchFuelWithVelocity(self, position: geom.Translation3d, velocity: geom.Translation3d) -> None:
         """Launch a new fuel with explicit position and velocity.
@@ -159,6 +197,10 @@ class FuelSim:
 
         # Update each fuel's physics
         fuelRadius = const.Field.FUEL_DIAMETER / 2.0
+        targetZ = const.Field.HUB_TARGET_Z
+        alliance = wpilib.DriverStation.getAlliance()
+        hubPos = const.Field.getHubPosition(alliance)
+
         updatedFuel: list[Fuel] = []
         for fuel in self._fuel:
             # Apply gravity to velocity (negative Z)
@@ -175,6 +217,23 @@ class FuelSim:
                 fuel.position.Y() + fuel.velocity.Y() * dt,
                 fuel.position.Z() + fuel.velocity.Z() * dt,
             )
+
+            # Detect crossing hub target height on the way DOWN (log once per ball)
+            hasCrossed = fuel.hasCrossedTarget
+            if not hasCrossed and fuel.lastZ > targetZ >= newPosition.Z() and newVelocity.Z() < 0:
+                hasCrossed = True
+                # Calculate horizontal distance from hub at crossing
+                horizDist = math.hypot(
+                    newPosition.X() - hubPos.X(),
+                    newPosition.Y() - hubPos.Y(),
+                )
+                actualToF = currentTime - fuel.launchTime
+                print(
+                    f"CROSS #{fuel.id} t={currentTime:.3f}: "
+                    f"pos=({newPosition.X():.2f}, {newPosition.Y():.2f}) "
+                    f"dist={horizDist:.3f}m "
+                    f"ToF={actualToF:.3f}s (pred={fuel.predictedToF:.3f}s)"
+                )
 
             # Check for ground collision (fuel center at radius height)
             newBounceCount = fuel.bounceCount
@@ -209,13 +268,13 @@ class FuelSim:
                     fuelRadius,
                 )
 
-            updatedFuel.append(
-                Fuel(
-                    position=newPosition,
-                    velocity=newVelocity,
-                    bounceCount=newBounceCount,
-                )
-            )
+            # Preserve existing fuel with updated state (avoid creating new to keep same ID)
+            fuel.position = newPosition
+            fuel.velocity = newVelocity
+            fuel.bounceCount = newBounceCount
+            fuel.lastZ = newPosition.Z()
+            fuel.hasCrossedTarget = hasCrossed
+            updatedFuel.append(fuel)
 
         self._fuel = updatedFuel
         self._publishFuel()
@@ -305,8 +364,12 @@ class ShooterSim(components.Shooter):
 
     def _emitFuel(self) -> None:
         """Emit a single fuel and slow down the flywheel."""
-        # Only emit if flywheel is spinning
+        # Only emit if flywheel is spinning fast enough
         if self._actualFlywheelSpeed < 0.2:
+            return
+
+        # Only emit if we have a valid solution and heading is aligned
+        if not self.isReadyToFire():
             return
 
         # Calculate exit velocity from flywheel surface speed
@@ -315,8 +378,16 @@ class ShooterSim(components.Shooter):
         # Slow down flywheel by configured percentage
         self._actualFlywheelSpeed *= const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
 
+        # Get predicted time of flight from the current shooting solution
+        solution = self._currentSolution
+        predictedToF = solution.timeOfFlight if solution and solution.isValid else 0.0
+
         # Launch the fuel from the shooter's current position
-        self.fuelSim.launchFuel(speed=exitSpeed, shooterPosition=self.getPosition())
+        self.fuelSim.launchFuel(
+            speed=exitSpeed,
+            shooterPosition=self.getPosition(),
+            predictedToF=predictedToF,
+        )
 
     def getActualFlywheelSpeed(self) -> units.radians_per_second:
         """Get the current actual flywheel speed in rad/s."""

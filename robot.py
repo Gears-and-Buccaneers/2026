@@ -172,27 +172,34 @@ class Scurvy(magicbot.MagicRobot):
         if self.operator_controller.shouldSetFallbackShooterSpinSpeed():
             self.pewpew.fallbackSpin()
         elif self.operator_controller.shouldSmartAim():
-            self.pewpew.autoShooterMotorPower()
-            self._rotateTowardHub()
+            # Rotate the bot and calculate flywheel speed to aim at the hub
+            self.dynamicallyTargetHub()
         else:
             self.pewpew.spinDown()
 
-    def _rotateTowardHub(self) -> None:
-        """Rotate the robot to face the hub while allowing normal translation."""
-        # Calculate angle from SHOOTER to hub (not robot center)
-        # This ensures the fuel trajectory passes through the hub center
-        shooterPos = self.pewpew.getPosition()
-        alliance = wpilib.DriverStation.getAlliance()
-        hubPos = const.Field.getHubPosition(alliance)
-        delta = hubPos - shooterPos
-        targetAngle = geom.Rotation2d(delta.X(), delta.Y())
+    def dynamicallyTargetHub(self) -> None:
+        """Aim at the hub and set flywheel speed for shoot-while-moving.
 
-        # Use drivetrain's facing-angle mode which has built-in PID
+        Uses iterative solver to calculate both aim direction and muzzle speed,
+        accounting for robot velocity so the fuel lands in the hub while moving.
+        """
+        # Get shooting solution accounting for robot velocity
+        robotVelocity = self.drivetrain.get_velocity()
+        solution = self.pewpew.calculateShootingSolution(robotVelocity)
+
+        # Always update flywheel speed to track the solution
+        self.pewpew.setTargetMuzzleSpeed(solution.muzzleSpeed)
+
+        # Note: Even if solution.isValid is False, we keep rotating toward the hub
+        # so we're ready when the robot slows down. Shooting is prevented by
+        # isReadyToFire() which checks solution validity.
+
+        # Use drivetrain's facing-angle mode--with built-in PID--to rotate towards our desired heading.
         max_speed = TunerConstants.speed_at_12_volts
         self.drivetrain.drive_facing_angle(
             velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
             velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
-            target_angle=targetAngle,
+            target_angle=solution.targetHeading,
         )
 
     def maybe_set_operator_perspective(self) -> None:

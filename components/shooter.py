@@ -1,6 +1,7 @@
 """A hypothetical shooter component on the robot."""
 
 import math
+from typing import NamedTuple
 
 import magicbot
 import wpilib
@@ -9,6 +10,15 @@ import wpimath.units as units
 
 import constants as const
 from components.swerve import Drivetrain
+
+
+class ShootingSolution(NamedTuple):
+    """Complete solution for a shot, stationary or moving."""
+
+    targetHeading: geom.Rotation2d  # Robot heading to aim at hub
+    muzzleSpeed: units.meters_per_second  # Required fuel exit velocity
+    timeOfFlight: units.seconds  # Estimated flight time
+    isValid: bool  # Whether a valid trajectory exists
 
 
 class Shooter:
@@ -31,10 +41,16 @@ class Shooter:
     fallbackFuelSpeed = magicbot.tunable(7.5)
     maxFuelSpeed = magicbot.tunable(15.0)
 
+    # Maximum heading error (degrees) to allow shooting
+    maxHeadingError = magicbot.tunable(2.0)
+
     def __init__(self):
         """Initialize the shooter."""
         # Target flywheel angular velocity (rad/s)
         self._targetFlywheelSpeed: units.radians_per_second = 0.0
+
+        # Most recent shooting solution (updated by calculateShootingSolution)
+        self._currentSolution: ShootingSolution | None = None
 
     def _fuelSpeedToFlywheelSpeed(self, fuelSpeed: units.meters_per_second) -> units.radians_per_second:
         """Convert fuel exit speed to flywheel angular velocity.
@@ -60,6 +76,38 @@ class Shooter:
         # v = ωr
         return flywheelSpeed * const.RobotDimension.FLYWHEEL_RADIUS
 
+    def setTargetMuzzleSpeed(self, muzzle_speed: units.meters_per_second) -> None:
+        """Set the target flywheel speed to achieve the desired muzzle velocity.
+
+        Args:
+            muzzle_speed: Desired fuel exit velocity in m/s.
+        """
+        self._targetFlywheelSpeed = self._fuelSpeedToFlywheelSpeed(muzzle_speed)
+
+    def isReadyToFire(self) -> bool:
+        """Check if the shooter is ready to fire.
+
+        Returns True if:
+        - We have a valid shooting solution
+        - Robot heading is within tolerance of target heading
+
+        Returns:
+            True if conditions are met for an accurate shot.
+        """
+        if self._currentSolution is None or not self._currentSolution.isValid:
+            return False
+
+        # Check if robot heading is close enough to target
+        currentHeading = self.drivetrain.get_heading()
+        targetHeading = self._currentSolution.targetHeading
+        headingError = abs((currentHeading - targetHeading).degrees())
+
+        # Normalize to [-180, 180]
+        if headingError > 180:
+            headingError = 360 - headingError
+
+        return headingError <= self.maxHeadingError
+
     def getTargetFlywheelSpeed(self) -> units.radians_per_second:
         """Get the current target flywheel angular velocity."""
         return self._targetFlywheelSpeed
@@ -77,6 +125,171 @@ class Shooter:
         alliance = wpilib.DriverStation.getAlliance()
         hubPos = const.Field.getHubPosition(alliance)
         return self.getPosition().distance(hubPos)
+
+    def calculateShootingSolution(self, robotVelocity: geom.Translation2d | None = None) -> ShootingSolution:
+        """Calculate aim direction and muzzle speed, accounting for robot motion.
+
+        Uses an iterative solver because time-of-flight depends on launch speed,
+        which depends on the required muzzle velocity to compensate for robot motion.
+
+        The fuel's total velocity = muzzle velocity + robot velocity.
+        We solve for muzzle velocity such that total velocity lands in the hub.
+
+        Args:
+            robotVelocity: Robot's field-centric velocity (m/s). None for stationary.
+
+        Returns:
+            ShootingSolution with target heading, muzzle speed, ToF, and validity.
+        """
+        if robotVelocity is None:
+            robotVelocity = geom.Translation2d(0, 0)
+
+        # Get positions
+        shooter_pos = self.getPosition()
+        alliance = wpilib.DriverStation.getAlliance()
+        hub_pos = const.Field.getHubPosition(alliance)
+
+        # Vector from shooter to hub
+        delta = hub_pos - shooter_pos
+        distance = delta.norm()
+
+        # Physical constants
+        theta = const.RobotDimension.SHOOTER_ANGLE
+        cos_theta = math.cos(theta)
+        sin_theta = math.sin(theta)
+        g = const.Simulation.GRAVITY
+        h = const.Field.HUB_TARGET_Z - const.RobotDimension.SHOOTER_LOCATION.Z()
+
+        # Initial guess: stationary solution
+        v_m = self._calculateStationaryLaunchSpeed(distance, h, theta, g)
+
+        # Iterative solver
+        max_iterations = 10
+        tolerance = 0.001  # m/s
+
+        for _ in range(max_iterations):
+            # Calculate time of flight with current muzzle speed
+            # Vertical motion: h = v_z*t - 0.5*g*t^2
+            # Solving quadratic: t = (v_z + sqrt(v_z^2 - 2*g*h)) / g
+            v_z = v_m * sin_theta
+            discriminant = v_z * v_z - 2 * g * h
+
+            if discriminant < 0:
+                # No valid trajectory - target unreachable
+                self._currentSolution = ShootingSolution(
+                    targetHeading=geom.Rotation2d(delta.X(), delta.Y()),
+                    muzzleSpeed=self.maxFuelSpeed,
+                    timeOfFlight=0.0,
+                    isValid=False,
+                )
+                return self._currentSolution
+
+            t = (v_z + math.sqrt(discriminant)) / g
+            if t <= 0:
+                self._currentSolution = ShootingSolution(
+                    targetHeading=geom.Rotation2d(delta.X(), delta.Y()),
+                    muzzleSpeed=self.maxFuelSpeed,
+                    timeOfFlight=0.0,
+                    isValid=False,
+                )
+                return self._currentSolution
+
+            # Required muzzle velocity (horizontal) in field frame:
+            # v_muzzle = delta/t - robot_velocity
+            v_muzzle_required = geom.Translation2d(
+                delta.X() / t - robotVelocity.X(),
+                delta.Y() / t - robotVelocity.Y(),
+            )
+
+            # The muzzle speed from this requirement
+            v_m_horizontal = v_muzzle_required.norm()
+            v_m_new = v_m_horizontal / cos_theta
+
+            # Check convergence
+            if abs(v_m_new - v_m) < tolerance:
+                v_m = v_m_new
+                break
+
+            v_m = v_m_new
+
+        # Final calculation with converged speed
+        v_z = v_m * sin_theta
+        discriminant = v_z * v_z - 2 * g * h
+
+        if discriminant < 0 or v_m > self.maxFuelSpeed:
+            self._currentSolution = ShootingSolution(
+                targetHeading=geom.Rotation2d(delta.X(), delta.Y()),
+                muzzleSpeed=min(v_m, self.maxFuelSpeed),
+                timeOfFlight=0.0,
+                isValid=False,
+            )
+            return self._currentSolution
+
+        t = (v_z + math.sqrt(discriminant)) / g
+        v_muzzle_required = geom.Translation2d(
+            delta.X() / t - robotVelocity.X(),
+            delta.Y() / t - robotVelocity.Y(),
+        )
+
+        # The target heading is the direction of the required muzzle velocity
+        target_heading = geom.Rotation2d(v_muzzle_required.X(), v_muzzle_required.Y())
+
+        self._currentSolution = ShootingSolution(
+            targetHeading=target_heading,
+            muzzleSpeed=v_m,
+            timeOfFlight=t,
+            isValid=True,
+        )
+        return self._currentSolution
+
+    def _calculateStationaryLaunchSpeed(
+        self,
+        distance: units.meters,
+        height_diff: units.meters,
+        theta: units.radians,
+        gravity: units.meters_per_second_squared,
+    ) -> units.meters_per_second:
+        """Calculate launch speed for stationary shot (used as initial guess).
+
+        Args:
+            distance: Horizontal distance to target.
+            height_diff: Target height minus shooter height.
+            theta: Launch angle in radians.
+            gravity: Gravitational acceleration.
+
+        Returns:
+            Required launch speed, or maxFuelSpeed if impossible.
+        """
+        denom_term = distance * math.tan(theta) - height_diff
+        if denom_term <= 0:
+            return self.maxFuelSpeed
+
+        cos_theta = math.cos(theta)
+        v_squared = (gravity * distance * distance) / (2 * cos_theta * cos_theta * denom_term)
+
+        if v_squared < 0:
+            return self.maxFuelSpeed
+
+        return min(math.sqrt(v_squared), self.maxFuelSpeed)
+
+    def estimateTimeOfFlight(self) -> units.seconds:
+        """Estimate the time for fuel to reach the hub from current position.
+
+        Uses the projectile approximation: t = d / (v₀ · cos(θ))
+        where d is horizontal distance, v₀ is launch speed, θ is launch angle.
+
+        Returns:
+            Estimated time in seconds for fuel to reach the hub.
+        """
+        distance = self.distanceToHub()
+        launchSpeed = self.calculateLaunchSpeed(distance)
+        theta = const.RobotDimension.SHOOTER_ANGLE
+
+        horizontalSpeed = launchSpeed * math.cos(theta)
+        if horizontalSpeed <= 0:
+            return 0.0  # Avoid division by zero
+
+        return distance / horizontalSpeed
 
     def calculateLaunchSpeed(self, distance: units.meters) -> units.meters_per_second:
         """Calculate the required launch speed to reach the hub from a given distance.
