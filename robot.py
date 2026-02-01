@@ -5,9 +5,9 @@ import os
 
 import magicbot
 import wpilib
+from magicbot import feedback
 from wpilib import RobotBase
 from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d
-from magicbot import feedback
 
 import components
 import constants as const
@@ -146,17 +146,22 @@ class Scurvy(magicbot.MagicRobot):
         self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
 
     def createControllers(self) -> None:
-        """Set up joystick and gamepad objects here."""
-        # Check if we're supposed to be using a USB gamepad for the driver, or XBox controller
-        if os.getenv("USE_DRIVER_USB_GAMEPAD") == "1":
-            self.driver_controller = components.DriverUSBGamepad(const.ControllerPort.DRIVER_CONTROLLER)
-        else:
-            self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+        """Set up joystick and gamepad objects here.
 
-        if os.getenv("USE_OPERATOR_USB_GAMEPAD") == "1":
-            self.operator_controller = components.OperatorUSBGamepad(const.ControllerPort.OPERATOR_CONTROLLER)
-        else:
-            self.operator_controller = components.OperatorController(const.ControllerPort.OPERATOR_CONTROLLER)
+        Controller profiles are selected via environment variables:
+        - "DRIVER_CONTROLLER": Profile for driver controller (e.g., "wired", "wireless", "macwireless", "macwired")
+        - "OPERATOR_CONTROLLER": Profile for operator controller
+
+        See components/controllers.py for available profiles.
+        """
+        self.driver_controller = components.DriverController(
+            const.ControllerPort.DRIVER_CONTROLLER,
+            os.getenv("DRIVER_CONTROLLER", "wired"),
+        )
+        self.operator_controller = components.OperatorController(
+            const.ControllerPort.OPERATOR_CONTROLLER,
+            os.getenv("OPERATOR_CONTROLLER", "wired"),
+        )
 
     def createLights(self) -> None:
         """Set up CAN objects for lights."""
