@@ -4,7 +4,6 @@ import math
 from dataclasses import dataclass
 
 import wpilib
-from magicbot import feedback
 
 
 def joystick_square_to_circle(x: float, y: float) -> tuple[float, float]:
@@ -76,8 +75,7 @@ class MappedController(wpilib.XboxController):
     # Negative axis numbers in the spreadsheet indicate inversion is needed.
     # Orange cells indicate full-range triggers (-1 to 1 instead of 0 to 1).
     PROFILES: dict[str, ControllerProfile] = {
-        # Standard Xbox mapping (default, works with proper drivers)
-        # Windows Wired Controller (mapped) - column F
+        # Windows Wired Controller (mapped)
         "wired": ControllerProfile(
             name="Windows Wired Controller (mapped)",
             left_x=AxisMapping(0),
@@ -95,7 +93,7 @@ class MappedController(wpilib.XboxController):
             left_stick_button=9,
             right_stick_button=10,
         ),
-        # Windows Xbox Wireless (mapped) - column D
+        # Windows Xbox Wireless (mapped)
         "wireless": ControllerProfile(
             name="Windows Xbox Wireless (mapped mode)",
             left_x=AxisMapping(0),
@@ -113,7 +111,7 @@ class MappedController(wpilib.XboxController):
             left_stick_button=9,
             right_stick_button=10,
         ),
-        # Windows Xbox Wireless (unmapped) - column C
+        # Windows Xbox Wireless (unmapped)
         "wirelessnomap": ControllerProfile(
             name="Windows Xbox Wireless (unmapped)",
             left_x=AxisMapping(0),
@@ -131,7 +129,7 @@ class MappedController(wpilib.XboxController):
             left_stick_button=9,
             right_stick_button=10,
         ),
-        # Windows Wired Controller (unmapped) - column E
+        # Windows Wired Controller (unmapped)
         "wirednomap": ControllerProfile(
             name="Windows Wired Controller (unmapped)",
             left_x=AxisMapping(0),
@@ -149,7 +147,7 @@ class MappedController(wpilib.XboxController):
             left_stick_button=9,
             right_stick_button=10,
         ),
-        # macOS Xbox Wireless - column G
+        # macOS Xbox Wireless
         "macwireless": ControllerProfile(
             name="macOS Xbox Wireless",
             left_x=AxisMapping(0),
@@ -167,7 +165,7 @@ class MappedController(wpilib.XboxController):
             left_stick_button=14,
             right_stick_button=15,
         ),
-        # macOS Wired Controller - column H
+        # macOS Wired Controller
         "macwired": ControllerProfile(
             name="macOS Wired Controller",
             left_x=AxisMapping(0),
@@ -302,22 +300,22 @@ class MappedController(wpilib.XboxController):
     def getYButtonReleased(self) -> bool:
         return self.getRawButtonReleased(self._y)
 
-    def getLeftBumper(self) -> bool:
+    def getLeftBumperButton(self) -> bool:
         return self.getRawButton(self._lb)
 
-    def getLeftBumperPressed(self) -> bool:
+    def getLeftBumperButtonPressed(self) -> bool:
         return self.getRawButtonPressed(self._lb)
 
-    def getLeftBumperReleased(self) -> bool:
+    def getLeftBumperButtonReleased(self) -> bool:
         return self.getRawButtonReleased(self._lb)
 
-    def getRightBumper(self) -> bool:
+    def getRightBumperButton(self) -> bool:
         return self.getRawButton(self._rb)
 
-    def getRightBumperPressed(self) -> bool:
+    def getRightBumperButtonPressed(self) -> bool:
         return self.getRawButtonPressed(self._rb)
 
-    def getRightBumperReleased(self) -> bool:
+    def getRightBumperButtonReleased(self) -> bool:
         return self.getRawButtonReleased(self._rb)
 
     def getLeftStickButton(self) -> bool:
@@ -407,7 +405,7 @@ class DriverController(MappedController):
 
     def should_zero_gyro(self) -> bool:
         """Determine if the zero gyro button was pressed since the last check."""
-        return self.getRightBumperPressed()
+        return self.getRightBumperButtonPressed()
 
 
 class OperatorController(MappedController):
@@ -422,18 +420,17 @@ class OperatorController(MappedController):
         """
         super().__init__(port, profile_name)
 
-    @feedback
     def shouldVomit(self) -> bool:
         """Determine if the outtake button is actively being pressed."""
-        return self.getLeftTriggerAxis() > 0
+        return self.getLeftTriggerAxis() > 0.5
 
     def shouldSmartAim(self) -> bool:
         """Determine if the auto aim button is actively being pressed."""
-        return self.getRightTriggerAxis() > 0
+        return self.getRightTriggerAxis() > 0.5
 
     def shouldShoot(self) -> bool:
         """Determine if the shoot button is actively being pressed."""
-        return self.getRightBumper()
+        return self.getRightBumperButton()
 
     def shouldSetFallbackShooterSpinSpeed(self) -> bool:
         """Determine if the set-shooter-speed-to-predefined-speed button is actively being pressed."""
