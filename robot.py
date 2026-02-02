@@ -229,11 +229,11 @@ class Scurvy(magicbot.MagicRobot):
         # isReadyToFire() which checks solution validity.
 
         # Use drivetrain's facing-angle mode--with built-in PID--to rotate towards our desired heading.
-        max_speed = TunerConstants.speed_at_12_volts
+        maxSpeed = TunerConstants.speed_at_12_volts
         self.drivetrain.driveFacingAngle(
-            velocity_x=self.driverController.getMoveForwardPercent() * max_speed,
-            velocity_y=self.driverController.getMoveLeftPercent() * max_speed,
-            target_angle=solution.targetHeading,
+            velocityX=self.driverController.getMoveForwardPercent() * maxSpeed,
+            velocityY=self.driverController.getMoveLeftPercent() * maxSpeed,
+            targetAngle=solution.targetHeading,
         )
         if self.operatorController.shouldToggleLEDMode():
             self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors

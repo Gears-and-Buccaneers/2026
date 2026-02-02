@@ -162,9 +162,9 @@ class Drivetrain:
     def driveFacingAngle(
         self,
         *,
-        velocity_x: meters_per_second = 0.0,
-        velocity_y: meters_per_second = 0.0,
-        target_angle: Rotation2d,
+        velocityX: meters_per_second = 0.0,
+        velocityY: meters_per_second = 0.0,
+        targetAngle: Rotation2d,
     ) -> None:
         """Drive while rotating to face a target angle.
 
@@ -172,19 +172,19 @@ class Drivetrain:
         PID controller to rotate toward the target angle at maximum safe speed.
 
         Args:
-            velocity_x: Forward velocity in m/s (positive = away from driver).
-            velocity_y: Left velocity in m/s (positive = to driver's left).
-            target_angle: The field-relative angle to face.
+            velocityX: Forward velocity in m/s (positive = away from driver).
+            velocityY: Left velocity in m/s (positive = to driver's left).
+            targetAngle: The field-relative angle to face.
         """
         # The request uses OPERATOR_PERSPECTIVE which rotates the target angle
         # by the operator's forward direction. We need to undo that rotation
         # since target_angle is already field-relative.
-        adjusted_angle = target_angle - self._operator_forward
+        adjustedAngle = targetAngle - self._operator_forward
 
         self._pending_request = (
-            self._facing_angle_request.with_velocity_x(velocity_x)
-            .with_velocity_y(velocity_y)
-            .with_target_direction(adjusted_angle)
+            self._facing_angle_request.with_velocity_x(velocityX)
+            .with_velocity_y(velocityY)
+            .with_target_direction(adjustedAngle)
         )
 
     def stop(self) -> None:
