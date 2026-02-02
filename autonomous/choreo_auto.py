@@ -135,7 +135,7 @@ class ChoreoAuto(mb.AutonomousStateMachine):
         if self._trajectory is not None:
             initial_pose = self._trajectory.get_initial_pose(self.is_red_alliance())
             if initial_pose is not None:
-                self.drivetrain.reset_pose(initial_pose)
+                self.drivetrain.resetPose(initial_pose)
                 wpilib.reportError(
                     f"ATTENTION: Starting pose set to {initial_pose}, make sure that the right alliance is selected.",
                     False,
@@ -222,7 +222,7 @@ class ChoreoAuto(mb.AutonomousStateMachine):
 
         if sample is not None:
             # Follow the trajectory sample
-            self.drivetrain.follow_trajectory(sample)
+            self.drivetrain.followTrajectory(sample)
         else:
             # Couldn't get a sample, just stop
             self.drivetrain.stop()
@@ -330,7 +330,7 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
         if self._current_trajectory is not None:
             initial_pose = self._current_trajectory.get_initial_pose(ChoreoAuto.is_red_alliance())
             if initial_pose is not None:
-                self.drivetrain.reset_pose(initial_pose)
+                self.drivetrain.resetPose(initial_pose)
 
     def _load_current_trajectory(self) -> None:
         """Load the current trajectory from the sequence."""
@@ -371,7 +371,7 @@ class ChoreoMultiTrajectoryAuto(mb.AutonomousStateMachine):
 
         sample = self._current_trajectory.sample_at(elapsed_time, ChoreoAuto.is_red_alliance())
         if sample is not None:
-            self.drivetrain.follow_trajectory(sample)
+            self.drivetrain.followTrajectory(sample)
         else:
             self.drivetrain.stop()
 

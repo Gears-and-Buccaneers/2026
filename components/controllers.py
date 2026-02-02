@@ -8,7 +8,7 @@ import wpilib
 import utils
 
 
-def joystick_square_to_circle(x: float, y: float) -> tuple[float, float]:
+def joystickSquareToCircle(x: float, y: float) -> tuple[float, float]:
     """Remap square joystick coordinates to be within a circle.
 
     For example, moving the joystick 45° to the corner yields values (1, 1);
@@ -350,7 +350,7 @@ class DriverController(MappedController):
         """
         super().__init__(port, profileName)
 
-    def get_move_forward_percent(self) -> float:
+    def getMoveForwardPercent(self) -> float:
         """Get the desired forward/reverse percent from the "move" stick.
 
         Returns:
@@ -358,7 +358,7 @@ class DriverController(MappedController):
         """
         return -self.getRightY()
 
-    def get_move_left_percent(self) -> float:
+    def getMoveLeftPercent(self) -> float:
         """Get the desired left/right percent from the "move" stick.
 
         Returns:
@@ -366,7 +366,7 @@ class DriverController(MappedController):
         """
         return -self.getRightX()
 
-    def get_rotate_counter_clockwise_percent(self) -> float:
+    def getRotateCounterClockwisePercent(self) -> float:
         """Get the desired rotation percent from the "rotate" stick.
 
         Returns:
@@ -374,11 +374,11 @@ class DriverController(MappedController):
         """
         return -self.getLeftX()
 
-    def should_brake(self) -> bool:
+    def shouldBrake(self) -> bool:
         """Determine if the brake button is actively being pressed."""
         return self.getXButton()
 
-    def should_zero_gyro(self) -> bool:
+    def shouldZeroGyro(self) -> bool:
         """Determine if the zero gyro button was pressed since the last check."""
         return self.getRightBumperButtonPressed()
 
@@ -426,7 +426,7 @@ class OperatorController(MappedController):
     def _colorFromStickValues(self, x: float, y: float) -> wpilib.Color8Bit:
         """Convert joystick x/y values to a color."""
         # Remap square joystick values to circular values
-        circularX, circularY = joystick_square_to_circle(x, y)
+        circularX, circularY = joystickSquareToCircle(x, y)
 
         return utils.color8FromHSV(
             h=math.degrees(math.atan2(-circularX, -circularY)),
