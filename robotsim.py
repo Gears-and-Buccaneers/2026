@@ -33,7 +33,7 @@ class DrivetrainSim(components.Drivetrain):
     def execute(self) -> None:
         """Update simulation and publish pose to NetworkTables."""
         super().execute()
-        self._posePublisher.set(self.get_pose())
+        self._posePublisher.set(self.getPose())
         NetworkTableInstance.getDefault().flush()
 
 
@@ -139,7 +139,7 @@ class FuelSim:
         actualSpeed = speed * speedVariation * ballJitter * effectiveSlip
 
         # Get robot heading for launch direction
-        robotPose = self.drivetrain.get_pose()
+        robotPose = self.drivetrain.getPose()
         robotHeading = robotPose.rotation().radians()
 
         # Use shooter position (2D) and add height from constants
@@ -184,7 +184,7 @@ class FuelSim:
         horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
 
         # Add robot velocity to fuel velocity (fuel inherits robot's momentum)
-        robotVelocity = self.drivetrain.get_velocity()
+        robotVelocity = self.drivetrain.getVelocity()
 
         velocity = geom.Translation3d(
             horizontalVelocity.x + robotVelocity.x,
@@ -466,7 +466,7 @@ class ShooterSim(components.Shooter):
             True if robot heading is within HEADING_READY_THRESHOLD of the hub.
         """
         # Get robot's current heading
-        robotPose = self.drivetrain.get_pose()
+        robotPose = self.drivetrain.getPose()
         currentHeading = robotPose.rotation().radians()
 
         # Calculate angle to hub
@@ -526,4 +526,4 @@ class ScurvySim(Scurvy):
         super().manuallyOperate()
 
         # Handle ball emission - setShooting controls whether feeder runs
-        self.pewpew.setShooting(self.operator_controller.shouldShoot())
+        self.pewpew.setShooting(self.operatorController.shouldShoot())

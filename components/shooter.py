@@ -34,7 +34,7 @@ class Shooter:
 
     # MagicBot will inject these
     drivetrain: Drivetrain
-    shooter_motor: wpilib.Talon
+    shooterMotor: wpilib.Talon
 
     # Fallback fuel exit speed for a known shooting position (m/s)
     fallbackFuelSpeed = magicbot.tunable(7.5)
@@ -97,7 +97,7 @@ class Shooter:
             return False
 
         # Check if robot heading is close enough to target
-        currentHeading = self.drivetrain.get_heading()
+        currentHeading = self.drivetrain.getHeading()
         targetHeading = self._currentSolution.targetHeading
         headingError = abs((currentHeading - targetHeading).degrees())
 
@@ -113,7 +113,7 @@ class Shooter:
 
     def getPosition(self) -> geom.Translation2d:
         """Get the shooter's position in field coordinates."""
-        robotPose = self.drivetrain.get_pose()
+        robotPose = self.drivetrain.getPose()
         return robotPose.translation() + geom.Translation2d(
             const.RobotDimension.SHOOTER_LOCATION.X(),
             const.RobotDimension.SHOOTER_LOCATION.Y(),
@@ -341,9 +341,9 @@ class Shooter:
         """This gets called at the end of the control loop."""
         # TODO: figure out how to drive the motor(s) towards the target rotational speed(s)
         if self._targetFlywheelSpeed <= 0.0:
-            self.shooter_motor.set(0)
+            self.shooterMotor.set(0)
         else:
-            self.shooter_motor.set(1)
+            self.shooterMotor.set(1)
 
     def fallbackSpin(self) -> None:
         """Set the shooter to a known good speed for a fixed shooting position."""

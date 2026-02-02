@@ -8,6 +8,7 @@ import wpilib
 import wpimath.geometry as geom
 import wpimath.units as units
 from magicbot import feedback
+from wpilib import RobotBase
 
 import components
 import constants as const
@@ -25,8 +26,8 @@ class Scurvy(magicbot.MagicRobot):
     pewpew: components.Shooter
     vision: components.Vision
     intake: components.Intake
-    driver_controller: components.DriverController
-    operator_controller: components.OperatorController
+    driverController: components.DriverController
+    operatorController: components.OperatorController
     lighting: components.Lighting
 
     def __init__(self) -> None:
@@ -76,11 +77,11 @@ class Scurvy(magicbot.MagicRobot):
     def testInit(self) -> None:
         """Called when starting test mode."""
         # Reset pose to (0,0,0) so our distance check works
-        self.drivetrain.reset_pose(geom.Pose2d(0, 0, geom.Rotation2d(0)))
+        self.drivetrain.resetPose(geom.Pose2d(0, 0, geom.Rotation2d(0)))
 
-        self.test_timer = wpilib.Timer()
-        self.test_timer.restart()
-        self.test_state = "forward"
+        self.testTimer = wpilib.Timer()
+        self.testTimer.restart()
+        self.testState = "forward"
         print("Test Mode Started: Driving Forward 1m")
 
     def testPeriodic(self) -> None:
@@ -88,54 +89,54 @@ class Scurvy(magicbot.MagicRobot):
         # Simple ping-pong for tuning drive velocity
         # Drive forward for 1 meter (approx 3ft), then backward
 
-        pose = self.drivetrain.get_pose()
-        test_speed = 2.0  # m/s
+        pose = self.drivetrain.getPose()
+        testSpeed = 2.0  # m/s
 
-        if self.test_state == "forward":
+        if self.testState == "forward":
             if pose.X() < 1.0:
-                self.drivetrain.drive(velocity_x=test_speed)
+                self.drivetrain.drive(velocityX=testSpeed)
             else:
-                self.test_state = "wait_forward"
-                self.test_timer.restart()
+                self.testState = "wait_forward"
+                self.testTimer.restart()
                 print("Reached 1m, Waiting...")
 
-        elif self.test_state == "wait_forward":
+        elif self.testState == "wait_forward":
             self.drivetrain.drive()
-            if self.test_timer.hasElapsed(1.0):
-                self.test_state = "backward"
+            if self.testTimer.hasElapsed(1.0):
+                self.testState = "backward"
                 print("Driving Backward")
 
-        elif self.test_state == "backward":
+        elif self.testState == "backward":
             if pose.X() > 0.0:
-                self.drivetrain.drive(velocity_x=-test_speed)
+                self.drivetrain.drive(velocityX=-testSpeed)
             else:
-                self.test_state = "wait_backward"
-                self.test_timer.restart()
+                self.testState = "wait_backward"
+                self.testTimer.restart()
                 print("Reached 0m, Waiting...")
 
-        elif self.test_state == "wait_backward":
-            self.drivetrain.drive(velocity_x=0, velocity_y=0, rotation_rate=0)
-            if self.test_timer.hasElapsed(1.0):
-                self.test_state = "forward"
+        elif self.testState == "wait_backward":
+            self.drivetrain.drive(velocityX=0, velocityY=0, rotationRate=0)
+            if self.testTimer.hasElapsed(1.0):
+                self.testState = "forward"
                 print("Driving Forward")
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
         # Update vision simulation with current robot pose
-        if wpilib.RobotBase.isSimulation():
-            pose_2d = self.drivetrain.get_pose()
+        if RobotBase.isSimulation():
+            pose_2d = self.drivetrain.getPose()
             pose_3d = geom.Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians()))
             self.vision.update_sim(pose_3d)
 
         # Feed vision measurements to drivetrain for pose estimation fusion
         # Each measurement includes distance-scaled standard deviations
         for measurement in self.vision.get_measurements():
-            self.drivetrain.add_vision_measurement(
+            self.drivetrain.addVisionMeasurement(
                 measurement.pose,
                 measurement.timestamp,
                 measurement.std_devs,
             )
-        self.maybe_set_operator_perspective()
+        self.maybeSetOperatorPerspective()
         self.updateLights()
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -148,7 +149,7 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
+        self.shooterMotor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
         self.intakeMotor = wpilib.Talon(const.CANID.INTAKE_MOTOR)
 
     def createControllers(self) -> None:
@@ -163,11 +164,11 @@ class Scurvy(magicbot.MagicRobot):
 
         See components/controllers.py for available profiles.
         """
-        self.driver_controller = components.DriverController(
+        self.driverController = components.DriverController(
             const.ControllerPort.DRIVER_CONTROLLER,
             os.getenv("DRIVER_CONTROLLER", "wired"),
         )
-        self.operator_controller = components.OperatorController(
+        self.operatorController = components.OperatorController(
             const.ControllerPort.OPERATOR_CONTROLLER,
             os.getenv("OPERATOR_CONTROLLER", "wired"),
         )
@@ -179,7 +180,7 @@ class Scurvy(magicbot.MagicRobot):
     def manuallyDrive(self) -> None:
         """Drive the robot based on controller input."""
         # Check if X-stance button is pressed
-        if self.driver_controller.should_brake():
+        if self.driverController.shouldBrake():
             self.drivetrain.brake()
         else:
             max_speed = TunerConstants.speed_at_12_volts
@@ -188,20 +189,23 @@ class Scurvy(magicbot.MagicRobot):
             # so that "forward" on the joystick is always away from the driver,
             # regardless of which alliance the team is assigned to.
             self.drivetrain.drive(
-                velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
-                velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
-                rotation_rate=self.driver_controller.get_rotate_counter_clockwise_percent() * MAX_ROTATION_SPEED,
+                velocityX=self.driverController.getMoveForwardPercent() * max_speed,
+                velocityY=self.driverController.getMoveLeftPercent() * max_speed,
+                rotationRate=self.driverController.getRotateCounterClockwisePercent() * MAX_ROTATION_SPEED,
             )
 
-        if self.driver_controller.should_zero_gyro():
-            self.drivetrain.zero_heading()
+        if self.driverController.shouldZeroGyro():
+            self.drivetrain.zeroHeading()
 
     def manuallyOperate(self) -> None:
         """Operate the robot based on controller input."""
+        if self.operatorController.shouldToggleLEDMode():
+            self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors
+
         # Handle shooter spin-up modes
-        if self.operator_controller.shouldSetFallbackShooterSpinSpeed():
+        if self.operatorController.shouldSetFallbackShooterSpinSpeed():
             self.pewpew.fallbackSpin()
-        elif self.operator_controller.shouldSmartAim():
+        elif self.operatorController.shouldSmartAim():
             # Rotate the bot and calculate flywheel speed to aim at the hub
             self.dynamicallyTargetHub()
         else:
@@ -214,7 +218,7 @@ class Scurvy(magicbot.MagicRobot):
         accounting for robot velocity so the fuel lands in the hub while moving.
         """
         # Get shooting solution accounting for robot velocity
-        robotVelocity = self.drivetrain.get_velocity()
+        robotVelocity = self.drivetrain.getVelocity()
         solution = self.pewpew.calculateShootingSolution(robotVelocity)
 
         # Always update flywheel speed to track the solution
@@ -225,16 +229,14 @@ class Scurvy(magicbot.MagicRobot):
         # isReadyToFire() which checks solution validity.
 
         # Use drivetrain's facing-angle mode--with built-in PID--to rotate towards our desired heading.
-        max_speed = TunerConstants.speed_at_12_volts
-        self.drivetrain.drive_facing_angle(
-            velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
-            velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
-            target_angle=solution.targetHeading,
+        maxSpeed = TunerConstants.speed_at_12_volts
+        self.drivetrain.driveFacingAngle(
+            velocityX=self.driverController.getMoveForwardPercent() * maxSpeed,
+            velocityY=self.driverController.getMoveLeftPercent() * maxSpeed,
+            targetAngle=solution.targetHeading,
         )
-        if self.operator_controller.shouldToggleLEDMode():
-            self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors
 
-    def maybe_set_operator_perspective(self) -> None:
+    def maybeSetOperatorPerspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""
         alliance: wpilib.DriverStation.Alliance | None = wpilib.DriverStation.getAlliance()
         if alliance == self._alliance_perspective:
@@ -245,7 +247,7 @@ class Scurvy(magicbot.MagicRobot):
 
         # To be safe, be sure we didn't get put on an unknown alliance
         if alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
-            self.drivetrain.set_operator_perspective_forward_orientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
+            self.drivetrain.setOperatorPerspectiveForwardOrientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
             self._alliance_perspective = alliance
 
     @feedback
@@ -296,7 +298,7 @@ class Scurvy(magicbot.MagicRobot):
         """Update the lights based on robot state."""
         if self._operatorCanShowArbitraryLEDColors:
             # Let the operator pick any color they want using the controller
-            self.lighting.setColor(self.operator_controller.customLEDColor())
+            self.lighting.setColor(self.operatorController.customLEDColor())
             self.lighting.showProgress(1.0)
         else:
             # Pick the color based on the current shift

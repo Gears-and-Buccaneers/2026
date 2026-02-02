@@ -62,14 +62,14 @@ def _exercise_drive(
 
     DriverStationSim.setAllianceStationId(alliance)
     DriverStationSim.notifyNewData()
-    bot.maybe_set_operator_perspective()
+    bot.maybeSetOperatorPerspective()
 
-    bot.drivetrain.reset_pose(Pose2d(0, 0, Rotation2d(0)))
+    bot.drivetrain.resetPose(Pose2d(0, 0, Rotation2d(0)))
 
     if centric == "operator":
-        bot.drivetrain.drive(velocity_x=cmd_vx, velocity_y=cmd_vy, rotation_rate=0.0)
+        bot.drivetrain.drive(velocityX=cmd_vx, velocityY=cmd_vy, rotationRate=0.0)
     else:
-        bot.drivetrain.drive_field_centric(velocity_x=cmd_vx, velocity_y=cmd_vy, rotation_rate=0.0)
+        bot.drivetrain.driveFieldCentric(velocityX=cmd_vx, velocityY=cmd_vy, rotationRate=0.0)
 
     req = bot.drivetrain._pending_request
     assert isinstance(req, FieldCentric)
