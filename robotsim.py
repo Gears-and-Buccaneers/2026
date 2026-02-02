@@ -184,7 +184,7 @@ class FuelSim:
         horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
 
         # Add robot velocity to fuel velocity (fuel inherits robot's momentum)
-        robotVelocity = self.drivetrain.get_velocity()
+        robotVelocity = self.drivetrain.getVelocity()
 
         velocity = geom.Translation3d(
             horizontalVelocity.x + robotVelocity.x,

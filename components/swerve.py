@@ -263,7 +263,7 @@ class Drivetrain:
         # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
         self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, stdDevs)
 
-    def get_velocity(self) -> Translation2d:
+    def getVelocity(self) -> Translation2d:
         """Get the robot's current field-centric velocity as (vx, vy) in m/s."""
         speeds: kinematics.ChassisSpeeds = self._drivetrain.get_state().speeds
         # ChassisSpeeds is robot-relative, so rotate by heading to get field-relative

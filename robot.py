@@ -218,7 +218,7 @@ class Scurvy(magicbot.MagicRobot):
         accounting for robot velocity so the fuel lands in the hub while moving.
         """
         # Get shooting solution accounting for robot velocity
-        robotVelocity = self.drivetrain.get_velocity()
+        robotVelocity = self.drivetrain.getVelocity()
         solution = self.pewpew.calculateShootingSolution(robotVelocity)
 
         # Always update flywheel speed to track the solution
@@ -235,8 +235,6 @@ class Scurvy(magicbot.MagicRobot):
             velocityY=self.driverController.getMoveLeftPercent() * maxSpeed,
             targetAngle=solution.targetHeading,
         )
-        if self.operatorController.shouldToggleLEDMode():
-            self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors
 
     def maybeSetOperatorPerspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""
