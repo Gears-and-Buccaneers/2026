@@ -10,14 +10,14 @@ import enum
 from typing import Final
 
 import wpilib
-import wpimath.geometry as geo
+import wpimath.geometry as geom
 import wpimath.units as units
 from wpimath.geometry import Rotation3d, Transform3d, Translation3d
 
 # Associate alliances with the field-centric rotation that is forward.
-ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geo.Rotation2d] = {
-    wpilib.DriverStation.Alliance.kBlue: geo.Rotation2d.fromDegrees(0),
-    wpilib.DriverStation.Alliance.kRed: geo.Rotation2d.fromDegrees(180),
+ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geom.Rotation2d] = {
+    wpilib.DriverStation.Alliance.kBlue: geom.Rotation2d.fromDegrees(0),
+    wpilib.DriverStation.Alliance.kRed: geom.Rotation2d.fromDegrees(180),
 }
 
 
@@ -48,9 +48,22 @@ class RobotDimension:
     Note: Swerve module locations are now in generated/tuner_constants.py.
     """
 
-    # Shooter dimensions
-    SHOOTER_Z: Final[units.meters] = 0.421
-    SHOOTER_MAX_ANGLE: Final[units.radians] = units.degreesToRadians(34.0)
+    # Robot frame dimensions (without bumpers)
+    WIDTH: Final[units.meters] = units.inchesToMeters(25.0)  # Side to side
+    LENGTH: Final[units.meters] = units.inchesToMeters(30.0)  # Front to back
+
+    # Shooter location relative to robot center (X=forward, Y=left, Z=up)
+    # At lateral center, at front edge of robot frame, at shooter height
+    SHOOTER_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
+        units.inchesToMeters(12.0),  # Inside the front edge (half of 30" length)
+        0.0,  # Centered laterally on the robot.
+        units.inchesToMeters(15.0),  # Height from ground of center of fuel when launched
+    )
+
+    SHOOTER_ANGLE: Final[units.radians] = units.degreesToRadians(60.0)  # Selected angle (optimal: 75°)
+
+    # Flywheel/wheel radius for shooter (wheels only, no flywheel)
+    FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(2.0)  # 4" diameter wheels
 
 
 class ControllerPort:
@@ -58,6 +71,148 @@ class ControllerPort:
 
     DRIVER_CONTROLLER: Final[int] = 0
     OPERATOR_CONTROLLER: Final[int] = 1
+
+
+class Field:
+    """2026 Reefscape field dimensions.
+
+    All measurements are in meters, with origin at the blue alliance corner.
+    Field-centric coordinates: +X toward red alliance, +Y toward scoring table.
+    """
+
+    LENGTH: Final[units.meters] = units.inchesToMeters(651.22)
+    WIDTH: Final[units.meters] = units.inchesToMeters(317.69)
+
+    # Blue alliance hub position (top of funnel opening)
+    # Use alliance mirroring for red alliance
+    HUB_CENTER_X: Final[units.meters] = units.inchesToMeters(182.11)  # from blue wall
+    HUB_CENTER_Y: Final[units.meters] = WIDTH / 2  # Centered on field
+    HUB_TOP_Z: Final[units.meters] = units.inchesToMeters(72.0)  # funnel top height
+    HUB_TARGET_Z: Final[units.meters] = units.inchesToMeters(58.0)  # mid-funnel for reliable scoring
+
+    # Funnel geometry (hexagon with point toward alliances)
+    HUB_FUNNEL_WIDTH: Final[units.meters] = units.inchesToMeters(41.932)  # across flats
+
+    # Game piece
+    FUEL_DIAMETER: Final[units.meters] = units.inchesToMeters(5.9)
+
+    @staticmethod
+    def getHubPosition(alliance: wpilib.DriverStation.Alliance | None) -> geom.Translation2d:
+        """Get the hub position for the given alliance.
+
+        Args:
+            alliance: The alliance (blue or red). If None, defaults to blue.
+
+        Returns:
+            Translation2d of the hub center position in field coordinates.
+        """
+        if alliance == wpilib.DriverStation.Alliance.kRed:
+            # Mirror X position for red alliance
+            return geom.Translation2d(Field.LENGTH - Field.HUB_CENTER_X, Field.HUB_CENTER_Y)
+        else:
+            return geom.Translation2d(Field.HUB_CENTER_X, Field.HUB_CENTER_Y)
+
+
+class ShooterSpec:
+    """Shooter system specifications based on measured/calculated metrics.
+
+    Hardware Configuration:
+    - Motor: Kraken X60
+    - Motors per Side: 1
+    - Wheels per Side: 2
+    - Gear Ratio: 2:1
+    - Flywheel: None (wheels only)
+    """
+
+    # Kraken X60 Motor Specifications (from CTR Electronics dyno testing)
+    MOTOR_FREE_SPEED_RPM: Final[float] = 6065.0  # Free speed RPM
+    MOTOR_STALL_TORQUE_NM: Final[float] = 7.16  # Stall torque in Nm
+    MOTOR_PEAK_POWER_W: Final[float] = 1136.5  # Peak power in Watts
+    MOTOR_MAX_EFFICIENCY: Final[float] = 0.8564  # 85.64% max efficiency
+
+    # Motor and mechanical specs
+    MOTORS_PER_SIDE: Final[int] = 1
+    WHEELS_PER_SIDE: Final[int] = 2
+    GEAR_RATIO: Final[float] = 2.0  # 2:1 gear ratio
+
+    # Derived motor limits at wheel (after gear reduction)
+    # Motor runs 2x faster than wheel, so wheel max = motor free speed / gear ratio
+    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / GEAR_RATIO  # 3032.5 RPM
+
+    # Moment of inertia (converted from lb-in² to kg-m²)
+    # 3.6 lb-in² = 3.6 * 0.0002926397 kg-m² ≈ 0.00105 kg-m²
+    TOTAL_MOI_LB_IN_SQ: Final[float] = 3.6
+    TOTAL_MOI: Final[float] = 3.6 * 0.0002926397  # kg-m²
+
+    # Ball dynamics
+    BALL_INCOMING_VELOCITY: Final[units.meters_per_second] = 0.5  # m/s
+
+    # Performance metrics
+    RPM_MIN: Final[float] = 1479.0  # Minimum operating RPM
+    RPM_MAX: Final[float] = 2215.0  # Maximum operating RPM
+    HEADROOM_PERCENT: Final[float] = 23.6  # Available headroom percentage
+
+    # Spin-up times (in seconds)
+    SPINUP_TIME_8FT: Final[units.seconds] = 0.056  # 56 ms at 8ft
+    SPINUP_TIME_20FT: Final[units.seconds] = 0.096  # 96 ms at 20ft
+    SPINUP_BETWEEN_SHOTS_8FT: Final[units.seconds] = 0.028  # 28 ms between shots at 8ft
+    SPINUP_BETWEEN_SHOTS_20FT: Final[units.seconds] = 0.040  # 40 ms between shots at 20ft
+
+    # Speed drop per shot at different distances
+    SPEED_DROP_20FT_PERCENT: Final[float] = 30.8  # 30.8% speed drop at 20ft [needs attention]
+
+    # Sensitivity metrics
+    VELOCITY_SENSITIVITY: Final[float] = 1.195  # m/(m/s) - impact of velocity change on shot distance
+    ANGLE_SENSITIVITY: Final[float] = 0.065  # m/deg - impact of angle change on shot distance
+
+    # Consistency score (higher is better, 3.0+ is OK)
+    CONSISTENCY_SCORE: Final[float] = 3.06
+
+    # Ready-to-fire thresholds
+    # Wheels must be within this percentage of target speed to fire
+    WHEEL_READY_THRESHOLD: Final[float] = 0.999  # 99.9% of target speed
+    # Robot heading must be within this angle of target to fire (radians)
+    HEADING_READY_THRESHOLD: Final[units.radians] = units.degreesToRadians(0.5)  # ±0.5°
+
+
+class Simulation:
+    """Constants for simulation behavior."""
+
+    # Flywheel physics - derived from ShooterSpec
+    # Use worst-case spin-up time (20ft) for conservative simulation
+    FLYWHEEL_SPINUP_TIME: Final[units.seconds] = ShooterSpec.SPINUP_TIME_20FT * 20  # Scale for full speed
+    # Speed drop per shot: 30.8% at 20ft = 69.2% retention
+    FLYWHEEL_SLOWDOWN_PER_SHOT: Final[float] = 1.0 - (ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
+
+    # Time between fuel launches (uniform random distribution)
+    # FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.05
+    # FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.05
+    FUEL_EMIT_INTERVAL_MIN: Final[units.seconds] = 0.1
+    FUEL_EMIT_INTERVAL_MAX: Final[units.seconds] = 0.5
+
+    # Shot-to-shot variation - minimal (1% total) for consistent simulation
+
+    # Launch speed variation (±percentage of target speed)
+    LAUNCH_SPEED_VARIATION: Final[float] = 0.005  # ±0.5%
+
+    # Launch angle variation (random offset from ideal trajectory)
+    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.5)  # ±0.5° left/right
+    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.3)  # ±0.3° up/down
+
+    # Ball-to-ball variation (simulates inconsistent ball feed, compression, grip)
+    BALL_SPEED_JITTER: Final[float] = 0.003  # ±0.3% additional random per ball
+    BALL_ANGLE_JITTER: Final[units.radians] = units.degreesToRadians(0.2)  # ±0.2° random per ball
+
+    # Wheel slip variation (simulates inconsistent contact between wheels and ball)
+    WHEEL_SLIP_BASE: Final[float] = 0.005  # 0.5% base slip (ball exits slower than wheel surface)
+    WHEEL_SLIP_VARIATION: Final[float] = 0.002  # ±0.2% random slip variation
+
+    # Fuel bounce physics
+    FUEL_BOUNCE_VELOCITY_RETENTION: Final[float] = 0.5  # Keep 50% of velocity on bounce
+    FUEL_MAX_BOUNCES: Final[int] = 5  # Remove fuel after this many bounces
+
+    # G is 9.795 in Boulder/Denver, 9.80 in West Valley City, UT
+    GRAVITY: Final[units.meters_per_second_squared] = 9.80
 
 
 class TeleopShift(enum.StrEnum):

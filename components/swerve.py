@@ -2,14 +2,14 @@
 
 import math
 
+import wpimath.kinematics as kinematics
 from choreo.trajectory import SwerveSample
 from magicbot import feedback
 from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
-from wpimath.geometry import Pose2d, Pose3d, Rotation2d
-from wpimath.kinematics import ChassisSpeeds
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Translation2d
 from wpimath.units import meters_per_second, radians_per_second, seconds
 
 from generated.tuner_constants import TunerConstants
@@ -66,6 +66,19 @@ class Drivetrain:
         self._brakeRequest = swerve.requests.SwerveDriveBrake()
         self._idleRequest = swerve.requests.Idle()
 
+        # Request for driving while facing a target angle (uses internal PID)
+        self._facing_angle_request = (
+            swerve.requests.FieldCentricFacingAngle()
+            .with_deadband(0.05)
+            .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.OPERATOR_PERSPECTIVE)
+        )
+        # Configure the heading controller for the facing angle request
+        self._facing_angle_request.heading_controller.enableContinuousInput(-math.pi, math.pi)
+        self._facing_angle_request.heading_controller.setP(7.5)
+
+        # Track operator perspective for adjusting field-relative angles
+        self._operator_forward: Rotation2d = Rotation2d()
+
         # Pending request to apply in execute()
         self._pendingRequest: swerve.requests.SwerveRequest | None = None
 
@@ -93,6 +106,7 @@ class Drivetrain:
             rotation: The rotation that defines the forward direction.
         """
         self._drivetrain.set_operator_perspective_forward(rotation)
+        self._operator_forward = rotation
 
     def zeroHeading(self) -> None:
         """Tell the CTRE drivetrain that the robot's current forward heading is directly away from the driver."""
@@ -145,6 +159,34 @@ class Drivetrain:
         """Set wheels to X-pattern brake configuration."""
         self._pendingRequest = self._brakeRequest
 
+    def driveFacingAngle(
+        self,
+        *,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        target_angle: Rotation2d,
+    ) -> None:
+        """Drive while rotating to face a target angle.
+
+        Uses the CTRE FieldCentricFacingAngle request which has a built-in
+        PID controller to rotate toward the target angle at maximum safe speed.
+
+        Args:
+            velocity_x: Forward velocity in m/s (positive = away from driver).
+            velocity_y: Left velocity in m/s (positive = to driver's left).
+            target_angle: The field-relative angle to face.
+        """
+        # The request uses OPERATOR_PERSPECTIVE which rotates the target angle
+        # by the operator's forward direction. We need to undo that rotation
+        # since target_angle is already field-relative.
+        adjusted_angle = target_angle - self._operator_forward
+
+        self._pending_request = (
+            self._facing_angle_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_target_direction(adjusted_angle)
+        )
+
     def stop(self) -> None:
         """Stop all motors (coast)."""
         self._pendingRequest = self._idleRequest
@@ -172,7 +214,7 @@ class Drivetrain:
         headingFeedback = self._headingController.calculate(pose.rotation().radians(), sample.heading)
 
         # Combine feedforward (from trajectory) with feedback (from PID)
-        speeds = ChassisSpeeds(
+        speeds = kinematics.ChassisSpeeds(
             sample.vx + xFeedback,  # Forward velocity + X correction
             sample.vy + yFeedback,  # Sideways velocity + Y correction
             sample.omega + headingFeedback,  # Angular velocity + heading correction
@@ -220,6 +262,33 @@ class Drivetrain:
         """
         # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
         self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, stdDevs)
+
+    def get_velocity(self) -> Translation2d:
+        """Get the robot's current field-centric velocity as (vx, vy) in m/s."""
+        speeds: kinematics.ChassisSpeeds = self._drivetrain.get_state().speeds
+        # ChassisSpeeds is robot-relative, so rotate by heading to get field-relative
+        robotRelativeVelocity = Translation2d(speeds.vx, speeds.vy)
+        return robotRelativeVelocity.rotateBy(self.getHeading())
+
+    def add_vision_measurement(
+        self,
+        pose: Pose3d,
+        timestamp: seconds,
+        std_devs: tuple[float, float, float] = (0.5, 0.5, 0.1),
+    ) -> None:
+        """Add a vision measurement to the pose estimator.
+
+        This fuses the vision measurement with wheel odometry to improve
+        pose estimation accuracy. Call this for each valid vision measurement.
+
+        Args:
+            pose: The robot pose estimated by vision (Pose3d).
+            timestamp: The timestamp when the image was captured (seconds).
+            std_devs: Standard deviations (x_meters, y_meters, rotation_radians).
+                      Higher values = less trust in this measurement.
+        """
+        # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
+        self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, std_devs)
 
     @feedback
     def headingDegrees(self) -> float:
