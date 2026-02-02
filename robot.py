@@ -7,7 +7,8 @@ import magicbot
 import wpilib
 import wpimath.units as units
 from magicbot import feedback
-from wpimath.geometry import Pose2d, Rotation2d
+from wpilib import RobotBase
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d
 
 import components
 import constants as const
@@ -23,6 +24,8 @@ class Scurvy(magicbot.MagicRobot):
     # Components - the drivetrain now manages motors internally via CTRE swerve API
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
+    vision: components.Vision
+    intake: components.Intake
     driver_controller: components.DriverController
     operator_controller: components.OperatorController
     lighting: components.Lighting
@@ -119,6 +122,20 @@ class Scurvy(magicbot.MagicRobot):
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
+        # Update vision simulation with current robot pose
+        if RobotBase.isSimulation():
+            pose_2d = self.drivetrain.get_pose()
+            pose_3d = Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, Rotation3d(0, 0, pose_2d.rotation().radians()))
+            self.vision.update_sim(pose_3d)
+
+        # Feed vision measurements to drivetrain for pose estimation fusion
+        # Each measurement includes distance-scaled standard deviations
+        for measurement in self.vision.get_measurements():
+            self.drivetrain.add_vision_measurement(
+                measurement.pose,
+                measurement.timestamp,
+                measurement.std_devs,
+            )
         self.maybe_set_operator_perspective()
         self.updateLights()
 
@@ -132,20 +149,29 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
+        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
+        self.intake_motor = wpilib.Talon(const.CANID.INTAKE_MOTOR)
 
     def createControllers(self) -> None:
-        """Set up joystick and gamepad objects here."""
-        # Check if we're supposed to be using a USB gamepad for the driver, or XBox controller
-        if os.getenv("USE_DRIVER_USB_GAMEPAD") == "1":
-            self.driver_controller = components.DriverUSBGamepad(const.ControllerPort.DRIVER_CONTROLLER)
-        else:
-            self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+        """Set up joystick and gamepad objects here.
 
-        if os.getenv("USE_OPERATOR_USB_GAMEPAD") == "1":
-            self.operator_controller = components.OperatorUSBGamepad(const.ControllerPort.OPERATOR_CONTROLLER)
-        else:
-            self.operator_controller = components.OperatorController(const.ControllerPort.OPERATOR_CONTROLLER)
+        Controller profiles are selected via environment variables. The default for both is "wired".
+        - "DRIVER_CONTROLLER": Profile for driver controller
+        - "OPERATOR_CONTROLLER": Profile for operator controller
+
+        Use `export DRIVER_CONTROLLER=macwireless` on macOS to set.
+        Use `setx DRIVER_CONTROLLER wireless` on Windows to set.
+
+        See components/controllers.py for available profiles.
+        """
+        self.driver_controller = components.DriverController(
+            const.ControllerPort.DRIVER_CONTROLLER,
+            os.getenv("DRIVER_CONTROLLER", "wired"),
+        )
+        self.operator_controller = components.OperatorController(
+            const.ControllerPort.OPERATOR_CONTROLLER,
+            os.getenv("OPERATOR_CONTROLLER", "wired"),
+        )
 
     def createLights(self) -> None:
         """Set up objects for lighting."""
