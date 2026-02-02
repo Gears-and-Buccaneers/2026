@@ -11,7 +11,9 @@ To create a new Choreo auto:
 5. Optionally override on_trajectory_start() and on_trajectory_end()
 """
 
-from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto
+import time
+
+from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto, ListNamedCallbacks
 
 
 class SimpleChoreoAuto(ChoreoAuto):
@@ -25,11 +27,6 @@ class SimpleChoreoAuto(ChoreoAuto):
     2. Generate the trajectory and save to deploy/choreo/simple_path.traj
     3. Select "Simple Choreo Path" on the driver station
     """
-
-    MODE_NAME = "Some Sassy Swerve Slide"
-    TRAJECTORY_NAME = "DriveToNeutralZone"
-    DISABLED = False  # Enable this auto mode (base class is disabled by default)
-    DEFAULT = True
 
     # You can add other components here that will be injected by MagicBot
     # shooter: components.Shooter
@@ -53,39 +50,22 @@ class SimpleChoreoAuto(ChoreoAuto):
         pass
 
 
-# Uncomment and modify this example once you have multiple trajectories
-#
-# class TwoPieceChoreoAuto(ChoreoMultiTrajectoryAuto):
-#     """Example of chaining multiple trajectories together.
-#
-#     This auto mode:
-#     1. Drives from start to first game piece
-#     2. Intakes the piece
-#     3. Drives to scoring position
-#     4. Scores the piece
-#     5. Drives to second game piece
-#     6. Intakes and scores again
-#     """
-#
-#     MODE_NAME = "Two Piece Choreo"
-#     DISABLED = False  # Enable this auto mode
-#
-#     # Add components that will be injected
-#     shooter: components.Shooter
-#
-#     def setup_trajectories(self):
-#         """Define the sequence of trajectories and actions."""
-#         return [
-#             ("start_to_piece1", self.intake_piece),
-#             ("piece1_to_speaker", self.score_piece),
-#             ("speaker_to_piece2", self.intake_piece),
-#             ("piece2_to_speaker", self.score_piece),
-#         ]
-#
-#     def intake_piece(self):
-#         """Called after reaching each game piece position."""
-#         self.shooter.intake()
-#
-#     def score_piece(self):
-#         """Called after reaching the scoring position."""
-#         self.shooter.shoot()
+class MoveForwardWaitThenBack(ChoreoMultiTrajectoryAuto):
+    """Example of chaining multiple trajectories together."""
+
+    MODE_NAME = "PID and Tuning Test"
+    DISABLED = False  # Enable this auto mode (base class is disabled by default)
+    DEFAULT = False
+
+    # Add components that will be injected
+
+    def setup_trajectories(self) -> "ListNamedCallbacks":
+        """Define the sequence of trajectories and subsequent actions."""
+        return [
+            ("forthOneMeter", self.wait),
+            ("backOneMeter", None),
+        ]
+
+    def wait(self):
+        """Called after reaching each game piece position."""
+        time.sleep(5)

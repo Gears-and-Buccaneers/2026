@@ -50,7 +50,7 @@ def _exercise_drive(
 ):
     """Common helper to set alliance, drive, and assert request contents.
 
-    centric: "operator" or "field" chooses drive() vs driveFieldCentric().
+    centric: "operator" or "field" chooses drive() vs drive_field_centric().
     exp_vx/exp_vy are the expected values present on the request object.
     """
     captured_rot = {}
@@ -62,16 +62,16 @@ def _exercise_drive(
 
     DriverStationSim.setAllianceStationId(alliance)
     DriverStationSim.notifyNewData()
-    bot.maybeSetOperatorPerspective()
+    bot.maybe_set_operator_perspective()
 
-    bot.drivetrain.resetPose(Pose2d(0, 0, Rotation2d(0)))
+    bot.drivetrain.reset_pose(Pose2d(0, 0, Rotation2d(0)))
 
     if centric == "operator":
-        bot.drivetrain.drive(velocityX=cmd_vx, velocityY=cmd_vy, rotationRate=0.0)
+        bot.drivetrain.drive(velocity_x=cmd_vx, velocity_y=cmd_vy, rotation_rate=0.0)
     else:
-        bot.drivetrain.driveFieldCentric(velocityX=cmd_vx, velocityY=cmd_vy, rotationRate=0.0)
+        bot.drivetrain.drive_field_centric(velocity_x=cmd_vx, velocity_y=cmd_vy, rotation_rate=0.0)
 
-    req = bot.drivetrain._pendingRequest
+    req = bot.drivetrain._pending_request
     assert isinstance(req, FieldCentric)
     if centric == "operator":
         assert req.forward_perspective == ForwardPerspectiveValue.OPERATOR_PERSPECTIVE

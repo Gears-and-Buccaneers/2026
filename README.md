@@ -75,7 +75,7 @@ Open a Terminal in VS Code (hint: `` ctrl+` ``), and then run `robotpy sim` to s
      _you can run `source .venv/bin/activate` to activate the venv (🤮)_
      _or you can just run `uv run robotpy sim` to run a command inside the venv._
 
-   * If you connect a PS4 controller, you should be able to drive the robot around in the simulator
+   * If you connect an Xbox controller, you should be able to drive the robot around in the simulator
      using the left and right sticks.
 
      Note that the first time you will need to drag the controller from the "System Joysticks" window onto
@@ -84,6 +84,12 @@ Open a Terminal in VS Code (hint: `` ctrl+` ``), and then run `robotpy sim` to s
      Don't have a controller? You can drag "Keyboard 0" from the "System Joysticks" window onto "Joystick 0"
      instead to use the keyboard for driving.
 
+      * If you are using Windows and have controller(s) hooked up via Bluetooth, you will want to run:
+        `setx DRIVER_CONTROLLER wireless` and/or `setx OPERATOR_CONTROLLER wireless` in the terminal before running the simulator.
+      * If you are using macOS and have controller(s) hooked up via Bluetooth, you will want to run:
+        `export DRIVER_CONTROLLER=macwireless` and/or `export OPERATOR_CONTROLLER=macwireless` in the terminal before running the simulator.
+      * If you are using macOS and have controller(s) hooked up via USB, you will want to run:
+        `export DRIVER_CONTROLLER=macwired` and/or `export OPERATOR_CONTROLLER=macwired` in the terminal before running the simulator.
 
 ## What are all these files?!
 
@@ -105,5 +111,5 @@ Here's what they are for:
 * `pyproject.toml` - Configuration file for `uv` and `robotpy`; what libraries to install.
 * `README.md` - This file!
 * `robot.py` - **ROBOT CODE**: main robot code goes here.
-* `simgui*` - _simulation spam_
+* `simgui*` - _simulation spam, recording your inputs, window positions, etc._
 * `uv.lock` - file created by `uv` to ensure consistent library versions.

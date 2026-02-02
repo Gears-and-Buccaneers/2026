@@ -13,6 +13,7 @@ dependencies = [
     "robotpy[apriltag,sim]>=2026.1.1",
     "phoenix6",
     "sleipnirgroup-choreolib",
+    "photonlibpy==2026.1.1rc4",
 ]
 
 [tool.robotpy]
@@ -37,6 +38,7 @@ components = [
 requires = [
     "phoenix6",
     "sleipnirgroup-choreolib",
+    "photonlibpy==2026.1.1rc4",
 ]
 
 [tool.ruff]
@@ -61,10 +63,10 @@ select = [
 
 
 ignore = [
-    "N802",  # Allow camelCase function names (required for MagicBot)
-    "N803",  # Allow lowerCamelCase argument names (MagicBot field injection style)
-    "N806",  # Allow non-lowercase variable names (e.g., injected components/constants)
-    "N815",  # Allow mixedCase attributes
+    "N802",   # Allow camelCase function names (required for MagicBot)
+    "N803",   # Allow lowerCamelCase argument names
+    "N806",   # Allow lowerCamelCase variable names
+    "N815",   # Allow lowerCamelCase attributes
 ]
 
 

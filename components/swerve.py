@@ -8,9 +8,9 @@ from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
-from wpimath.geometry import Pose2d, Rotation2d
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d
 from wpimath.kinematics import ChassisSpeeds
-from wpimath.units import meters_per_second, radians_per_second
+from wpimath.units import meters_per_second, radians_per_second, seconds
 
 from generated.tuner_constants import TunerConstants
 
@@ -51,42 +51,42 @@ class Drivetrain:
         )
 
         # Create swerve requests for different drive modes
-        self._fieldCentricRequest = (
+        self._field_centric_request = (
             swerve.requests.FieldCentric()
             .with_deadband(0.05)
             .with_rotational_deadband(0.05)
             .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.BLUE_ALLIANCE)
         )
-        self._operatorCentricRequest = (
+        self._operator_centric_request = (
             swerve.requests.FieldCentric()
             .with_deadband(0.05)
             .with_rotational_deadband(0.05)
             .with_forward_perspective(swerve.requests.ForwardPerspectiveValue.OPERATOR_PERSPECTIVE)
         )
-        self._brakeRequest = swerve.requests.SwerveDriveBrake()
-        self._idleRequest = swerve.requests.Idle()
+        self._brake_request = swerve.requests.SwerveDriveBrake()
+        self._idle_request = swerve.requests.Idle()
 
         # Pending request to apply in execute()
-        self._pendingRequest: swerve.requests.SwerveRequest | None = None
+        self._pending_request: swerve.requests.SwerveRequest | None = None
 
         # Field widget for simulation/dashboard
         self._field = Field2d()
         SmartDashboard.putData("Field", self._field)
 
         # Track if we're running in simulation
-        self._isSimulation = RobotBase.isSimulation()
+        self._is_simulation = RobotBase.isSimulation()
 
         # PID controllers for trajectory following
-        self._xController = PIDController(self.TRAJECTORY_X_KP, 0.0, 0.0)
-        self._yController = PIDController(self.TRAJECTORY_Y_KP, 0.0, 0.0)
-        self._headingController = PIDController(self.TRAJECTORY_HEADING_KP, 0.0, 0.0)
-        self._headingController.enableContinuousInput(-math.pi, math.pi)  # Wrap around at ±π
+        self._x_controller = PIDController(self.TRAJECTORY_X_KP, 0.0, 0.0)
+        self._y_controller = PIDController(self.TRAJECTORY_Y_KP, 0.0, 0.0)
+        self._heading_controller = PIDController(self.TRAJECTORY_HEADING_KP, 0.0, 0.0)
+        self._heading_controller.enableContinuousInput(-math.pi, math.pi)  # Wrap around at ±π
 
     def setup(self) -> None:
         """Called by MagicBot after injection. Perform any additional setup here."""
         pass
 
-    def setOperatorPerspectiveForwardOrientation(self, rotation: Rotation2d) -> None:
+    def set_operator_perspective_forward_orientation(self, rotation: Rotation2d) -> None:
         """Set the forward orientation for operator perspective control.
 
         This tells the CTRE swerve library which direction is "forward"
@@ -98,62 +98,62 @@ class Drivetrain:
         """
         self._drivetrain.set_operator_perspective_forward(rotation)
 
-    def zeroHeading(self) -> None:
+    def zero_heading(self) -> None:
         """Tell the CTRE drivetrain that the robot's current forward heading is directly away from the driver."""
         self._drivetrain.seed_field_centric()
 
     def drive(
         self,
         *,
-        velocityX: meters_per_second = 0.0,
-        velocityY: meters_per_second = 0.0,
-        rotationRate: radians_per_second = 0.0,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        rotation_rate: radians_per_second = 0.0,
     ) -> None:
         """Drive the robot using operator-centric control.
 
         Args:
-            velocityX: Forward velocity in m/s (positive = away from driver).
-            velocityY: Left velocity in m/s (positive = to driver's left).
-            rotationRate: Counter-clockwise rotation rate in rad/s.
+            velocity_x: Forward velocity in m/s (positive = away from driver).
+            velocity_y: Left velocity in m/s (positive = to driver's left).
+            rotation_rate: Counter-clockwise rotation rate in rad/s.
         """
         # Operator perspective rotates the command by the operator's configured forward
-        self._pendingRequest = (
-            self._operatorCentricRequest.with_velocity_x(velocityX)
-            .with_velocity_y(velocityY)
-            .with_rotational_rate(rotationRate)
+        self._pending_request = (
+            self._operator_centric_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_rotational_rate(rotation_rate)
         )
 
-    def driveFieldCentric(
+    def drive_field_centric(
         self,
         *,
-        velocityX: meters_per_second = 0.0,
-        velocityY: meters_per_second = 0.0,
-        rotationRate: radians_per_second = 0.0,
+        velocity_x: meters_per_second = 0.0,
+        velocity_y: meters_per_second = 0.0,
+        rotation_rate: radians_per_second = 0.0,
     ) -> None:
         """Drive the robot using field-centric control (global frame).
 
         This is used by trajectory following where commands are field-relative.
 
         Args:
-            velocityX: Forward velocity in m/s (positive = from blue alliance to red).
-            velocityY: Left velocity in m/s (positive = to left from blue alliance to red).
-            rotationRate: Counter-clockwise rotation rate in rad/s.
+            velocity_x: Forward velocity in m/s (positive = from blue alliance to red).
+            velocity_y: Left velocity in m/s (positive = to left from blue alliance to red).
+            rotation_rate: Counter-clockwise rotation rate in rad/s.
         """
-        self._pendingRequest = (
-            self._fieldCentricRequest.with_velocity_x(velocityX)
-            .with_velocity_y(velocityY)
-            .with_rotational_rate(rotationRate)
+        self._pending_request = (
+            self._field_centric_request.with_velocity_x(velocity_x)
+            .with_velocity_y(velocity_y)
+            .with_rotational_rate(rotation_rate)
         )
 
     def brake(self) -> None:
         """Set wheels to X-pattern brake configuration."""
-        self._pendingRequest = self._brakeRequest
+        self._pending_request = self._brake_request
 
     def stop(self) -> None:
         """Stop all motors (coast)."""
-        self._pendingRequest = self._idleRequest
+        self._pending_request = self._idle_request
 
-    def followTrajectory(self, sample: SwerveSample) -> None:
+    def follow_trajectory(self, sample: SwerveSample) -> None:
         """Follow a Choreo trajectory sample.
 
         This method takes a trajectory sample and generates the appropriate
@@ -167,13 +167,13 @@ class Drivetrain:
                     the desired pose and velocities at this point in time.
         """
         # Get the current pose of the robot
-        pose = self.getPose()
+        pose = self.get_pose()
 
         # Calculate feedback corrections to push robot back toward trajectory
         # The sample contains the target position and the feedforward velocities
-        x_feedback = self._xController.calculate(pose.X(), sample.x)
-        y_feedback = self._yController.calculate(pose.Y(), sample.y)
-        heading_feedback = self._headingController.calculate(pose.rotation().radians(), sample.heading)
+        x_feedback = self._x_controller.calculate(pose.X(), sample.x)
+        y_feedback = self._y_controller.calculate(pose.Y(), sample.y)
+        heading_feedback = self._heading_controller.calculate(pose.rotation().radians(), sample.heading)
 
         # Combine feedforward (from trajectory) with feedback (from PID)
         speeds = ChassisSpeeds(
@@ -183,9 +183,9 @@ class Drivetrain:
         )
 
         # Apply the speeds using field-relative control
-        self.driveFieldCentric(velocityX=speeds.vx, velocityY=speeds.vy, rotationRate=speeds.omega)
+        self.drive_field_centric(velocity_x=speeds.vx, velocity_y=speeds.vy, rotation_rate=speeds.omega)
 
-    def resetPose(self, pose: Pose2d) -> None:
+    def reset_pose(self, pose: Pose2d) -> None:
         """Reset the robot's estimated pose.
 
         Args:
@@ -193,33 +193,53 @@ class Drivetrain:
         """
         self._drivetrain.reset_pose(pose)
 
-    def resetHeading(self) -> None:
+    def reset_heading(self) -> None:
         """Reset the robot's heading to 0 (forward)."""
-        current_pose = self.getPose()
+        current_pose = self.get_pose()
         self._drivetrain.reset_pose(Pose2d(current_pose.translation(), Rotation2d(0)))
 
-    def getPose(self) -> Pose2d:
+    def get_pose(self) -> Pose2d:
         """Get the robot's current estimated pose."""
         return self._drivetrain.get_state().pose
 
-    def getHeading(self) -> Rotation2d:
+    def get_heading(self) -> Rotation2d:
         """Get the robot's current heading."""
-        return self.getPose().rotation()
+        return self.get_pose().rotation()
+
+    def add_vision_measurement(
+        self,
+        pose: Pose3d,
+        timestamp: seconds,
+        std_devs: tuple[float, float, float] = (0.5, 0.5, 0.1),
+    ) -> None:
+        """Add a vision measurement to the pose estimator.
+
+        This fuses the vision measurement with wheel odometry to improve
+        pose estimation accuracy. Call this for each valid vision measurement.
+
+        Args:
+            pose: The robot pose estimated by vision (Pose3d).
+            timestamp: The timestamp when the image was captured (seconds).
+            std_devs: Standard deviations (x_meters, y_meters, rotation_radians).
+                      Higher values = less trust in this measurement.
+        """
+        # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
+        self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, std_devs)
 
     @feedback
-    def headingDegrees(self) -> float:
+    def heading_degrees(self) -> float:
         """Report heading in degrees to the dashboard."""
-        return self.getHeading().degrees()
+        return self.get_heading().degrees()
 
     @feedback
-    def poseX(self) -> float:
+    def pose_x(self) -> float:
         """Report X position to the dashboard."""
-        return self.getPose().X()
+        return self.get_pose().X()
 
     @feedback
-    def poseY(self) -> float:
+    def pose_y(self) -> float:
         """Report Y position to the dashboard."""
-        return self.getPose().Y()
+        return self.get_pose().Y()
 
     def execute(self) -> None:
         """Called by MagicBot every loop iteration.
@@ -227,16 +247,16 @@ class Drivetrain:
         Applies any pending swerve request and updates telemetry.
         """
         # Update simulation state if running in simulation
-        if self._isSimulation:
+        if self._is_simulation:
             self._drivetrain.update_sim_state(SIM_LOOP_PERIOD, RobotController.getBatteryVoltage())
 
         # Apply pending request or idle if none
-        if self._pendingRequest is not None:
-            self._drivetrain.set_control(self._pendingRequest)
-            self._pendingRequest = None
+        if self._pending_request is not None:
+            self._drivetrain.set_control(self._pending_request)
+            self._pending_request = None
         else:
             # Default to idle if no request was made this cycle
-            self._drivetrain.set_control(self._idleRequest)
+            self._drivetrain.set_control(self._idle_request)
 
         # Update field visualization
-        self._field.setRobotPose(self.getPose())
+        self._field.setRobotPose(self.get_pose())
