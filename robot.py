@@ -1,25 +1,38 @@
 """Starting point for Robot code."""
 
 import math
+import os
 
 import magicbot
-import phoenix6.hardware as p6
 import wpilib
+from wpilib import RobotBase
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d
+from magicbot import feedback
 
 import components
 import constants as const
+from generated.tuner_constants import TunerConstants
+
+# Maximum rotation speed in rad/s
+MAX_ROTATION_SPEED = math.pi
 
 
 class Scurvy(magicbot.MagicRobot):
     """The main class for the robot."""
 
+    # Components - the drivetrain now manages motors internally via CTRE swerve API
     drivetrain: components.Drivetrain
-    front_left_swerve: components.SwerveModule
-    front_right_swerve: components.SwerveModule
-    rear_left_swerve: components.SwerveModule
-    rear_right_swerve: components.SwerveModule
     pewpew: components.Shooter
+    vision: components.Vision
     driver_controller: components.DriverController
+    operator_controller: components.OperatorController
+
+    def __init__(self) -> None:
+        """Initialize the robot."""
+        super().__init__()
+
+        # Have we told the Drivetrain which alliance we are on yet?
+        self._alliance_perspective: wpilib.DriverStation.Alliance | None = None
 
     # ------------------------------------------------------------------------------------------------------------------
     # MagicBot methods called at the right time; implement these as desired.
@@ -45,6 +58,8 @@ class Scurvy(magicbot.MagicRobot):
         Called before all components' execute().
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
+        self.manuallyOperate()  # Assumes we always want to operate manually in teleop
+        self.hubIsActive()
 
     def disabledInit(self) -> None:
         """Called afer the on_disable() of all components."""
@@ -56,39 +71,92 @@ class Scurvy(magicbot.MagicRobot):
 
     def testInit(self) -> None:
         """Called when starting test mode."""
-        pass
+        # Reset pose to (0,0,0) so our distance check works
+        self.drivetrain.reset_pose(Pose2d(0, 0, Rotation2d(0)))
+
+        self.test_timer = wpilib.Timer()
+        self.test_timer.restart()
+        self.test_state = "forward"
+        print("Test Mode Started: Driving Forward 1m")
 
     def testPeriodic(self) -> None:
         """Called periodically while in test mode."""
-        pass
+        # Simple ping-pong for tuning drive velocity
+        # Drive forward for 1 meter (approx 3ft), then backward
+
+        pose = self.drivetrain.get_pose()
+        test_speed = 2.0  # m/s
+
+        if self.test_state == "forward":
+            if pose.X() < 1.0:
+                self.drivetrain.drive(velocity_x=test_speed)
+            else:
+                self.test_state = "wait_forward"
+                self.test_timer.restart()
+                print("Reached 1m, Waiting...")
+
+        elif self.test_state == "wait_forward":
+            self.drivetrain.drive()
+            if self.test_timer.hasElapsed(1.0):
+                self.test_state = "backward"
+                print("Driving Backward")
+
+        elif self.test_state == "backward":
+            if pose.X() > 0.0:
+                self.drivetrain.drive(velocity_x=-test_speed)
+            else:
+                self.test_state = "wait_backward"
+                self.test_timer.restart()
+                print("Reached 0m, Waiting...")
+
+        elif self.test_state == "wait_backward":
+            self.drivetrain.drive(velocity_x=0, velocity_y=0, rotation_rate=0)
+            if self.test_timer.hasElapsed(1.0):
+                self.test_state = "forward"
+                print("Driving Forward")
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
-        pass
+        # Update vision simulation with current robot pose
+        if RobotBase.isSimulation():
+            pose_2d = self.drivetrain.get_pose()
+            pose_3d = Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, Rotation3d(0, 0, pose_2d.rotation().radians()))
+            self.vision.update_sim(pose_3d)
+
+        # Feed vision measurements to drivetrain for pose estimation fusion
+        # Each measurement includes distance-scaled standard deviations
+        for measurement in self.vision.get_measurements():
+            self.drivetrain.add_vision_measurement(
+                measurement.pose,
+                measurement.timestamp,
+                measurement.std_devs,
+            )
+        self.maybe_set_operator_perspective()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Helper methods
     # ------------------------------------------------------------------------------------------------------------------
 
     def createMotors(self) -> None:
-        """Instantiate all the motors."""
-        # Because the robot has a component named `front_left_swerve`,
-        # and that class has an attribute `drive_motor`,
-        # the next line automatically sets the drive_motor value on the specific swerve component.
-        self.front_left_swerve_drive_motor = p6.TalonFX(const.CANID.FRONT_LEFT_DRIVE, const.SWERVE_CAN_NAME)
-        self.front_left_swerve_steer_motor = p6.TalonFX(const.CANID.FRONT_LEFT_STEER, const.SWERVE_CAN_NAME)
-        self.front_right_swerve_drive_motor = p6.TalonFX(const.CANID.FRONT_RIGHT_DRIVE, const.SWERVE_CAN_NAME)
-        self.front_right_swerve_steer_motor = p6.TalonFX(const.CANID.FRONT_RIGHT_STEER, const.SWERVE_CAN_NAME)
-        self.rear_left_swerve_drive_motor = p6.TalonFX(const.CANID.REAR_LEFT_DRIVE, const.SWERVE_CAN_NAME)
-        self.rear_left_swerve_steer_motor = p6.TalonFX(const.CANID.REAR_LEFT_STEER, const.SWERVE_CAN_NAME)
-        self.rear_right_swerve_drive_motor = p6.TalonFX(const.CANID.REAR_RIGHT_DRIVE, const.SWERVE_CAN_NAME)
-        self.rear_right_swerve_steer_motor = p6.TalonFX(const.CANID.REAR_RIGHT_STEER, const.SWERVE_CAN_NAME)
+        """Instantiate all the motors.
 
+        Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
+        Only create motors for non-swerve mechanisms here.
+        """
         self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here."""
-        self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+        # Check if we're supposed to be using a USB gamepad for the driver, or XBox controller
+        if os.getenv("USE_DRIVER_USB_GAMEPAD") == "1":
+            self.driver_controller = components.DriverUSBGamepad(const.ControllerPort.DRIVER_CONTROLLER)
+        else:
+            self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+
+        if os.getenv("USE_OPERATOR_USB_GAMEPAD") == "1":
+            self.operator_controller = components.OperatorUSBGamepad(const.ControllerPort.OPERATOR_CONTROLLER)
+        else:
+            self.operator_controller = components.OperatorController(const.ControllerPort.OPERATOR_CONTROLLER)
 
     def createLights(self) -> None:
         """Set up CAN objects for lights."""
@@ -96,14 +164,63 @@ class Scurvy(magicbot.MagicRobot):
 
     def manuallyDrive(self) -> None:
         """Drive the robot based on controller input."""
-        # Joystick values are positive to the right and down
-        strafe_right_percent, reverse_percent = self.driver_controller.getLeftStick()
-        rotate_right_percent = self.driver_controller.getRightX()
+        # Check if X-stance button is pressed
+        if self.driver_controller.should_brake():
+            self.drivetrain.brake()
+        else:
+            max_speed = TunerConstants.speed_at_12_volts
 
-        # We happen to need to invert every value from the joystick to get the desired robot motion
-        self.drivetrain.drive(
-            forward_speed=-reverse_percent * self.drivetrain.max_free_drive_meters_per_second,
-            left_speed=-strafe_right_percent * self.drivetrain.max_free_drive_meters_per_second,
-            ccw_speed=-rotate_right_percent * self.drivetrain.max_rotation_radians_per_second,
-        )
-        self.drivetrain.cross_brake = self.driver_controller.should_brake()
+            # Note that the drivetrain automatically handles field-centric control
+            # so that "forward" on the joystick is always away from the driver,
+            # regardless of which alliance the team is assigned to.
+            self.drivetrain.drive(
+                velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
+                velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
+                rotation_rate=self.driver_controller.get_rotate_counter_clockwise_percent() * MAX_ROTATION_SPEED,
+            )
+
+        if self.driver_controller.should_zero_gyro():
+            self.drivetrain.zero_heading()
+
+    def manuallyOperate(self) -> None:
+        """Operate the robot based on controller input."""
+        pass
+
+    def maybe_set_operator_perspective(self) -> None:
+        """See if we need to set the "perspective" for operator-centric control."""
+        alliance: wpilib.DriverStation.Alliance | None = wpilib.DriverStation.getAlliance()
+        if alliance == self._alliance_perspective:
+            return
+
+        if alliance is None:
+            return  # Mostly to make static type checking happy.
+
+        # To be safe, be sure we didn't get put on an unknown alliance
+        if alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
+            self.drivetrain.set_operator_perspective_forward_orientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
+            self._alliance_perspective = alliance
+
+    @feedback
+    def hubIsActive(self) -> bool:
+        """Check if our alliance's hub is currently active for scoring."""
+        alliance = wpilib.DriverStation.getAlliance()
+        data = wpilib.DriverStation.getGameSpecificMessage()
+        if data in ("B", "R"):  # Checks if we won auto
+            self.won_auto = (data == "B") == (alliance == wpilib.DriverStation.Alliance.kBlue)
+        else:
+            return False
+
+        time_remaining = wpilib.Timer.getMatchTime()
+        can_score = True
+
+        if time_remaining < 30:
+            can_score = True
+
+        elif time_remaining < 130:  # Checks what block we are and if we can score
+            block = int((130 - time_remaining) // 25)
+            can_score = (block % 2 == 0) != self.won_auto
+
+        else:
+            can_score = True
+
+        return can_score
