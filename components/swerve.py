@@ -9,8 +9,8 @@ from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
-from wpimath.geometry import Pose2d, Rotation2d, Translation2d
-from wpimath.units import meters_per_second, radians_per_second
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Translation2d
+from wpimath.units import meters_per_second, radians_per_second, seconds
 
 from generated.tuner_constants import TunerConstants
 
@@ -254,6 +254,26 @@ class Drivetrain:
         # ChassisSpeeds is robot-relative, so rotate by heading to get field-relative
         robotRelativeVelocity = Translation2d(speeds.vx, speeds.vy)
         return robotRelativeVelocity.rotateBy(self.get_heading())
+
+    def add_vision_measurement(
+        self,
+        pose: Pose3d,
+        timestamp: seconds,
+        std_devs: tuple[float, float, float] = (0.5, 0.5, 0.1),
+    ) -> None:
+        """Add a vision measurement to the pose estimator.
+
+        This fuses the vision measurement with wheel odometry to improve
+        pose estimation accuracy. Call this for each valid vision measurement.
+
+        Args:
+            pose: The robot pose estimated by vision (Pose3d).
+            timestamp: The timestamp when the image was captured (seconds).
+            std_devs: Standard deviations (x_meters, y_meters, rotation_radians).
+                      Higher values = less trust in this measurement.
+        """
+        # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
+        self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, std_devs)
 
     @feedback
     def heading_degrees(self) -> float:

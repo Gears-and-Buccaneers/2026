@@ -6,6 +6,7 @@ import os
 import magicbot
 import wpilib
 import wpimath.geometry as geom
+import wpimath.units as units
 from magicbot import feedback
 
 import components
@@ -22,12 +23,18 @@ class Scurvy(magicbot.MagicRobot):
     # Components - the drivetrain now manages motors internally via CTRE swerve API
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
+    vision: components.Vision
+    intake: components.Intake
     driver_controller: components.DriverController
     operator_controller: components.OperatorController
+    lighting: components.Lighting
 
     def __init__(self) -> None:
         """Initialize the robot."""
         super().__init__()
+
+        # Track whether the Operator is allowed to show arbitrary LED colors.
+        self._operatorCanShowArbitraryLEDColors: bool = False
 
         # Have we told the Drivetrain which alliance we are on yet?
         self._alliance_perspective: wpilib.DriverStation.Alliance | None = None
@@ -57,7 +64,6 @@ class Scurvy(magicbot.MagicRobot):
         """
         self.manuallyDrive()  # Assumes we always want to drive manually in teleop
         self.manuallyOperate()  # Assumes we always want to operate manually in teleop
-        self.hubIsActive()
 
     def disabledInit(self) -> None:
         """Called afer the on_disable() of all components."""
@@ -115,7 +121,22 @@ class Scurvy(magicbot.MagicRobot):
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
+        # Update vision simulation with current robot pose
+        if wpilib.RobotBase.isSimulation():
+            pose_2d = self.drivetrain.get_pose()
+            pose_3d = geom.Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians()))
+            self.vision.update_sim(pose_3d)
+
+        # Feed vision measurements to drivetrain for pose estimation fusion
+        # Each measurement includes distance-scaled standard deviations
+        for measurement in self.vision.get_measurements():
+            self.drivetrain.add_vision_measurement(
+                measurement.pose,
+                measurement.timestamp,
+                measurement.std_devs,
+            )
         self.maybe_set_operator_perspective()
+        self.updateLights()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Helper methods
@@ -127,24 +148,33 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR)
+        self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
+        self.intakeMotor = wpilib.Talon(const.CANID.INTAKE_MOTOR)
 
     def createControllers(self) -> None:
-        """Set up joystick and gamepad objects here."""
-        # Check if we're supposed to be using a USB gamepad for the driver, or XBox controller
-        if os.getenv("USE_DRIVER_USB_GAMEPAD") == "1":
-            self.driver_controller = components.DriverUSBGamepad(const.ControllerPort.DRIVER_CONTROLLER)
-        else:
-            self.driver_controller = components.DriverController(const.ControllerPort.DRIVER_CONTROLLER)
+        """Set up joystick and gamepad objects here.
 
-        if os.getenv("USE_OPERATOR_USB_GAMEPAD") == "1":
-            self.operator_controller = components.OperatorUSBGamepad(const.ControllerPort.OPERATOR_CONTROLLER)
-        else:
-            self.operator_controller = components.OperatorController(const.ControllerPort.OPERATOR_CONTROLLER)
+        Controller profiles are selected via environment variables. The default for both is "wired".
+        - "DRIVER_CONTROLLER": Profile for driver controller
+        - "OPERATOR_CONTROLLER": Profile for operator controller
+
+        Use `export DRIVER_CONTROLLER=macwireless` on macOS to set.
+        Use `setx DRIVER_CONTROLLER wireless` on Windows to set.
+
+        See components/controllers.py for available profiles.
+        """
+        self.driver_controller = components.DriverController(
+            const.ControllerPort.DRIVER_CONTROLLER,
+            os.getenv("DRIVER_CONTROLLER", "wired"),
+        )
+        self.operator_controller = components.OperatorController(
+            const.ControllerPort.OPERATOR_CONTROLLER,
+            os.getenv("OPERATOR_CONTROLLER", "wired"),
+        )
 
     def createLights(self) -> None:
-        """Set up CAN objects for lights."""
-        pass
+        """Set up objects for lighting."""
+        self.ledController = wpilib.AddressableLED(const.LED_PWM_PORT)
 
     def manuallyDrive(self) -> None:
         """Drive the robot based on controller input."""
@@ -201,6 +231,8 @@ class Scurvy(magicbot.MagicRobot):
             velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
             target_angle=solution.targetHeading,
         )
+        if self.operator_controller.shouldToggleLEDMode():
+            self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors
 
     def maybe_set_operator_perspective(self) -> None:
         """See if we need to set the "perspective" for operator-centric control."""
@@ -240,3 +272,33 @@ class Scurvy(magicbot.MagicRobot):
             can_score = True
 
         return can_score
+
+    @feedback
+    def currentShift(self) -> const.TeleopShift:
+        """Return the current shift of the match.
+
+        Returns:
+            The current shift as a TeleopShift object which works as an enum
+            but also includes its name, start time, end time, and duration.
+
+            If not in teleop, returns TeleopShift.UNKNOWN
+        """
+        if self.isTeleop():
+            timeLeftInPhase: units.seconds = wpilib.Timer.getMatchTime()
+            # Walk through the shifts from last to first, and return the first one that matches
+            for shift in const.TeleopShift.byEndTime():
+                if timeLeftInPhase >= shift.endTime:
+                    return shift
+
+        return const.TeleopShift.UNKNOWN
+
+    def updateLights(self) -> None:
+        """Update the lights based on robot state."""
+        if self._operatorCanShowArbitraryLEDColors:
+            # Let the operator pick any color they want using the controller
+            self.lighting.setColor(self.operator_controller.customLEDColor())
+            self.lighting.showProgress(1.0)
+        else:
+            # Pick the color based on the current shift
+            shift: const.TeleopShift = self.currentShift()
+            self.lighting.showShift(shift=shift, canScoreInHub=self.hubIsActive())
