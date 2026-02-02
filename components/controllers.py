@@ -5,6 +5,8 @@ from typing import NamedTuple
 
 import wpilib
 
+import utils
+
 
 def joystick_square_to_circle(x: float, y: float) -> tuple[float, float]:
     """Remap square joystick coordinates to be within a circle.
@@ -413,7 +415,7 @@ class OperatorController(MappedController):
         """Determine if the LED mode toggle button was pressed since the last check."""
         return self.getLeftStickButtonPressed()
 
-    def customLEDColor(self) -> wpilib.Color:
+    def customLEDColor(self) -> wpilib.Color8Bit:
         """Use the left stick to pick a color based on its position.
 
         The rotational angle of the stick controls the hue, with red at the top,
@@ -421,14 +423,13 @@ class OperatorController(MappedController):
         """
         return self._colorFromStickValues(self.getLeftX(), self.getLeftY())
 
-    def _colorFromStickValues(self, x: float, y: float) -> wpilib.Color:
+    def _colorFromStickValues(self, x: float, y: float) -> wpilib.Color8Bit:
         """Convert joystick x/y values to a color."""
         # Remap square joystick values to circular values
         circularX, circularY = joystick_square_to_circle(x, y)
 
-        # wpilib.Color.fromHSV expects hue [0, 180), saturation and value [0, 255]
-        return wpilib.Color.fromHSV(
-            h=int(math.degrees(math.atan2(-circularX, -circularY) / 2)) % 180,
-            s=255,
-            v=round((circularX**2 + circularY**2) ** 0.5 * 255),
+        return utils.color8FromHSV(
+            h=math.degrees(math.atan2(-circularX, -circularY)),
+            s=1,
+            v=(circularX**2 + circularY**2) ** 0.5,
         )
