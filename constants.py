@@ -33,6 +33,8 @@ class CANID(IntEnum):
     SHOOTER_MOTOR_TOP_CANCODER = 18
     SHOOTER_MOTOR_BOTTOM_CANCODER = 19
 
+    INTAKE_MOTOR = 20
+
 
 class RobotDimension:
     """Physical dimensions and locations of robot components.
