@@ -56,8 +56,7 @@ class Fuel:
         self.position = position
         self.velocity = velocity if velocity is not None else geom.Translation3d()
         self.bounceCount = 0
-        self.lastZ = position.Z()
-        self.hasCrossedTarget = False
+        self.shouldRemove = False
         self.launchTime = 0.0
         self.predictedToF = 0.0
 
@@ -145,9 +144,9 @@ class FuelSim:
 
         # Use shooter position (2D) and add height from constants
         position = geom.Translation3d(
-            shooterPosition.X(),
-            shooterPosition.Y(),
-            const.RobotDimension.SHOOTER_LOCATION.Z(),
+            shooterPosition.x,
+            shooterPosition.y,
+            const.RobotDimension.SHOOTER_LOCATION.z,
         )
 
         # Apply random angle variations (pitch and yaw)
@@ -188,8 +187,8 @@ class FuelSim:
         robotVelocity = self.drivetrain.get_velocity()
 
         velocity = geom.Translation3d(
-            horizontalVelocity.X() + robotVelocity.X(),
-            horizontalVelocity.Y() + robotVelocity.Y(),
+            horizontalVelocity.x + robotVelocity.x,
+            horizontalVelocity.y + robotVelocity.y,
             verticalSpeed,
         )
 
@@ -201,8 +200,8 @@ class FuelSim:
         # Log launch details for debugging
         print(
             f"LAUNCH #{newFuel.id} t={newFuel.launchTime:.3f}: "
-            f"pos=({position.X():.2f}, {position.Y():.2f}) "
-            f"vel=({velocity.X():.2f}, {velocity.Y():.2f}, {velocity.Z():.2f}) "
+            f"pos=({position.x:.2f}, {position.y:.2f}) "
+            f"vel=({velocity.x:.2f}, {velocity.y:.2f}, {velocity.z:.2f}) "
             f"heading={math.degrees(robotHeading):.1f}° "
             f"predToF={predictedToF:.3f}s"
         )
@@ -219,9 +218,9 @@ class FuelSim:
     def execute(self) -> None:
         """Update fuel physics and publish positions to NetworkTables."""
         # Calculate delta time
-        currentTime = self._timer.get()
-        dt = currentTime - self._lastTime
-        self._lastTime = currentTime
+        now = self._timer.get()
+        dt = now - self._lastTime
+        self._lastTime = now
 
         # Skip physics on first frame or if dt is too large (e.g., after pause)
         if dt <= 0 or dt > 0.1:
@@ -230,86 +229,49 @@ class FuelSim:
 
         # Update each fuel's physics
         fuelRadius = const.Field.FUEL_DIAMETER / 2.0
-        targetZ = const.Field.HUB_TARGET_Z
         alliance = wpilib.DriverStation.getAlliance()
-        hubPos = const.Field.getHubPosition(alliance)
 
-        updatedFuel: list[Fuel] = []
         for fuel in self._fuel:
             # Apply gravity to velocity (negative Z)
-            newVz = fuel.velocity.Z() - const.Simulation.GRAVITY * dt
-            newVelocity = geom.Translation3d(
-                fuel.velocity.X(),
-                fuel.velocity.Y(),
-                newVz,
+            fuel.velocity = geom.Translation3d(
+                fuel.velocity.x,
+                fuel.velocity.y,
+                fuel.velocity.z - const.Simulation.GRAVITY * dt,
             )
 
             # Integrate position
-            newPosition = geom.Translation3d(
-                fuel.position.X() + fuel.velocity.X() * dt,
-                fuel.position.Y() + fuel.velocity.Y() * dt,
-                fuel.position.Z() + fuel.velocity.Z() * dt,
+            fuel.position = geom.Translation3d(
+                fuel.position.x + fuel.velocity.x * dt,
+                fuel.position.y + fuel.velocity.y * dt,
+                fuel.position.z + fuel.velocity.z * dt,
             )
 
-            # Detect crossing hub target height on the way DOWN (log once per ball)
-            hasCrossed = fuel.hasCrossedTarget
-            if not hasCrossed and fuel.lastZ > targetZ >= newPosition.Z() and newVelocity.Z() < 0:
-                hasCrossed = True
-                # Calculate horizontal distance from hub at crossing
-                horizDist = math.hypot(
-                    newPosition.X() - hubPos.X(),
-                    newPosition.Y() - hubPos.Y(),
-                )
-                actualToF = currentTime - fuel.launchTime
-                print(
-                    f"CROSS #{fuel.id} t={currentTime:.3f}: "
-                    f"pos=({newPosition.X():.2f}, {newPosition.Y():.2f}) "
-                    f"dist={horizDist:.3f}m "
-                    f"ToF={actualToF:.3f}s (pred={fuel.predictedToF:.3f}s)"
-                )
-
             # Check for ground collision (fuel center at radius height)
-            newBounceCount = fuel.bounceCount
-            if newPosition.Z() <= fuelRadius:
+            if fuel.position.z <= fuelRadius:
                 # Bounce! Reflect velocity and reduce speed
-                newBounceCount += 1
+                fuel.bounceCount += 1
 
                 # Only keep fuel if under max bounces
-                if newBounceCount > const.Simulation.FUEL_MAX_BOUNCES:
-                    continue  # Remove this fuel
+                if fuel.bounceCount > const.Simulation.FUEL_MAX_BOUNCES:
+                    fuel.shouldRemove = True
+                    continue  # Skip further processing
 
                 # Reflect Z velocity and apply damping to all components
                 retention = const.Simulation.FUEL_BOUNCE_VELOCITY_RETENTION
-                newVelocity = geom.Translation3d(
-                    newVelocity.X() * retention,
-                    newVelocity.Y() * retention,
-                    -newVelocity.Z() * retention,  # Reflect Z
+                fuel.velocity = geom.Translation3d(
+                    fuel.velocity.x * retention,
+                    fuel.velocity.y * retention,
+                    -fuel.velocity.z * retention,  # Reflect Z
                 )
 
-                # Clamp position to ground level
-                newPosition = geom.Translation3d(
-                    newPosition.X(),
-                    newPosition.Y(),
+                # Move fuel up to ground level
+                fuel.position = geom.Translation3d(
+                    fuel.position.x,
+                    fuel.position.y,
                     fuelRadius,
                 )
 
-            # Safety: ensure fuel never penetrates ground
-            if newPosition.Z() < fuelRadius:
-                newPosition = geom.Translation3d(
-                    newPosition.X(),
-                    newPosition.Y(),
-                    fuelRadius,
-                )
-
-            # Preserve existing fuel with updated state (avoid creating new to keep same ID)
-            fuel.position = newPosition
-            fuel.velocity = newVelocity
-            fuel.bounceCount = newBounceCount
-            fuel.lastZ = newPosition.Z()
-            fuel.hasCrossedTarget = hasCrossed
-            updatedFuel.append(fuel)
-
-        self._fuel = updatedFuel
+        self._fuel = [fuel for fuel in self._fuel if not fuel.shouldRemove]
         self._publishFuel()
 
     def _publishFuel(self) -> None:
@@ -436,12 +398,12 @@ class ShooterSim(components.Shooter):
 
     def _maybeEmitFuel(self) -> None:
         """Emit fuel if enough time has passed since the last one."""
-        currentTime = self._shootTimer.get()
+        now = self._shootTimer.get()
 
-        if currentTime >= self._nextEmitTime:
+        if now >= self._nextEmitTime:
             self._emitFuel()
             # Schedule next fuel with random interval
-            self._nextEmitTime: units.seconds = currentTime + random.uniform(
+            self._nextEmitTime: units.seconds = now + random.uniform(
                 const.Simulation.FUEL_EMIT_INTERVAL_MIN,
                 const.Simulation.FUEL_EMIT_INTERVAL_MAX,
             )
@@ -513,8 +475,8 @@ class ShooterSim(components.Shooter):
         hubPos = const.Field.getHubPosition(alliance)
 
         # Vector from shooter to hub
-        dx = hubPos.X() - shooterPos.X()
-        dy = hubPos.Y() - shooterPos.Y()
+        dx = hubPos.x - shooterPos.x
+        dy = hubPos.y - shooterPos.y
         targetHeading = math.atan2(dy, dx)
 
         # Calculate heading error (wrapped to -π to π)

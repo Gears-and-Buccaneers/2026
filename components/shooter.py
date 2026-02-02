@@ -28,9 +28,8 @@ class Shooter:
 
     The shooter stores a target flywheel speed (rad/s) that can be set by:
     - fallbackSpin(): Sets a known good speed for a fixed distance
-    - autoShooterMotorPower(distance): Calculates ideal speed for a given distance
-
-    If neither method is called each frame, the target speed decays to 0.
+    - autoShooterMotorPower(): Calculates ideal speed for the current distance
+    - spinDown(): Sets target flywheel speed to zero
     """
 
     # MagicBot will inject these
@@ -341,7 +340,10 @@ class Shooter:
     def execute(self):
         """This gets called at the end of the control loop."""
         # TODO: figure out how to drive the motor(s) towards the target rotational speed(s)
-        self.shooter_motor.set(1)
+        if self._targetFlywheelSpeed <= 0.0:
+            self.shooter_motor.set(0)
+        else:
+            self.shooter_motor.set(1)
 
     def fallbackSpin(self) -> None:
         """Set the shooter to a known good speed for a fixed shooting position."""
