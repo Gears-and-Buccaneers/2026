@@ -148,9 +148,12 @@ class Scurvy(magicbot.MagicRobot):
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
 
-        Controller profiles are selected via environment variables:
-        - "DRIVER_CONTROLLER": Profile for driver controller (e.g., "wired", "wireless", "macwireless", "macwired")
+        Controller profiles are selected via environment variables. The default for both is "wired".
+        - "DRIVER_CONTROLLER": Profile for driver controller
         - "OPERATOR_CONTROLLER": Profile for operator controller
+
+        Use `export DRIVER_CONTROLLER=macwireless` on macOS to set.
+        Use `setx DRIVER_CONTROLLER wireless` on Windows to set.
 
         See components/controllers.py for available profiles.
         """

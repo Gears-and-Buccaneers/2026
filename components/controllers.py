@@ -1,7 +1,7 @@
 """Controllers for both the driver and operator."""
 
 import math
-from dataclasses import dataclass
+from typing import NamedTuple
 
 import wpilib
 
@@ -21,39 +21,37 @@ def joystick_square_to_circle(x: float, y: float) -> tuple[float, float]:
     )
 
 
-@dataclass(frozen=True)
-class AxisMapping:
+class AxisMapping(NamedTuple):
     """Mapping for a single axis."""
 
-    index: int
-    invert: bool = False
-    full_range: bool = False  # True if trigger axis goes -1 to 1 (needs remapping to 0 to 1)
+    axis: int  # The axis index on the controller.
+    invert: bool = False  # Whether to invert the axis value.
+    fullRange: bool = False  # True if trigger axis goes -1 to 1 (needs remapping to 0 to 1)
 
 
-@dataclass(frozen=True)
-class ControllerProfile:
+class ControllerProfile(NamedTuple):
     """Minimal mapping profile for a controller type."""
 
-    name: str
+    name: str = "Standard Xbox Controller"
     # Joystick axes
-    left_x: AxisMapping
-    left_y: AxisMapping
-    right_x: AxisMapping
-    right_y: AxisMapping
+    leftX: AxisMapping = AxisMapping(0)
+    leftY: AxisMapping = AxisMapping(1)
+    rightX: AxisMapping = AxisMapping(2)
+    rightY: AxisMapping = AxisMapping(3)
     # Trigger axes
-    left_trigger: AxisMapping
-    right_trigger: AxisMapping
+    leftTrigger: AxisMapping = AxisMapping(4)
+    rightTrigger: AxisMapping = AxisMapping(5)
     # Button mappings (1-indexed as per WPILib)
-    a_button: int
-    b_button: int
-    x_button: int
-    y_button: int
-    left_bumper: int
-    right_bumper: int
-    left_stick_button: int
-    right_stick_button: int
-    back_button: int = 7
-    start_button: int = 8
+    aButton: int = 1
+    bButton: int = 2
+    xButton: int = 3
+    yButton: int = 4
+    leftBumper: int = 5
+    rightBumper: int = 6
+    leftStickButton: int = 9
+    rightStickButton: int = 10
+    backButton: int = 7
+    startButton: int = 8
 
 
 class MappedController(wpilib.XboxController):
@@ -63,12 +61,12 @@ class MappedController(wpilib.XboxController):
     If no profile name is provided (or is empty/"xbox"), behaves like a standard wired XboxController.
 
     Available profiles:
-    * "wired" - [default] an XBox controller on Windows connected with USB; running in "Mapped" mode in Sim
-    * "wireless" - an wireless XBox controller on Windows connected via bluetooth; running in "Mapped" mode in Sim
-    * "wirednomap" - an XBox controller on Windows connected with USB; running in "Unmapped" mode in Sim
-    * "wirelessnomap" - an wireless XBox controller on Windows connected via bluetooth; running in "Unmapped" mode in Sim
-    * "macwireless" - an XBox controller on macOS connected via bluetooth; running in Sim
-    * "macwired" - an XBox controller on macOS connected with USB
+    * "wired" - [default] an Xbox controller on Windows connected with USB; running in "Mapped" mode in sim
+    * "wireless" - a wireless Xbox controller on Windows connected via bluetooth; running in "Mapped" mode in sim
+    * "wirednomap" - an Xbox controller on Windows connected with USB, running in "Unmapped" mode in sim
+    * "wirelessnomap" - a wireless Xbox controller on Windows connected via bluetooth, running in "Unmapped" mode in sim
+    * "macwireless" - an Xbox controller on macOS connected via bluetooth
+    * "macwired" - an Xbox controller on macOS connected with USB
     """
 
     # Controller profiles based on mapping spreadsheet.
@@ -78,110 +76,110 @@ class MappedController(wpilib.XboxController):
         # Windows Wired Controller (mapped)
         "wired": ControllerProfile(
             name="Windows Wired Controller (mapped)",
-            left_x=AxisMapping(0),
-            left_y=AxisMapping(1),
-            right_x=AxisMapping(4),
-            right_y=AxisMapping(5),
-            left_trigger=AxisMapping(2),
-            right_trigger=AxisMapping(3),
-            a_button=1,
-            b_button=2,
-            x_button=3,
-            y_button=4,
-            left_bumper=5,
-            right_bumper=6,
-            left_stick_button=9,
-            right_stick_button=10,
+            leftX=AxisMapping(0),
+            leftY=AxisMapping(1),
+            rightX=AxisMapping(4),
+            rightY=AxisMapping(5),
+            leftTrigger=AxisMapping(2),
+            rightTrigger=AxisMapping(3),
+            aButton=1,
+            bButton=2,
+            xButton=3,
+            yButton=4,
+            leftBumper=5,
+            rightBumper=6,
+            leftStickButton=9,
+            rightStickButton=10,
         ),
         # Windows Xbox Wireless (mapped)
         "wireless": ControllerProfile(
             name="Windows Xbox Wireless (mapped mode)",
-            left_x=AxisMapping(0),
-            left_y=AxisMapping(1),
-            right_x=AxisMapping(2),
-            right_y=AxisMapping(3),
-            left_trigger=AxisMapping(4),
-            right_trigger=AxisMapping(5),
-            a_button=1,
-            b_button=2,
-            x_button=3,
-            y_button=4,
-            left_bumper=5,
-            right_bumper=6,
-            left_stick_button=9,
-            right_stick_button=10,
+            leftX=AxisMapping(0),
+            leftY=AxisMapping(1),
+            rightX=AxisMapping(2),
+            rightY=AxisMapping(3),
+            leftTrigger=AxisMapping(4),
+            rightTrigger=AxisMapping(5),
+            aButton=1,
+            bButton=2,
+            xButton=3,
+            yButton=4,
+            leftBumper=5,
+            rightBumper=6,
+            leftStickButton=9,
+            rightStickButton=10,
         ),
         # Windows Xbox Wireless (unmapped)
         "wirelessnomap": ControllerProfile(
             name="Windows Xbox Wireless (unmapped)",
-            left_x=AxisMapping(0),
-            left_y=AxisMapping(1),
-            right_x=AxisMapping(4),
-            right_y=AxisMapping(5),
-            left_trigger=AxisMapping(2, full_range=True),
-            right_trigger=AxisMapping(3, full_range=True),
-            a_button=1,
-            b_button=2,
-            x_button=3,
-            y_button=4,
-            left_bumper=5,
-            right_bumper=6,
-            left_stick_button=9,
-            right_stick_button=10,
+            leftX=AxisMapping(0),
+            leftY=AxisMapping(1),
+            rightX=AxisMapping(4),
+            rightY=AxisMapping(5),
+            leftTrigger=AxisMapping(2, fullRange=True),
+            rightTrigger=AxisMapping(3, fullRange=True),
+            aButton=1,
+            bButton=2,
+            xButton=3,
+            yButton=4,
+            leftBumper=5,
+            rightBumper=6,
+            leftStickButton=9,
+            rightStickButton=10,
         ),
         # Windows Wired Controller (unmapped)
         "wirednomap": ControllerProfile(
             name="Windows Wired Controller (unmapped)",
-            left_x=AxisMapping(0),
-            left_y=AxisMapping(1),
-            right_x=AxisMapping(2),
-            right_y=AxisMapping(3),
-            left_trigger=AxisMapping(4, full_range=True),
-            right_trigger=AxisMapping(5, full_range=True),
-            a_button=1,
-            b_button=2,
-            x_button=3,
-            y_button=4,
-            left_bumper=5,
-            right_bumper=6,
-            left_stick_button=9,
-            right_stick_button=10,
+            leftX=AxisMapping(0),
+            leftY=AxisMapping(1),
+            rightX=AxisMapping(2),
+            rightY=AxisMapping(3),
+            leftTrigger=AxisMapping(4, fullRange=True),
+            rightTrigger=AxisMapping(5, fullRange=True),
+            aButton=1,
+            bButton=2,
+            xButton=3,
+            yButton=4,
+            leftBumper=5,
+            rightBumper=6,
+            leftStickButton=9,
+            rightStickButton=10,
         ),
         # macOS Xbox Wireless
         "macwireless": ControllerProfile(
             name="macOS Xbox Wireless",
-            left_x=AxisMapping(0),
-            left_y=AxisMapping(1),
-            right_x=AxisMapping(2),
-            right_y=AxisMapping(3),
-            left_trigger=AxisMapping(5, full_range=True),
-            right_trigger=AxisMapping(4, full_range=True),
-            a_button=1,
-            b_button=2,
-            x_button=4,
-            y_button=5,
-            left_bumper=7,
-            right_bumper=8,
-            left_stick_button=14,
-            right_stick_button=15,
+            leftX=AxisMapping(0),
+            leftY=AxisMapping(1),
+            rightX=AxisMapping(2),
+            rightY=AxisMapping(3),
+            leftTrigger=AxisMapping(5, fullRange=True),
+            rightTrigger=AxisMapping(4, fullRange=True),
+            aButton=1,
+            bButton=2,
+            xButton=4,
+            yButton=5,
+            leftBumper=7,
+            rightBumper=8,
+            leftStickButton=14,
+            rightStickButton=15,
         ),
         # macOS Wired Controller
         "macwired": ControllerProfile(
             name="macOS Wired Controller",
-            left_x=AxisMapping(0),
-            left_y=AxisMapping(1, invert=True),
-            right_x=AxisMapping(3),
-            right_y=AxisMapping(4, invert=True),
-            left_trigger=AxisMapping(2, full_range=True),
-            right_trigger=AxisMapping(5, full_range=True),
-            a_button=1,
-            b_button=2,
-            x_button=3,
-            y_button=4,
-            left_bumper=5,
-            right_bumper=6,
-            left_stick_button=7,
-            right_stick_button=8,
+            leftX=AxisMapping(0),
+            leftY=AxisMapping(1, invert=True),
+            rightX=AxisMapping(3),
+            rightY=AxisMapping(4, invert=True),
+            leftTrigger=AxisMapping(2, fullRange=True),
+            rightTrigger=AxisMapping(5, fullRange=True),
+            aButton=1,
+            bButton=2,
+            xButton=3,
+            yButton=4,
+            leftBumper=5,
+            rightBumper=6,
+            leftStickButton=7,
+            rightStickButton=8,
         ),
     }
 
@@ -189,170 +187,145 @@ class MappedController(wpilib.XboxController):
     PROFILES["gamepad"] = PROFILES["macwired"]
     PROFILES["xbox"] = PROFILES["wired"]
 
-    def __init__(self, port: int, profile_name: str = "") -> None:
+    def __init__(self, port: int, profileName: str = "wired") -> None:
         """Initialize the mapped controller.
 
         Args:
             port: The port the controller is connected to.
-            profile_name: Name of the controller profile to use.
-                          Empty string or "xbox" uses standard XboxController behavior.
+            profileName: Name of the controller profile to use.
         """
         super().__init__(port)
 
-        # Resolve profile name to profile (empty or "xbox" means no remapping)
-        name = profile_name.lower().strip()
-        if name and name != "xbox":
-            profile = self.PROFILES.get(name)
-            if profile is None:
-                print(f"Warning: Unknown controller profile '{profile_name}', using xbox")
-                profile = self.PROFILES["xbox"]
-            print(f"Controller on port {port} using profile: {profile.name}")
-        else:
-            profile = self.PROFILES["xbox"]
-
-        # Store the resolved mappings for fast access
-        self._left_x = profile.left_x
-        self._left_y = profile.left_y
-        self._right_x = profile.right_x
-        self._right_y = profile.right_y
-        self._left_trigger = profile.left_trigger
-        self._right_trigger = profile.right_trigger
-        self._a = profile.a_button
-        self._b = profile.b_button
-        self._x = profile.x_button
-        self._y = profile.y_button
-        self._lb = profile.left_bumper
-        self._rb = profile.right_bumper
-        self._ls = profile.left_stick_button
-        self._rs = profile.right_stick_button
-        self._back = profile.back_button
-        self._start = profile.start_button
+        # Resolve profile name to profile, with fallback to "xbox"
+        name = profileName.lower().strip()
+        self.profile = self.PROFILES.get(name, self.PROFILES["xbox"])
+        print(f"Controller on port {port} using profile: {self.profile.name}")
 
     def _axis(self, mapping: AxisMapping) -> float:
         """Get an axis value with mapping applied."""
-        value = self.getRawAxis(mapping.index)
+        value = self.getRawAxis(mapping.axis)
         return -value if mapping.invert else value
 
     def _trigger(self, mapping: AxisMapping) -> float:
         """Get a trigger axis value, converting full-range (-1..1) to half-range (0..1) if needed."""
-        value = self.getRawAxis(mapping.index)
+        value = self.getRawAxis(mapping.axis)
         if mapping.invert:
             value = -value
-        if mapping.full_range:
+        if mapping.fullRange:
             value = (value + 1.0) / 2.0
         return value
 
     # --- Axis methods ---
 
-    def getLeftX(self) -> float:
-        return self._axis(self._left_x)
+    def getLeftX(self) -> float:  # noqa: D102
+        return self._axis(self.profile.leftX)
 
-    def getLeftY(self) -> float:
-        return self._axis(self._left_y)
+    def getLeftY(self) -> float:  # noqa: D102
+        return self._axis(self.profile.leftY)
 
-    def getRightX(self) -> float:
-        return self._axis(self._right_x)
+    def getRightX(self) -> float:  # noqa: D102
+        return self._axis(self.profile.rightX)
 
-    def getRightY(self) -> float:
-        return self._axis(self._right_y)
+    def getRightY(self) -> float:  # noqa: D102
+        return self._axis(self.profile.rightY)
 
-    def getLeftTriggerAxis(self) -> float:
-        return self._trigger(self._left_trigger)
+    def getLeftTriggerAxis(self) -> float:  # noqa: D102
+        return self._trigger(self.profile.leftTrigger)
 
-    def getRightTriggerAxis(self) -> float:
-        return self._trigger(self._right_trigger)
+    def getRightTriggerAxis(self) -> float:  # noqa: D102
+        return self._trigger(self.profile.rightTrigger)
 
     # --- Button methods ---
 
-    def getAButton(self) -> bool:
-        return self.getRawButton(self._a)
+    def getAButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.aButton)
 
-    def getAButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._a)
+    def getAButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.aButton)
 
-    def getAButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._a)
+    def getAButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.aButton)
 
-    def getBButton(self) -> bool:
-        return self.getRawButton(self._b)
+    def getBButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.bButton)
 
-    def getBButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._b)
+    def getBButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.bButton)
 
-    def getBButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._b)
+    def getBButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.bButton)
 
-    def getXButton(self) -> bool:
-        return self.getRawButton(self._x)
+    def getXButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.xButton)
 
-    def getXButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._x)
+    def getXButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.xButton)
 
-    def getXButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._x)
+    def getXButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.xButton)
 
-    def getYButton(self) -> bool:
-        return self.getRawButton(self._y)
+    def getYButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.yButton)
 
-    def getYButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._y)
+    def getYButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.yButton)
 
-    def getYButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._y)
+    def getYButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.yButton)
 
-    def getLeftBumperButton(self) -> bool:
-        return self.getRawButton(self._lb)
+    def getLeftBumperButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.leftBumper)
 
-    def getLeftBumperButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._lb)
+    def getLeftBumperButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.leftBumper)
 
-    def getLeftBumperButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._lb)
+    def getLeftBumperButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.leftBumper)
 
-    def getRightBumperButton(self) -> bool:
-        return self.getRawButton(self._rb)
+    def getRightBumperButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.rightBumper)
 
-    def getRightBumperButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._rb)
+    def getRightBumperButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.rightBumper)
 
-    def getRightBumperButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._rb)
+    def getRightBumperButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.rightBumper)
 
-    def getLeftStickButton(self) -> bool:
-        return self.getRawButton(self._ls)
+    def getLeftStickButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.leftStickButton)
 
-    def getLeftStickButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._ls)
+    def getLeftStickButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.leftStickButton)
 
-    def getLeftStickButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._ls)
+    def getLeftStickButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.leftStickButton)
 
-    def getRightStickButton(self) -> bool:
-        return self.getRawButton(self._rs)
+    def getRightStickButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.rightStickButton)
 
-    def getRightStickButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._rs)
+    def getRightStickButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.rightStickButton)
 
-    def getRightStickButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._rs)
+    def getRightStickButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.rightStickButton)
 
-    def getBackButton(self) -> bool:
-        return self.getRawButton(self._back)
+    def getBackButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.backButton)
 
-    def getBackButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._back)
+    def getBackButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.backButton)
 
-    def getBackButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._back)
+    def getBackButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.backButton)
 
-    def getStartButton(self) -> bool:
-        return self.getRawButton(self._start)
+    def getStartButton(self) -> bool:  # noqa: D102
+        return self.getRawButton(self.profile.startButton)
 
-    def getStartButtonPressed(self) -> bool:
-        return self.getRawButtonPressed(self._start)
+    def getStartButtonPressed(self) -> bool:  # noqa: D102
+        return self.getRawButtonPressed(self.profile.startButton)
 
-    def getStartButtonReleased(self) -> bool:
-        return self.getRawButtonReleased(self._start)
+    def getStartButtonReleased(self) -> bool:  # noqa: D102
+        return self.getRawButtonReleased(self.profile.startButton)
 
 
 class DriverController(MappedController):

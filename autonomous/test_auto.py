@@ -13,7 +13,7 @@ To create a new Choreo auto:
 
 import time
 
-from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto
+from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto, ListNamedCallbacks
 
 
 class SimpleChoreoAuto(ChoreoAuto):
@@ -50,20 +50,8 @@ class SimpleChoreoAuto(ChoreoAuto):
         pass
 
 
-# Uncomment and modify this example once you have multiple trajectories
-
-
-class TwoPieceChoreoAuto(ChoreoMultiTrajectoryAuto):
-    """Example of chaining multiple trajectories together.
-
-    This auto mode:
-    1. Drives from start to first game piece
-    2. Intakes the piece
-    3. Drives to scoring position
-    4. Scores the piece
-    5. Drives to second game piece
-    6. Intakes and scores again
-    """
+class MoveForwardWaitThenBack(ChoreoMultiTrajectoryAuto):
+    """Example of chaining multiple trajectories together."""
 
     MODE_NAME = "PID and Tuning Test"
     DISABLED = False  # Enable this auto mode (base class is disabled by default)
@@ -71,17 +59,13 @@ class TwoPieceChoreoAuto(ChoreoMultiTrajectoryAuto):
 
     # Add components that will be injected
 
-    def setup_trajectories(self):
-        """Define the sequence of trajectories and actions."""
+    def setup_trajectories(self) -> "ListNamedCallbacks":
+        """Define the sequence of trajectories and subsequent actions."""
         return [
             ("forthOneMeter", self.wait),
-            ("backOneMeter", self.null),
+            ("backOneMeter", None),
         ]
 
     def wait(self):
         """Called after reaching each game piece position."""
         time.sleep(5)
-
-    def null(self):
-        """Called after reaching the scoring position."""
-        pass
