@@ -339,14 +339,14 @@ class DriverController(MappedController):
     - Arrow keys: Right stick (strafe/forward-back)
     """
 
-    def __init__(self, port: int, profile_name: str = "") -> None:
+    def __init__(self, port: int, profileName: str = "wired") -> None:
         """Initialize the driver controller.
 
         Args:
             port: The port the controller is connected to.
-            profile_name: Name of the controller profile (e.g., "xbox", "wireless", "macwired").
+            profileName: Name of the controller profile (e.g., "xbox", "wireless", "macwired").
         """
-        super().__init__(port, profile_name)
+        super().__init__(port, profileName)
 
     def get_move_forward_percent(self) -> float:
         """Get the desired forward/reverse percent from the "move" stick.
@@ -384,14 +384,14 @@ class DriverController(MappedController):
 class OperatorController(MappedController):
     """Controller with information focused on the operator controls."""
 
-    def __init__(self, port: int, profile_name: str = "") -> None:
+    def __init__(self, port: int, profileName: str = "wired") -> None:
         """Initialize the operator controller.
 
         Args:
             port: The port the controller is connected to.
-            profile_name: Name of the controller profile (e.g., "xbox", "wireless", "macwired").
+            profileName: Name of the controller profile (e.g., "xbox", "wireless", "macwired").
         """
-        super().__init__(port, profile_name)
+        super().__init__(port, profileName)
 
     def shouldVomit(self) -> bool:
         """Determine if the outtake button is actively being pressed."""
