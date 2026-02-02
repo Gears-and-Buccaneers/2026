@@ -150,7 +150,7 @@ class Scurvy(magicbot.MagicRobot):
         Only create motors for non-swerve mechanisms here.
         """
         self.shooter_motor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
-        self.intake_motor = wpilib.Talon(const.CANID.INTAKE_MOTOR)
+        self.intakeMotor = wpilib.Talon(const.CANID.INTAKE_MOTOR)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.

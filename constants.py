@@ -35,7 +35,7 @@ class CANID(enum.IntEnum):
     SHOOTER_MOTOR_TOP_CANCODER = 18
     SHOOTER_MOTOR_BOTTOM_CANCODER = 19
 
-    INTAKE_MOTOR = 20
+    INTAKE_MOTOR = 12
 
 
 # PWM port for the LED controller
