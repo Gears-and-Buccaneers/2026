@@ -94,9 +94,6 @@ class Lighting:
     def execute(self) -> None:
         """Update the LED hardware states based on the current settings."""
         # TODO: can we improve performance by only updating when something changes?
-        # print(
-        #     f"Lighting {self._desiredPercent * 100:.0f}% of strip with color R{self._desiredColor.red} G{self._desiredColor.green} B{self._desiredColor.blue}"
-        # )
         litCount = int(LIGHTS_IN_STRIP * self._desiredPercent)
         for i, led in enumerate(self.ledBuffer):
             if i < litCount:

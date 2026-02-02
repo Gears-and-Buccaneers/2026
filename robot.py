@@ -5,10 +5,9 @@ import os
 
 import magicbot
 import wpilib
+import wpimath.geometry as geom
 import wpimath.units as units
 from magicbot import feedback
-from wpilib import RobotBase
-from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d
 
 import components
 import constants as const
@@ -77,7 +76,7 @@ class Scurvy(magicbot.MagicRobot):
     def testInit(self) -> None:
         """Called when starting test mode."""
         # Reset pose to (0,0,0) so our distance check works
-        self.drivetrain.reset_pose(Pose2d(0, 0, Rotation2d(0)))
+        self.drivetrain.reset_pose(geom.Pose2d(0, 0, geom.Rotation2d(0)))
 
         self.test_timer = wpilib.Timer()
         self.test_timer.restart()
@@ -123,9 +122,9 @@ class Scurvy(magicbot.MagicRobot):
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
         # Update vision simulation with current robot pose
-        if RobotBase.isSimulation():
+        if wpilib.RobotBase.isSimulation():
             pose_2d = self.drivetrain.get_pose()
-            pose_3d = Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, Rotation3d(0, 0, pose_2d.rotation().radians()))
+            pose_3d = geom.Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians()))
             self.vision.update_sim(pose_3d)
 
         # Feed vision measurements to drivetrain for pose estimation fusion
@@ -199,6 +198,39 @@ class Scurvy(magicbot.MagicRobot):
 
     def manuallyOperate(self) -> None:
         """Operate the robot based on controller input."""
+        # Handle shooter spin-up modes
+        if self.operator_controller.shouldSetFallbackShooterSpinSpeed():
+            self.pewpew.fallbackSpin()
+        elif self.operator_controller.shouldSmartAim():
+            # Rotate the bot and calculate flywheel speed to aim at the hub
+            self.dynamicallyTargetHub()
+        else:
+            self.pewpew.spinDown()
+
+    def dynamicallyTargetHub(self) -> None:
+        """Aim at the hub and set flywheel speed for shoot-while-moving.
+
+        Uses iterative solver to calculate both aim direction and muzzle speed,
+        accounting for robot velocity so the fuel lands in the hub while moving.
+        """
+        # Get shooting solution accounting for robot velocity
+        robotVelocity = self.drivetrain.get_velocity()
+        solution = self.pewpew.calculateShootingSolution(robotVelocity)
+
+        # Always update flywheel speed to track the solution
+        self.pewpew.setTargetMuzzleSpeed(solution.muzzleSpeed)
+
+        # Note: Even if solution.isValid is False, we keep rotating toward the hub
+        # so we're ready when the robot slows down. Shooting is prevented by
+        # isReadyToFire() which checks solution validity.
+
+        # Use drivetrain's facing-angle mode--with built-in PID--to rotate towards our desired heading.
+        max_speed = TunerConstants.speed_at_12_volts
+        self.drivetrain.drive_facing_angle(
+            velocity_x=self.driver_controller.get_move_forward_percent() * max_speed,
+            velocity_y=self.driver_controller.get_move_left_percent() * max_speed,
+            target_angle=solution.targetHeading,
+        )
         if self.operator_controller.shouldToggleLEDMode():
             self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors
 
