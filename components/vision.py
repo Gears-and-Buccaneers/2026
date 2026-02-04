@@ -10,7 +10,6 @@ from typing import Optional
 
 from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
-from photonlibpy.simulation import PhotonCameraSim, SimCameraProperties, VisionSystemSim
 from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
 from wpilib import RobotBase, SmartDashboard
 from wpimath.geometry import Pose3d, Rotation2d, Transform3d
@@ -70,6 +69,8 @@ class Vision:
 
         # Track if we're in simulation
         self._is_simulation = RobotBase.isSimulation()
+        if self._is_simulation:
+            from photonlibpy.simulation import PhotonCameraSim, SimCameraProperties, VisionSystemSim
 
         # Create cameras and pose estimators
         self._cameras: list[tuple[PhotonCamera, PhotonPoseEstimator, Transform3d, str]] = []
@@ -114,6 +115,8 @@ class Vision:
 
         # Add simulated camera if in simulation
         if self._is_simulation and self._vision_sim is not None:
+            from photonlibpy.simulation import PhotonCameraSim, SimCameraProperties, VisionSystemSim
+
             # Configure simulated camera properties (adjust for your cameras)
             camera_props = SimCameraProperties()
             # Set calibration: width, height, diagonal FOV
