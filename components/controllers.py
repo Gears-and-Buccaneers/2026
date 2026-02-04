@@ -382,6 +382,30 @@ class DriverController(MappedController):
         """Determine if the zero gyro button was pressed since the last check."""
         return self.getRightBumperButtonPressed()
 
+    def shouldIntake(self) -> bool:
+        """Determine if the intake button was pressed since the last check."""
+        return self.getRightTriggerAxis() > 0.5
+
+    def activatePrecisionMode(self) -> bool:
+        """Determine if the presicion mode button was pressed since the last check."""
+        return self.getLeftBumperButtonPressed()
+
+    def moveToOutpost(self) -> bool:
+        """Determine if the move to outpost button is being pressed."""
+        return self.getAButton()
+
+    def shouldClimbDown(self) -> bool:
+        """Determine if the climb down button is being pressed."""
+        return self.getPOV()
+
+    def shouldClimbUp(self) -> bool:
+        """Determine if the climb up button is being pressed."""
+        return self.getPOV()
+
+    def activateCycleMode(self) -> bool:
+        """Determine if the cycle mode button is being pressed."""
+        return self.getYButton()
+
 
 class OperatorController(MappedController):
     """Controller with information focused on the operator controls."""
