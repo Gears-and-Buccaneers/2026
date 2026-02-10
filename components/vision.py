@@ -6,7 +6,7 @@ to the drivetrain for sensor fusion with distance-based confidence scaling.
 
 import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
@@ -15,6 +15,9 @@ from wpilib import RobotBase, SmartDashboard
 from wpimath.geometry import Pose3d, Rotation2d, Transform3d
 
 import constants as const
+
+if TYPE_CHECKING:
+    from photonlibpy.simulation import VisionSystemSim
 
 
 @dataclass
@@ -69,15 +72,15 @@ class Vision:
 
         # Track if we're in simulation
         self._is_simulation = RobotBase.isSimulation()
-        if self._is_simulation:
-            from photonlibpy.simulation import PhotonCameraSim, SimCameraProperties, VisionSystemSim
 
         # Create cameras and pose estimators
         self._cameras: list[tuple[PhotonCamera, PhotonPoseEstimator, Transform3d, str]] = []
 
         # Simulation support
-        self._vision_sim: Optional[VisionSystemSim] = None
+        self._vision_sim: "VisionSystemSim | None" = None
         if self._is_simulation:
+            from photonlibpy.simulation import VisionSystemSim
+
             self._vision_sim = VisionSystemSim("main")
             self._vision_sim.addAprilTags(self._field_layout)
 
@@ -96,7 +99,7 @@ class Vision:
         )
 
         # Store latest measurements for each camera
-        self._latest_measurements: list[Optional[VisionMeasurement]] = [None] * len(self._cameras)
+        self._latest_measurements: list[VisionMeasurement | None] = [None] * len(self._cameras)
 
     def _setup_camera(self, name: str, robot_to_camera: Transform3d) -> None:
         """Set up a single camera with its pose estimator.
@@ -115,7 +118,7 @@ class Vision:
 
         # Add simulated camera if in simulation
         if self._is_simulation and self._vision_sim is not None:
-            from photonlibpy.simulation import PhotonCameraSim, SimCameraProperties, VisionSystemSim
+            from photonlibpy.simulation import PhotonCameraSim, SimCameraProperties
 
             # Configure simulated camera properties (adjust for your cameras)
             camera_props = SimCameraProperties()
@@ -296,8 +299,9 @@ class Vision:
 
                 # Get the best target's ambiguity for filtering
                 ambiguity = 0.0
-                if result.hasTargets():
-                    ambiguity = result.getBestTarget().poseAmbiguity
+                best_target = result.getBestTarget()
+                if best_target is not None:
+                    ambiguity = best_target.poseAmbiguity
 
                 # Validate the measurement
                 if not self._is_valid_measurement(estimated_pose.estimatedPose, ambiguity, tag_count, avg_distance):
