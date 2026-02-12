@@ -230,6 +230,9 @@ class Scurvy(magicbot.MagicRobot):
 
         # Use drivetrain's facing-angle mode--with built-in PID--to rotate towards our desired heading.
         maxSpeed = TunerConstants.speed_at_12_volts
+
+        # FIXME: If the driver is braking, we should not strafe at full speed just because smart aim is on.
+        # Figure out how to re-use what we already asked the drivetrain to do in manual drive, but change rotation
         self.drivetrain.driveFacingAngle(
             velocityX=self.driverController.getMoveForwardPercent() * maxSpeed,
             velocityY=self.driverController.getMoveLeftPercent() * maxSpeed,

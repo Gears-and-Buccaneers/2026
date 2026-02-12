@@ -396,11 +396,11 @@ class DriverController(MappedController):
 
     def shouldClimbDown(self) -> bool:
         """Determine if the climb down button is being pressed."""
-        return self.getPOV()
+        return self.getPOV() == 180
 
     def shouldClimbUp(self) -> bool:
         """Determine if the climb up button is being pressed."""
-        return self.getPOV()
+        return self.getPOV() == 0
 
     def activateCycleMode(self) -> bool:
         """Determine if the cycle mode button is being pressed."""
