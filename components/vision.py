@@ -6,7 +6,6 @@ to the drivetrain for sensor fusion with distance-based confidence scaling.
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
@@ -15,9 +14,6 @@ from wpilib import RobotBase, SmartDashboard
 from wpimath.geometry import Pose3d, Rotation2d, Transform3d
 
 import constants as const
-
-if TYPE_CHECKING:
-    from photonlibpy.simulation import VisionSystemSim
 
 
 @dataclass
