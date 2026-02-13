@@ -43,6 +43,9 @@ class Shooter:
     # Maximum heading error (degrees) to allow shooting
     maxHeadingError = magicbot.tunable(2.0)
 
+    # Distance below the funnel rim to aim for reliable scoring (m)
+    targetDistanceBelowRim = magicbot.tunable(0.1)
+
     def __init__(self):
         """Initialize the shooter."""
         # Target flywheel angular velocity (rad/s)
@@ -157,7 +160,7 @@ class Shooter:
         cos_theta = math.cos(theta)
         sin_theta = math.sin(theta)
         g = const.Simulation.GRAVITY
-        h = const.Field.HUB_TARGET_Z - const.RobotDimension.SHOOTER_LOCATION.Z()
+        h = const.Field.HUB_TOP_Z - self.targetDistanceBelowRim - const.RobotDimension.SHOOTER_LOCATION.Z()
 
         # Initial guess: stationary solution
         v_m = self._calculateStationaryLaunchSpeed(distance, h, theta, g)
@@ -282,8 +285,7 @@ class Shooter:
         g = const.Simulation.GRAVITY
 
         # Height difference: target height minus shooter height
-        # Use HUB_TARGET_Z (below rim) so balls land IN the funnel
-        h = const.Field.HUB_TARGET_Z - const.RobotDimension.SHOOTER_LOCATION.Z()
+        h = const.Field.HUB_TOP_Z - self.targetDistanceBelowRim - const.RobotDimension.SHOOTER_LOCATION.Z()
 
         # The denominator term: d·tan(θ) - h
         # If this is ≤ 0, the target is too high for this angle (trajectory impossible)

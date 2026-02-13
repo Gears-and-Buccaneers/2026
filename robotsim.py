@@ -187,6 +187,9 @@ class FuelSim:
         now: units.seconds = self._timer.get()
         elapsedTime: units.seconds = now - self._lastUpdateTimestamp
 
+        # Record the time of this update so we can calculate elapsedTime on the next frame
+        self._lastUpdateTimestamp = now
+
         # Skip physics on first frame or if elapsedTime is too large (e.g., after pause)
         if elapsedTime <= 0 or elapsedTime > 0.1:
             self._publishFuel()
@@ -238,9 +241,6 @@ class FuelSim:
         # Use a list comprehension to keep only the fuel that was not supposed to be removed
         self._fuel = [fuel for fuel in self._fuel if not fuel.shouldRemove]
         self._publishFuel()
-
-        # Record the time of this update so we can calculate elapsedTime on the next frame
-        self._lastUpdateTimestamp = now
 
     def _publishFuel(self) -> None:
         """Publish all fuel positions to NetworkTables, for AdvantageScope visualization."""
@@ -382,10 +382,6 @@ class ShooterSim(components.Shooter):
         Only fires if isReadyToFire() returns True (which checks wheel speed,
         valid solution, and heading alignment).
         """
-        # Only emit if flywheel is spinning
-        if self._actualFlywheelSpeed < 0.2:
-            return
-
         # Check all firing conditions (wheel speed, valid solution, heading)
         if not self.isReadyToFire():
             return
@@ -418,62 +414,6 @@ class ShooterSim(components.Shooter):
         """Get the current actual flywheel speed in RPM."""
         # return self._actualFlywheelSpeed * 60.0 / (2.0 * math.pi)
         return units.radiansPerSecondToRotationsPerMinute(self._actualFlywheelSpeed)
-
-    # TODO: This should be moved to the base Shooter class
-    def _isAimedAtTarget(self) -> bool:
-        """Check if the robot is aimed at the hub within the heading threshold.
-
-        Note: This checks the direct angle to the hub, not the shooting solution's
-        targetHeading. For shoot-while-moving, use isReadyToFire() instead which
-        accounts for lead compensation.
-
-        Returns:
-            True if robot heading is within HEADING_READY_THRESHOLD of the hub.
-        """
-        # Get robot's current heading
-        robotPose = self.drivetrain.getPose()
-        currentHeading = robotPose.rotation().radians()
-
-        # Calculate angle to hub
-        shooterPos = self.getPosition()
-        alliance = wpilib.DriverStation.getAlliance()
-        hubPos = const.Field.getHubPosition(alliance)
-
-        # Vector from shooter to hub
-        dx = hubPos.x - shooterPos.x
-        dy = hubPos.y - shooterPos.y
-        targetHeading = math.atan2(dy, dx)
-
-        # Calculate heading error (wrapped to -π to π)
-        headingError = targetHeading - currentHeading
-        while headingError > math.pi:
-            headingError -= 2 * math.pi
-        while headingError < -math.pi:
-            headingError += 2 * math.pi
-
-        # Check if within threshold
-        return abs(headingError) <= const.ShooterSpec.HEADING_READY_THRESHOLD
-
-    def isReadyToFire(self) -> bool:
-        """Check if the shooter is ready to fire (wheels up and aimed).
-
-        Extends the base class check (valid solution + heading aligned) with
-        a wheel speed check for the simulation.
-
-        Returns:
-            True if wheels are at speed and base class conditions are met.
-        """
-        # TODO: This flywheel speed check should be added to the base Shooter class,
-        # once we have `_actualFlywheelSpeed`` from the bot,
-        # and then this entire method can be removed from this simulation-only class.
-        # Check wheel speed first
-        if self._targetFlywheelSpeed > 0.1:
-            speedRatio = self._actualFlywheelSpeed / self._targetFlywheelSpeed
-            if speedRatio < const.ShooterSpec.WHEEL_READY_THRESHOLD:
-                return False
-
-        # Use base class logic for solution validity and heading alignment
-        return super().isReadyToFire()
 
 
 class ScurvySim(Scurvy):

@@ -88,7 +88,6 @@ class Field:
     HUB_CENTER_X: Final[units.meters] = units.inchesToMeters(182.11)  # from blue wall
     HUB_CENTER_Y: Final[units.meters] = WIDTH / 2  # Centered on field
     HUB_TOP_Z: Final[units.meters] = units.inchesToMeters(72.0)  # funnel top height
-    HUB_TARGET_Z: Final[units.meters] = units.inchesToMeters(58.0)  # mid-funnel for reliable scoring
 
     # Funnel geometry (hexagon with point toward alliances)
     HUB_FUNNEL_WIDTH: Final[units.meters] = units.inchesToMeters(41.932)  # across flats
