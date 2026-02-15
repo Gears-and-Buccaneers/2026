@@ -181,7 +181,7 @@ class Drivetrain:
         # since target_angle is already field-relative.
         adjustedAngle = targetAngle - self._operator_forward
 
-        self._pending_request = (
+        self._pendingRequest = (
             self._facing_angle_request.with_velocity_x(velocityX)
             .with_velocity_y(velocityY)
             .with_target_direction(adjustedAngle)
