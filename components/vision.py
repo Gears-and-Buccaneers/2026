@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
+from photonlibpy.targeting import PhotonPipelineResult
 from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
 from wpilib import RobotBase, SmartDashboard
 from wpimath.geometry import Pose3d, Rotation2d, Transform3d
@@ -215,7 +216,7 @@ class Vision:
 
         return True
 
-    def _get_tag_distances(self, result, robot_to_camera: Transform3d) -> tuple[int, float]:
+    def _get_tag_distances(self, result: PhotonPipelineResult, robot_to_camera: Transform3d) -> tuple[int, float]:
         """Get the number of tags and average distance to them.
 
         Args:
@@ -246,7 +247,7 @@ class Vision:
         avg_distance = total_distance / tag_count
         return (tag_count, avg_distance)
 
-    def _estimate_pose(self, estimator: PhotonPoseEstimator, result, tag_count: int):
+    def _estimate_pose(self, estimator: PhotonPoseEstimator, result: PhotonPipelineResult, tag_count: int):
         """Estimate robot pose using the appropriate strategy.
 
         Uses multi-tag PNP when 2+ tags visible, falls back to lowest ambiguity single-tag.
