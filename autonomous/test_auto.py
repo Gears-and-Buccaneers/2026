@@ -69,3 +69,21 @@ class MoveForwardWaitThenBack(ChoreoMultiTrajectoryAuto):
     def wait(self):
         """Called after reaching each game piece position."""
         time.sleep(5)
+
+
+class CompetitionAutos(ChoreoMultiTrajectoryAuto):
+    MODE_NAME = "Autos for Competition"
+    DISABLED = False  # Enable this auto mode (base class is disabled by default)
+    DEFAULT = False
+
+    def setup_trajectories(self) -> "ListNamedCallbacks":
+        """Define the sequence of trajectories and subsequent actions."""
+        return [
+            (self.wait, "Collect_and_Shoot", self.wait),
+            (self.wait, "Collect_Pass_and_Shoot", self.wait),
+            (self.wait, "Go_To_Depot_and_Shoot", self.wait),
+        ]
+
+    def wait(self):
+        """Called when we want to shoot."""
+        time.sleep(2.5)
