@@ -6,32 +6,40 @@ readme = "README.md"
 requires-python = ">=3.13,<3.14"
 
 # Packages installed by `uv sync` in your local .venv;
-# these are NOT deployed to RoboRIO by `robotpy deploy`.
+# these are NOT necessarily deployed to RoboRIO by `robotpy deploy`.
+# NOTE: robotpy extras and vendor packages are duplicated here from components/requires below
+# so that `uv sync` does not remove packages later installed by `robotpy sync`.
 dependencies = [
-    "robotpy>=2025.3.2.2",
+    "robotpy[apriltag,sim]>=2026.1.1",
+    "phoenix6",
+    "sleipnirgroup-choreolib",
+    "photonlibpy==2026.1.1rc4",
 ]
 
 [tool.robotpy]
-robotpy_version = "2025.3.2.2"
+robotpy_version = "2026.2.1"
 
-# Extra RobotPy components to install, locally (via `robotpy sync`) and on the RoboRIO (via `robotpy deploy`).
-robotpy_extras = [
+# Extra RobotPy components to install locally (via `robotpy sync`) and on the RoboRIO (via `robotpy deploy`).
+# NOTE: 'robotpy_extras' was renamed to 'components' in RobotPy 2026.1.1
+# Only actual robotpy extras go here (apriltag, commands2, cscore, sim, etc.)
+components = [
     # "all",
     "apriltag",
     # "commands2",
     # "cscore",
     # "navx",
-    "pathplannerlib",
-    # "phoenix5",
-    "phoenix6", # Support for the Kraken x60 — https://api.ctr-electronics.com/phoenix6/release/python/index.html
     # "rev",
     # "romi",
     "sim",
     # "xrp",
 ]
 
-# Other python packages to install ON the RoboRIO
-requires = []
+# Python packages to install ON the RoboRIO during `robotpy deploy`
+requires = [
+    "phoenix6",
+    "sleipnirgroup-choreolib",
+    "photonlibpy==2026.1.1rc4",
+]
 
 [tool.ruff]
 line-length = 120 # Allow much longer lines before forcing line wrap via formatting
@@ -55,7 +63,10 @@ select = [
 
 
 ignore = [
-    "N802"   # Allow camelCase function names (required for MagicBot)
+    "N802",   # Allow camelCase function names (required for MagicBot)
+    "N803",   # Allow lowerCamelCase argument names
+    "N806",   # Allow lowerCamelCase variable names
+    "N815",   # Allow lowerCamelCase attributes
 ]
 
 
