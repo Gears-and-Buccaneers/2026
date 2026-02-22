@@ -7,7 +7,6 @@ import phoenix6 as p6
 import wpimath.geometry as geom
 import wpimath.kinematics as kinematics
 import wpimath.units as units
-
 import constants as const
 
 
