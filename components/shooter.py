@@ -4,6 +4,7 @@ import math
 from typing import NamedTuple
 
 import magicbot
+import phoenix6 as p6
 import wpilib
 import wpimath.geometry as geom
 import wpimath.units as units
@@ -34,7 +35,11 @@ class Shooter:
 
     # MagicBot will inject these
     drivetrain: Drivetrain
-    shooterMotor: wpilib.Talon
+    kickerMotor: p6.hardware.TalonFXS
+    shooterMotorTop: p6.hardware.TalonFXS
+    shooterMotorBottom: p6.hardware.TalonFXS
+    activelyShoot: bool
+    activelyKick: bool
 
     # Fallback fuel exit speed for a known shooting position (m/s)
     fallbackFuelSpeed = magicbot.tunable(7.5)
@@ -344,6 +349,13 @@ class Shooter:
             self.shooterMotor.set(0)
         else:
             self.shooterMotor.set(1)
+
+        if self.activelyShoot:
+            pass
+            # make it shoot
+        if self.activelyKick:
+            pass
+            # make it kick
 
     def fallbackSpin(self) -> None:
         """Set the shooter to a known good speed for a fixed shooting position."""

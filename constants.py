@@ -30,12 +30,18 @@ class CANID(enum.IntEnum):
     # Other motors (non-swerve)
     SHOOTER_MOTOR_TOP = 15
     SHOOTER_MOTOR_BOTTOM = 16
-    FEEDER_MOTOR = 17
 
     SHOOTER_MOTOR_TOP_CANCODER = 18
     SHOOTER_MOTOR_BOTTOM_CANCODER = 19
 
-    INTAKE_MOTOR = 12
+    KICKER_MOTOR = 17
+
+    INTAKE_MOTOR_EXTEND = 20
+    INTAKE_MOTOR_INTAKE = 21
+
+    TRANSIT_MOTOR = 22
+
+    CANBUS_NAME = "rio"
 
 
 # PWM port for the LED controller

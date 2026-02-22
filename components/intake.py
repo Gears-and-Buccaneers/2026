@@ -26,7 +26,11 @@ class Intake:
 
     # Motor injected by MagicBot when the robot sets an attribute of the
     # same name on the robot class.
-    intakeMotor: wpilib.Talon
+    intakeMotorExtend: p6.hardware.TalonFXS
+    intakeMotorIntake: p6.hardware.TalonFXS
+    transitMotor: p6.hardware.TalonFXS
+    activelyIntake: bool
+    activelyTransit: bool
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(0.8)  # positive: pick up
@@ -38,6 +42,7 @@ class Intake:
         self._power: float = 0.0
         # human friendly state string for telemetry/debugging
         self._state: str = "stopped"
+        self.activelyIntake = False
 
     def ingest(self, speed: float | None = None) -> None:
         """Start the intake to pick up fuel.
@@ -89,10 +94,9 @@ class Intake:
 
     def execute(self) -> None:
         """Called each loop to command the motor."""
-        # Safety: ensure motor exists and motor.set accepts the value
-        try:
-            self.intakeMotor.set(self._power)
-        except Exception:
-            # If motor isn't injected or has a different interface, ensure we
-            # don't crash the robot code. In a real robot we'd log this.
+        if self.activelyIntake:
+            # make sure its extended, run intake motor, run transit motor
             pass
+        else:
+            pass
+            # retract intake, stop intake motor, stop transit motor

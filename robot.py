@@ -4,6 +4,7 @@ import math
 import os
 
 import magicbot
+import phoenix6 as p6
 import wpilib
 import wpimath.geometry as geom
 import wpimath.units as units
@@ -149,8 +150,13 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.shooterMotor = wpilib.Talon(const.CANID.SHOOTER_MOTOR_TOP)
-        self.intakeMotor = wpilib.Talon(const.CANID.INTAKE_MOTOR)
+        self.kickerMotor = p6.hardware.TalonFXS(const.CANID.KICKER_MOTOR, const.CANID.CANBUS_NAME)
+        self.shooterMotorTop = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_TOP, const.CANID.CANBUS_NAME)
+        self.shooterMotorBottom = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANID.CANBUS_NAME)
+        self.intakeMotorExtend = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_EXTEND, const.CANID.CANBUS_NAME)
+        self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANID.CANBUS_NAME)
+        self.transitMotor = p6.hardware.TalonFXS(const.CANID.TRANSIT_MOTOR, const.CANID.CANBUS_NAME)
+        # TODO: Add cancoders
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
@@ -193,6 +199,7 @@ class Scurvy(magicbot.MagicRobot):
                 velocityY=self.driverController.getMoveLeftPercent() * max_speed,
                 rotationRate=self.driverController.getRotateCounterClockwisePercent() * MAX_ROTATION_SPEED,
             )
+        self.intake.activelyIntake = self.driverController.shouldIntake()
 
         if self.driverController.shouldZeroGyro():
             self.drivetrain.zeroHeading()
@@ -210,6 +217,9 @@ class Scurvy(magicbot.MagicRobot):
             self.dynamicallyTargetHub()
         else:
             self.pewpew.spinDown()
+
+        self.pewpew.activelyShoot = self.operatorController.shouldShoot()
+        self.pewpew.activelyKick = self.operatorController.shouldShoot()
 
     def dynamicallyTargetHub(self) -> None:
         """Aim at the hub and set flywheel speed for shoot-while-moving.
