@@ -10,14 +10,14 @@ requires-python = ">=3.13,<3.14"
 # NOTE: robotpy extras and vendor packages are duplicated here from components/requires below
 # so that `uv sync` does not remove packages later installed by `robotpy sync`.
 dependencies = [
-    "robotpy[apriltag,sim]>=2026.1.1",
+    "robotpy[apriltag,sim]>=2026.2.1.1",
     "phoenix6",
     "sleipnirgroup-choreolib",
     "photonlibpy==2026.1.1rc4",
 ]
 
 [tool.robotpy]
-robotpy_version = "2026.2.1"
+robotpy_version = "2026.2.1.1"
 
 # Extra RobotPy components to install locally (via `robotpy sync`) and on the RoboRIO (via `robotpy deploy`).
 # NOTE: 'robotpy_extras' was renamed to 'components' in RobotPy 2026.1.1
