@@ -88,7 +88,6 @@ class Field:
     HUB_CENTER_X: Final[units.meters] = units.inchesToMeters(182.11)  # from blue wall
     HUB_CENTER_Y: Final[units.meters] = WIDTH / 2  # Centered on field
     HUB_TOP_Z: Final[units.meters] = units.inchesToMeters(72.0)  # funnel top height
-    HUB_TARGET_Z: Final[units.meters] = units.inchesToMeters(58.0)  # mid-funnel for reliable scoring
 
     # Funnel geometry (hexagon with point toward alliances)
     HUB_FUNNEL_WIDTH: Final[units.meters] = units.inchesToMeters(41.932)  # across flats
@@ -148,8 +147,8 @@ class ShooterSpec:
     BALL_INCOMING_VELOCITY: Final[units.meters_per_second] = 0.5  # m/s
 
     # Performance metrics
-    RPM_MIN: Final[float] = 1479.0  # Minimum operating RPM
-    RPM_MAX: Final[float] = 2215.0  # Maximum operating RPM
+    RPM_MIN: Final[units.revolutions_per_minute] = 1479.0  # Minimum operating RPM
+    RPM_MAX: Final[units.revolutions_per_minute] = 2215.0  # Maximum operating RPM
     HEADROOM_PERCENT: Final[float] = 23.6  # Available headroom percentage
 
     # Spin-up times (in seconds)
@@ -194,10 +193,6 @@ class Simulation:
 
     # Launch speed variation (±percentage of target speed)
     LAUNCH_SPEED_VARIATION: Final[float] = 0.005  # ±0.5%
-
-    # Launch angle variation (random offset from ideal trajectory)
-    LAUNCH_YAW_VARIATION: Final[units.radians] = units.degreesToRadians(0.5)  # ±0.5° left/right
-    LAUNCH_PITCH_VARIATION: Final[units.radians] = units.degreesToRadians(0.3)  # ±0.3° up/down
 
     # Ball-to-ball variation (simulates inconsistent ball feed, compression, grip)
     BALL_SPEED_JITTER: Final[float] = 0.003  # ±0.3% additional random per ball
