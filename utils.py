@@ -1,6 +1,8 @@
 """General utility functions for the robot code."""
 
+import phoenix6 as p6
 import wpilib
+import wpimath.units as units
 
 
 def color8FromHSV(h: float, s: float, v: float) -> wpilib.Color8Bit:
@@ -35,3 +37,22 @@ def color8FromHSV(h: float, s: float, v: float) -> wpilib.Color8Bit:
         r, g, b = c, 0, x
 
     return wpilib.Color8Bit(int((r + m) * 255), int((g + m) * 255), int((b + m) * 255))
+
+
+def setMotorLimits(
+    motorController: p6.hardware.TalonFXS,
+    maxSupplyCurrent: units.amperes | None = None,
+    maxStatorCurrent: units.amperes | None = None,
+) -> None:
+    """Set supply and/or stator current limits on a TalonFXS motor controller."""
+    if maxSupplyCurrent is None and maxStatorCurrent is None:
+        return  # nothing to do
+
+    cfg = p6.configs.TalonFXSConfiguration()
+    if maxSupplyCurrent is not None:
+        cfg.current_limits.supply_current_limit_enable = True
+        cfg.current_limits.supply_current_limit = maxSupplyCurrent
+    if maxStatorCurrent is not None:
+        cfg.current_limits.stator_current_limit_enable = True
+        cfg.current_limits.stator_current_limit = maxStatorCurrent
+    motorController.configurator.apply(cfg)

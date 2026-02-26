@@ -23,7 +23,8 @@ class DrivetrainSim(components.Drivetrain):
     def __init__(self) -> None:
         """Initialize the drivetrain simulation with NetworkTables publisher."""
         super().__init__()
-        # Publish robot pose for AdvantageScope visualization
+
+        # Publish robot pose (for AdvantageScope visualization)
         self._posePublisher = (
             NetworkTableInstance.getDefault()
             .getStructTopic("/Simulation/RobotPose", geom.Pose2d)
@@ -31,40 +32,31 @@ class DrivetrainSim(components.Drivetrain):
         )
 
     def execute(self) -> None:
-        """Update simulation and publish pose to NetworkTables."""
+        """Publish pose to NetworkTables every update."""
         super().execute()
         self._posePublisher.set(self.getPose())
         NetworkTableInstance.getDefault().flush()
 
 
 class Fuel:
-    """A simulated fuel with 3D position and velocity."""
+    """A simulated fuel with 3D position and velocity.
 
-    _nextId: ClassVar[int] = 1  # Class-level counter for unique IDs
+    Probably should be using helper libraries that do this for us, instead of manually integrating physics.
+    """
 
-    def __init__(
-        self,
-        position: geom.Translation3d,
-        velocity: geom.Translation3d | None = None,
-    ) -> None:
+    def __init__(self, position: geom.Translation3d, velocity: geom.Translation3d) -> None:
         """Initialize a fuel with position and optional velocity.
 
         Args:
             position: Initial 3D position of the fuel.
             velocity: Initial 3D velocity (defaults to zero).
         """
-        self.position = position
-        self.velocity = velocity if velocity is not None else geom.Translation3d()
-        self.bounceCount = 0
-        self.shouldRemove = False
-        self.launchTime = 0.0
-        self.predictedToF = 0.0
+        self.position: geom.Translation3d = position
+        self.velocity: geom.Translation3d = velocity
+        self.bounceCount = 0  # How many times has this fuel bounced on the ground? Used to determine when to remove it.
+        self.shouldRemove = False  # Flag to indicate when fuel should be removed from simulation
 
-        # Auto-assign unique ID
-        self.id = Fuel._nextId
-        Fuel._nextId += 1
-
-    def to_pose3d(self) -> geom.Pose3d:
+    def toPose3d(self) -> geom.Pose3d:
         """Convert to Pose3d for NetworkTables publishing."""
         return geom.Pose3d(self.position, geom.Rotation3d())
 
@@ -84,25 +76,25 @@ class FuelSim:
             .publish(_NT_PUBLISH_OPTIONS)
         )
 
-        # List of active fuel in flight
+        # List of active fuel in the simulation
         self._fuel: list[Fuel] = []
 
         # Timer for physics delta time
         self._timer = wpilib.Timer()
         self._timer.start()
-        self._lastTime: float = 0.0
+        self._lastUpdateTimestamp: float = (
+            0.0  # So we can calculate how long each frame took, for physics to apply velocity
+        )
 
     def launchFuel(
         self,
         speed: units.meters_per_second,
         shooterPosition: geom.Translation2d,
         wheelRecoveryFactor: float = 1.0,
-        predictedToF: units.seconds = 0.0,
     ) -> None:
         """Launch a new fuel from the shooter at the given speed.
 
-        Adds random variation to speed and launch angle to simulate
-        real-world inconsistencies including:
+        Adds random variation to speed and launch angle to simulate real-world inconsistencies including:
         - Base speed variation (mechanical tolerances)
         - Ball-to-ball jitter (ball compression, grip)
         - Wheel slip (contact inconsistency)
@@ -112,7 +104,6 @@ class FuelSim:
             speed: The base launch speed in m/s (before random variation).
             shooterPosition: The shooter's 2D position in field coordinates.
             wheelRecoveryFactor: 0-1 indicating wheel speed recovery (1 = full speed).
-            predictedToF: Predicted time of flight from shooting solution.
         """
         # Apply wheel slip (ball exits slower than wheel surface speed)
         slipFactor = 1.0 - const.Simulation.WHEEL_SLIP_BASE
@@ -136,27 +127,18 @@ class FuelSim:
             const.Simulation.BALL_SPEED_JITTER,
         )
 
-        actualSpeed = speed * speedVariation * ballJitter * effectiveSlip
+        # How fast this ball will launch
+        actualSpeed: units.meters_per_second = speed * speedVariation * ballJitter * effectiveSlip
 
         # Get robot heading for launch direction
         robotPose = self.drivetrain.getPose()
         robotHeading = robotPose.rotation().radians()
 
-        # Use shooter position (2D) and add height from constants
-        position = geom.Translation3d(
+        # Use shooter position (2D) and add height from constants to know where it is in 3D space
+        shooterPosition3d = geom.Translation3d(
             shooterPosition.x,
             shooterPosition.y,
             const.RobotDimension.SHOOTER_LOCATION.z,
-        )
-
-        # Apply random angle variations (pitch and yaw)
-        yawOffset = random.uniform(
-            -const.Simulation.LAUNCH_YAW_VARIATION,
-            const.Simulation.LAUNCH_YAW_VARIATION,
-        )
-        pitchOffset = random.uniform(
-            -const.Simulation.LAUNCH_PITCH_VARIATION,
-            const.Simulation.LAUNCH_PITCH_VARIATION,
         )
 
         # Add ball-to-ball angle jitter
@@ -170,7 +152,7 @@ class FuelSim:
         )
 
         # Base launch angle with pitch variation
-        launchPitch = const.RobotDimension.SHOOTER_ANGLE + pitchOffset + ballPitchJitter
+        launchPitch = const.RobotDimension.SHOOTER_ANGLE + ballPitchJitter
 
         # Calculate velocity components
         # Vertical speed from pitch angle
@@ -178,72 +160,57 @@ class FuelSim:
 
         # Horizontal speed from pitch angle, directed by heading + yaw offset
         horizontalSpeed = actualSpeed * math.cos(launchPitch)
-        effectiveHeading = geom.Rotation2d(robotHeading + yawOffset + ballYawJitter)
+        effectiveHeading = geom.Rotation2d(robotHeading + ballYawJitter)
 
-        # Use Translation2d polar constructor (distance, angle) for horizontal velocity
-        horizontalVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
+        # Use Translation2d polar constructor (distance, angle) for velocity along the ground plane
+        planarVelocity = geom.Translation2d(horizontalSpeed, effectiveHeading)
 
         # Add robot velocity to fuel velocity (fuel inherits robot's momentum)
         robotVelocity = self.drivetrain.getVelocity()
 
+        # Calculate the full 3D velocity of the fuel by combining planar and vertical components, plus robot's velocity
         velocity = geom.Translation3d(
-            horizontalVelocity.x + robotVelocity.x,
-            horizontalVelocity.y + robotVelocity.y,
+            planarVelocity.x + robotVelocity.x,
+            planarVelocity.y + robotVelocity.y,
             verticalSpeed,
         )
 
-        newFuel = Fuel(position=position, velocity=velocity)
-        newFuel.launchTime = self._timer.get()
-        newFuel.predictedToF = predictedToF
+        # Create a new fuel instance that starts at the shooter's position and flies with the calculated velocity
+        newFuel = Fuel(position=shooterPosition3d, velocity=velocity)
+
+        # Add this fuel object to the list of active fuel in the simulation
         self._fuel.append(newFuel)
-
-        # Log launch details for debugging
-        print(
-            f"LAUNCH #{newFuel.id} t={newFuel.launchTime:.3f}: "
-            f"pos=({position.x:.2f}, {position.y:.2f}) "
-            f"vel=({velocity.x:.2f}, {velocity.y:.2f}, {velocity.z:.2f}) "
-            f"heading={math.degrees(robotHeading):.1f}° "
-            f"predToF={predictedToF:.3f}s"
-        )
-
-    def launchFuelWithVelocity(self, position: geom.Translation3d, velocity: geom.Translation3d) -> None:
-        """Launch a new fuel with explicit position and velocity.
-
-        Args:
-            position: Initial 3D position of the fuel.
-            velocity: Initial 3D velocity of the fuel in m/s.
-        """
-        self._fuel.append(Fuel(position=position, velocity=velocity))
 
     def execute(self) -> None:
         """Update fuel physics and publish positions to NetworkTables."""
-        # Calculate delta time
-        now = self._timer.get()
-        dt = now - self._lastTime
-        self._lastTime = now
+        # Calculate how long it's been since the last update, so we can apply physics correctly based on time elapsed
+        now: units.seconds = self._timer.get()
+        elapsedTime: units.seconds = now - self._lastUpdateTimestamp
 
-        # Skip physics on first frame or if dt is too large (e.g., after pause)
-        if dt <= 0 or dt > 0.1:
+        # Record the time of this update so we can calculate elapsedTime on the next frame
+        self._lastUpdateTimestamp = now
+
+        # Skip physics on first frame or if elapsedTime is too large (e.g., after pause)
+        if elapsedTime <= 0 or elapsedTime > 0.1:
             self._publishFuel()
             return
 
         # Update each fuel's physics
         fuelRadius = const.Field.FUEL_DIAMETER / 2.0
-        alliance = wpilib.DriverStation.getAlliance()
 
         for fuel in self._fuel:
             # Apply gravity to velocity (negative Z)
             fuel.velocity = geom.Translation3d(
                 fuel.velocity.x,
                 fuel.velocity.y,
-                fuel.velocity.z - const.Simulation.GRAVITY * dt,
+                fuel.velocity.z - const.Simulation.GRAVITY * elapsedTime,
             )
 
-            # Integrate position
+            # Update position based on velocity and time elapsed
             fuel.position = geom.Translation3d(
-                fuel.position.x + fuel.velocity.x * dt,
-                fuel.position.y + fuel.velocity.y * dt,
-                fuel.position.z + fuel.velocity.z * dt,
+                fuel.position.x + fuel.velocity.x * elapsedTime,
+                fuel.position.y + fuel.velocity.y * elapsedTime,
+                fuel.position.z + fuel.velocity.z * elapsedTime,
             )
 
             # Check for ground collision (fuel center at radius height)
@@ -254,29 +221,30 @@ class FuelSim:
                 # Only keep fuel if under max bounces
                 if fuel.bounceCount > const.Simulation.FUEL_MAX_BOUNCES:
                     fuel.shouldRemove = True
-                    continue  # Skip further processing
+                    continue  # Skip further processing for this fuel
 
                 # Reflect Z velocity and apply damping to all components
                 retention = const.Simulation.FUEL_BOUNCE_VELOCITY_RETENTION
                 fuel.velocity = geom.Translation3d(
                     fuel.velocity.x * retention,
                     fuel.velocity.y * retention,
-                    -fuel.velocity.z * retention,  # Reflect Z
+                    -fuel.velocity.z * retention,  # Reflect Z, since we bounced
                 )
 
-                # Move fuel up to ground level
+                # However far we went into the "floor"--below the radius--move it that far above the radius
                 fuel.position = geom.Translation3d(
                     fuel.position.x,
                     fuel.position.y,
-                    fuelRadius,
+                    fuelRadius + (fuelRadius - fuel.position.z),
                 )
 
+        # Use a list comprehension to keep only the fuel that was not supposed to be removed
         self._fuel = [fuel for fuel in self._fuel if not fuel.shouldRemove]
         self._publishFuel()
 
     def _publishFuel(self) -> None:
-        """Publish all fuel positions to NetworkTables."""
-        poses = [fuel.to_pose3d() for fuel in self._fuel]
+        """Publish all fuel positions to NetworkTables, for AdvantageScope visualization."""
+        poses: list[geom.Pose3d] = [fuel.toPose3d() for fuel in self._fuel]
         self._fuelPublisher.set(poses)
         NetworkTableInstance.getDefault().flush()
 
@@ -284,11 +252,10 @@ class FuelSim:
 class ShooterSim(components.Shooter):
     """Simulation version of the shooter with flywheel dynamics.
 
-    Tracks flywheel speed, simulates spin-up/spin-down, and emits balls
-    at periodic intervals while shooting.
+    Tracks flywheel speed, simulates spin-up/spin-down, and emits balls at periodic intervals while shooting.
     """
 
-    # MagicBot will inject these
+    # MagicBot will inject this
     fuelSim: FuelSim
 
     def __init__(self) -> None:
@@ -298,16 +265,16 @@ class ShooterSim(components.Shooter):
         # Current (actual) flywheel speed in rad/s - lags behind target due to inertia
         self._actualFlywheelSpeed: units.radians_per_second = 0.0
 
-        # Timer for ball emission interval
+        # Timer so we can periodically launch another ball while actively firing (holding down the "shoot" button)
         self._shootTimer = wpilib.Timer()
         self._shootTimer.start()
-        self._nextEmitTime: float = 0.0
+        self._nextEmitTime: units.seconds = 0.0
 
-        # Whether we're actively feeding balls to the shooter
+        # Whether we're actively feeding balls to the shooter, aka "shooting"
         self._isShooting: bool = False
 
     def setShooting(self, shooting: bool) -> None:
-        """Set whether balls should be emitted (feeder is running)."""
+        """Set whether balls should be emitted (whether feeder is running)."""
         if shooting and not self._isShooting:
             # Just started shooting - schedule immediate first ball
             self._nextEmitTime = self._shootTimer.get()
@@ -317,10 +284,10 @@ class ShooterSim(components.Shooter):
         """Update flywheel simulation and emit fuel."""
         super().execute()
 
-        # Update flywheel speed toward target
+        # Update flywheel speed toward requested target speed, simulating inertia
         self._updateFlywheelSpeed()
 
-        # Emit fuel at regular intervals while shooting
+        # Launch fuel at ~regular intervals while we're actively shooting
         if self._isShooting:
             self._maybeEmitFuel()
 
@@ -335,53 +302,54 @@ class ShooterSim(components.Shooter):
         Kraken X60 motor with 2:1 gear ratio, 3.6 lb-in² MOI.
         """
         # Target speed comes from parent's _targetFlywheelSpeed (set by setTargetFuelSpeed)
-        targetSpeed = self._targetFlywheelSpeed
+        targetSpeed: units.radians_per_second = self._targetFlywheelSpeed
 
         # Get current distance to hub for distance-dependent spin-up
-        distance = self.distanceToHub()
+        distance: units.meters = self.distanceToHub()
 
         # Interpolate spin-up times based on distance
-        # 8ft = 2.438m, 20ft = 6.096m
-        DIST_8FT = 2.438
-        DIST_20FT = 6.096
+        DIST_8FT: units.meters = units.feetToMeters(8)  # 2.438m
+        DIST_20FT: units.meters = units.feetToMeters(20)  # 6.096m
 
+        # TODO(rami): Why does this need to be clamped?
         # Clamp distance to range and calculate interpolation factor (0 = 8ft, 1 = 20ft)
-        t = max(0.0, min(1.0, (distance - DIST_8FT) / (DIST_20FT - DIST_8FT)))
+        t: float = max(0.0, min(1.0, (distance - DIST_8FT) / (DIST_20FT - DIST_8FT)))
 
         # Interpolate spin-up times
-        fullSpinupTime = const.ShooterSpec.SPINUP_TIME_8FT + t * (
+        fullSpinupTime: units.seconds = const.ShooterSpec.SPINUP_TIME_8FT + t * (
             const.ShooterSpec.SPINUP_TIME_20FT - const.ShooterSpec.SPINUP_TIME_8FT
         )
-        betweenShotsTime = const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT + t * (
+        betweenShotsTime: units.seconds = const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT + t * (
             const.ShooterSpec.SPINUP_BETWEEN_SHOTS_20FT - const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT
         )
 
         # RPM range from spec: 1479-2215 RPM
         # Convert to rad/s for calculations
-        maxRPM = const.ShooterSpec.RPM_MAX
-        maxRadPerSec = maxRPM * 2.0 * math.pi / 60.0
+        # maxRadPerSec = const.ShooterSpec.RPM_MAX * 2.0 * math.pi / 60.0
+        maxRadPerSec = units.rotationsPerMinuteToRadiansPerSecond(const.ShooterSpec.RPM_MAX)
 
         # Use between-shots spin-up time for recovery (more realistic)
         # Full spin-up from 0 uses the longer time
-        speedDelta = abs(targetSpeed - self._actualFlywheelSpeed)
-        speedDropFromMax = maxRadPerSec * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
+        speedDelta: units.radians_per_second = abs(targetSpeed - self._actualFlywheelSpeed)
+        speedDropFromMax: units.radians_per_second = maxRadPerSec * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
 
         if self._actualFlywheelSpeed < 0.1:
             # Starting from stopped - use full spin-up time (distance-dependent)
-            accelRate = maxRadPerSec / fullSpinupTime
+            accelRate: units.radians_per_second_squared = maxRadPerSec / fullSpinupTime
         elif speedDelta <= speedDropFromMax:
             # Recovering from shot - use between-shots spin-up time (distance-dependent)
-            accelRate = speedDropFromMax / betweenShotsTime
+            accelRate: units.radians_per_second_squared = speedDropFromMax / betweenShotsTime
         else:
             # Large speed change - use full spin-up time
-            accelRate = maxRadPerSec / fullSpinupTime
+            accelRate: units.radians_per_second_squared = maxRadPerSec / fullSpinupTime
 
         # Assume 20ms loop time
         dt = 0.02
 
         # Calculate motor RPM limit at wheel (after gear reduction)
         # Kraken X60 free speed is 6065 RPM, with 2:1 ratio wheel max is 3032.5 RPM
-        maxWheelRadPerSec = const.ShooterSpec.WHEEL_MAX_RPM * 2.0 * math.pi / 60.0
+        # maxWheelRadPerSec = const.ShooterSpec.WHEEL_MAX_RPM * 2.0 * math.pi / 60.0
+        maxWheelRadPerSec = units.rotationsPerMinuteToRadiansPerSecond(const.ShooterSpec.WHEEL_MAX_RPM)
 
         # Clamp target speed to motor capability
         clampedTarget = min(targetSpeed, maxWheelRadPerSec)
@@ -402,7 +370,7 @@ class ShooterSim(components.Shooter):
 
         if now >= self._nextEmitTime:
             self._emitFuel()
-            # Schedule next fuel with random interval
+            # Schedule next fuel shot time with random interval
             self._nextEmitTime: units.seconds = now + random.uniform(
                 const.Simulation.FUEL_EMIT_INTERVAL_MIN,
                 const.Simulation.FUEL_EMIT_INTERVAL_MAX,
@@ -414,10 +382,6 @@ class ShooterSim(components.Shooter):
         Only fires if isReadyToFire() returns True (which checks wheel speed,
         valid solution, and heading alignment).
         """
-        # Only emit if flywheel is spinning
-        if self._actualFlywheelSpeed < 0.2:
-            return
-
         # Check all firing conditions (wheel speed, valid solution, heading)
         if not self.isReadyToFire():
             return
@@ -435,77 +399,21 @@ class ShooterSim(components.Shooter):
         # Slow down flywheel by configured percentage
         self._actualFlywheelSpeed *= const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
 
-        # Get predicted time of flight from the current shooting solution
-        solution = self._currentSolution
-        predictedToF = solution.timeOfFlight if solution and solution.isValid else 0.0
-
         # Launch the fuel from the shooter's current position
         self.fuelSim.launchFuel(
             speed=exitSpeed,
             shooterPosition=self.getPosition(),
             wheelRecoveryFactor=wheelRecoveryFactor,
-            predictedToF=predictedToF,
         )
 
     def getActualFlywheelSpeed(self) -> units.radians_per_second:
         """Get the current actual flywheel speed in rad/s."""
         return self._actualFlywheelSpeed
 
-    def getActualFlywheelRPM(self) -> float:
+    def getActualFlywheelRPM(self) -> units.revolutions_per_minute:
         """Get the current actual flywheel speed in RPM."""
-        return self._actualFlywheelSpeed * 60.0 / (2.0 * math.pi)
-
-    def _isAimedAtTarget(self) -> bool:
-        """Check if the robot is aimed at the hub within the heading threshold.
-
-        Note: This checks the direct angle to the hub, not the shooting solution's
-        targetHeading. For shoot-while-moving, use isReadyToFire() instead which
-        accounts for lead compensation.
-
-        Returns:
-            True if robot heading is within HEADING_READY_THRESHOLD of the hub.
-        """
-        # Get robot's current heading
-        robotPose = self.drivetrain.getPose()
-        currentHeading = robotPose.rotation().radians()
-
-        # Calculate angle to hub
-        shooterPos = self.getPosition()
-        alliance = wpilib.DriverStation.getAlliance()
-        hubPos = const.Field.getHubPosition(alliance)
-
-        # Vector from shooter to hub
-        dx = hubPos.x - shooterPos.x
-        dy = hubPos.y - shooterPos.y
-        targetHeading = math.atan2(dy, dx)
-
-        # Calculate heading error (wrapped to -π to π)
-        headingError = targetHeading - currentHeading
-        while headingError > math.pi:
-            headingError -= 2 * math.pi
-        while headingError < -math.pi:
-            headingError += 2 * math.pi
-
-        # Check if within threshold
-        return abs(headingError) <= const.ShooterSpec.HEADING_READY_THRESHOLD
-
-    def isReadyToFire(self) -> bool:
-        """Check if the shooter is ready to fire (wheels up and aimed).
-
-        Extends the base class check (valid solution + heading aligned) with
-        a wheel speed check for the simulation.
-
-        Returns:
-            True if wheels are at speed and base class conditions are met.
-        """
-        # Check wheel speed first
-        if self._targetFlywheelSpeed > 0.1:
-            speedRatio = self._actualFlywheelSpeed / self._targetFlywheelSpeed
-            if speedRatio < const.ShooterSpec.WHEEL_READY_THRESHOLD:
-                return False
-
-        # Use base class logic for solution validity and heading alignment
-        return super().isReadyToFire()
+        # return self._actualFlywheelSpeed * 60.0 / (2.0 * math.pi)
+        return units.radiansPerSecondToRotationsPerMinute(self._actualFlywheelSpeed)
 
 
 class ScurvySim(Scurvy):
@@ -516,14 +424,15 @@ class ScurvySim(Scurvy):
 
     # Override drivetrain to use simulation-friendly version
     # Type narrowing is intentional for sim-specific functionality
-    drivetrain: DrivetrainSim  # type: ignore[assignment]
+    drivetrain: DrivetrainSim  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # Override shooter to use simulation-friendly version with flywheel dynamics
-    pewpew: ShooterSim  # type: ignore[assignment]
+    pewpew: ShooterSim  # pyright: ignore[reportIncompatibleVariableOverride]
 
     def manuallyOperate(self) -> None:
-        """Override to control shooting via ShooterSim."""
+        """Do what we normally do, but also control shooting on ShooterSim."""
         super().manuallyOperate()
 
         # Handle ball emission - setShooting controls whether feeder runs
+        # If the "shoot" button is held, we want to simulate shooting fuel.
         self.pewpew.setShooting(self.operatorController.shouldShoot())
