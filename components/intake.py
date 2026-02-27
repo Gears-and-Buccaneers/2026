@@ -7,7 +7,7 @@ to apply the desired motor output.
 """
 
 import magicbot
-import wpilib
+import phoenix6 as p6
 
 
 class Intake:
@@ -29,8 +29,8 @@ class Intake:
     intakeMotorExtend: p6.hardware.TalonFXS
     intakeMotorIntake: p6.hardware.TalonFXS
     transitMotor: p6.hardware.TalonFXS
-    activelyIntake: bool
-    activelyTransit: bool
+    activelyIntake = magicbot.will_reset_to(False)
+    activelyTransit = magicbot.will_reset_to(False)
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(0.8)  # positive: pick up

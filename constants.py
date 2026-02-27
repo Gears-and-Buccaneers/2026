@@ -20,6 +20,9 @@ ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geom.Rotation
     wpilib.DriverStation.Alliance.kRed: geom.Rotation2d.fromDegrees(180),
 }
 
+# CAN bus name (if using multiple CAN buses, specify which one to use for each device)
+CANBUS_NAME = "rio"
+
 
 class CANID(enum.IntEnum):
     """IDs for items on the CAN bus.
@@ -34,14 +37,12 @@ class CANID(enum.IntEnum):
     SHOOTER_MOTOR_TOP_CANCODER = 18
     SHOOTER_MOTOR_BOTTOM_CANCODER = 19
 
-    KICKER_MOTOR = 17
+    KICKER_MOTOR = 17  # Sends fuel from the bottom of the shooter to the shooting wheels
 
-    INTAKE_MOTOR_EXTEND = 20
-    INTAKE_MOTOR_INTAKE = 21
+    INTAKE_MOTOR_EXTEND = 20  # Extends/retracts the intake mechanism (positive = extend/lower)
+    INTAKE_MOTOR_INTAKE = 21  # Runs the intake rollers (positive = pick up, negative = release)
 
-    TRANSIT_MOTOR = 22
-
-    CANBUS_NAME = "rio"
+    TRANSIT_MOTOR = 22  # Moves fuel from intake to shooter (positive = toward shooter)
 
 
 # PWM port for the LED controller

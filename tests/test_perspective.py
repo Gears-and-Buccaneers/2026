@@ -71,7 +71,7 @@ def _exercise_drive(
     else:
         bot.drivetrain.driveFieldCentric(velocityX=cmd_vx, velocityY=cmd_vy, rotationRate=0.0)
 
-    req = bot.drivetrain._pending_request
+    req = bot.drivetrain._pendingRequest
     assert isinstance(req, FieldCentric)
     if centric == "operator":
         assert req.forward_perspective == ForwardPerspectiveValue.OPERATOR_PERSPECTIVE

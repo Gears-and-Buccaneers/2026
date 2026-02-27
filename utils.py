@@ -44,7 +44,15 @@ def setMotorLimits(
     maxSupplyCurrent: units.amperes | None = None,
     maxStatorCurrent: units.amperes | None = None,
 ) -> None:
-    """Set supply and/or stator current limits on a TalonFXS motor controller."""
+    """Set supply and/or stator current limits on a TalonFXS motor controller.
+
+    See https://v6.docs.ctr-electronics.com/en/stable/docs/hardware-reference/talonfx/improving-performance-with-current-limits.html
+
+    Args:
+        motorController: The TalonFXS motor controller to configure.
+        maxSupplyCurrent: The max supply current in amperes, helping to prevent brownouts, or None to leave unchanged.
+        maxStatorCurrent: The max stator current in amperes, helping to prevent wheel sleep (or None to leave unlimited).
+    """
     if maxSupplyCurrent is None and maxStatorCurrent is None:
         return  # nothing to do
 

@@ -150,12 +150,12 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.kickerMotor = p6.hardware.TalonFXS(const.CANID.KICKER_MOTOR, const.CANID.CANBUS_NAME)
-        self.shooterMotorTop = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_TOP, const.CANID.CANBUS_NAME)
-        self.shooterMotorBottom = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANID.CANBUS_NAME)
-        self.intakeMotorExtend = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_EXTEND, const.CANID.CANBUS_NAME)
-        self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANID.CANBUS_NAME)
-        self.transitMotor = p6.hardware.TalonFXS(const.CANID.TRANSIT_MOTOR, const.CANID.CANBUS_NAME)
+        self.kickerMotor = p6.hardware.TalonFXS(const.CANID.KICKER_MOTOR, const.CANBUS_NAME)
+        self.shooterMotorTop = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_TOP, const.CANBUS_NAME)
+        self.shooterMotorBottom = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
+        self.intakeMotorExtend = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_EXTEND, const.CANBUS_NAME)
+        self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
+        self.transitMotor = p6.hardware.TalonFXS(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
         # TODO: Add cancoders
 
     def createControllers(self) -> None:
@@ -219,7 +219,6 @@ class Scurvy(magicbot.MagicRobot):
             self.pewpew.spinDown()
 
         self.pewpew.activelyShoot = self.operatorController.shouldShoot()
-        self.pewpew.activelyKick = self.operatorController.shouldShoot()
 
     def dynamicallyTargetHub(self) -> None:
         """Aim at the hub and set flywheel speed for shoot-while-moving.

@@ -38,8 +38,7 @@ class Shooter:
     kickerMotor: p6.hardware.TalonFXS
     shooterMotorTop: p6.hardware.TalonFXS
     shooterMotorBottom: p6.hardware.TalonFXS
-    activelyShoot: bool
-    activelyKick: bool
+    activelyShoot = magicbot.will_reset_to(False)
 
     # Fallback fuel exit speed for a known shooting position (m/s)
     fallbackFuelSpeed = magicbot.tunable(7.5)
@@ -321,18 +320,20 @@ class Shooter:
 
     def execute(self):
         """This gets called at the end of the control loop."""
-        # TODO: figure out how to drive the motor(s) towards the target rotational speed(s)
         if self._targetFlywheelSpeed <= 0.0:
-            self.shooterMotor.set(0)
+            self.shooterMotorTop.set(0)
+            self.shooterMotorBottom.set(0)
         else:
-            self.shooterMotor.set(1)
+            # FIXME: figure out how to drive the motor(s) towards the target rotational speed(s)
+            self.shooterMotorTop.set(1)
+            self.shooterMotorBottom.set(1)
 
-        if self.activelyShoot:
-            pass
-            # make it shoot
-        if self.activelyKick:
-            pass
-            # make it kick
+        if self.activelyShoot and self.isReadyToFire():
+            # TODO: do we need to set the kicker motor to max speed, or can we get away with less battery?
+            self.kickerMotor.set(1)
+        else:
+            # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
+            self.kickerMotor.set(0)
 
     def fallbackSpin(self) -> None:
         """Set the shooter to a known good speed for a fixed shooting position."""
