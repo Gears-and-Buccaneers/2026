@@ -71,6 +71,10 @@ class RobotDimension:
 
     # Flywheel/wheel radius for shooter (wheels only, no flywheel)
     FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(2.0)  # 4" diameter wheels
+    KICKER_RADIUS: Final[units.meters] = units.inchesToMeters(4.0)  # 8" diameter kicker wheel
+
+    SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 42 / 20  # 42T motor driving 20T axle; 2.1x speed increase
+    KICKER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 32 / 20  # 32T motor driving 20T axle; 1.6x speed increase
 
 
 class ControllerPort:
@@ -139,11 +143,10 @@ class ShooterSpec:
     # Motor and mechanical specs
     MOTORS_PER_SIDE: Final[int] = 1
     WHEELS_PER_SIDE: Final[int] = 2
-    GEAR_RATIO: Final[float] = 2.0  # 2:1 gear ratio
 
     # Derived motor limits at wheel (after gear reduction)
     # Motor runs 2x faster than wheel, so wheel max = motor free speed / gear ratio
-    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / GEAR_RATIO  # 3032.5 RPM
+    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / RobotDimension.SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO  # 3032.5 RPM
 
     # Moment of inertia (converted from lb-in² to kg-m²)
     # 3.6 lb-in² = 3.6 * 0.0002926397 kg-m² ≈ 0.00105 kg-m²

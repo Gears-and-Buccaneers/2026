@@ -126,6 +126,9 @@ class Drivetrain:
             velocityY: Left velocity in m/s (positive = to driver's left).
             rotationRate: Counter-clockwise rotation rate in rad/s.
         """
+        # TODO? Should we be applying x-stance if the shooter is actively shooting?
+        # Not doing it yet, because we're hoping we can drive slowly enough while shooting to succeed.
+
         # Operator perspective rotates the command by the operator's configured forward
         self._pendingRequest = (
             self._operatorCentricRequest.with_velocity_x(velocityX)

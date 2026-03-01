@@ -26,7 +26,7 @@ class Intake:
 
     # Motor injected by MagicBot when the robot sets an attribute of the
     # same name on the robot class.
-    intakeMotorExtend: p6.hardware.TalonFXS
+    intakeMotorExtend: p6.hardware.TalonFX
     intakeMotorIntake: p6.hardware.TalonFXS
     transitMotor: p6.hardware.TalonFXS
     activelyIntake = magicbot.will_reset_to(False)

@@ -35,14 +35,21 @@ class Shooter:
 
     # MagicBot will inject these
     drivetrain: Drivetrain
-    kickerMotor: p6.hardware.TalonFXS
-    shooterMotorTop: p6.hardware.TalonFXS
-    shooterMotorBottom: p6.hardware.TalonFXS
+    kickerMotor: p6.hardware.TalonFX
+    shooterMotorTop: p6.hardware.TalonFX
+    shooterMotorBottom: p6.hardware.TalonFX
     activelyShoot = magicbot.will_reset_to(False)
 
     # Fallback fuel exit speed for a known shooting position (m/s)
     fallbackFuelSpeed = magicbot.tunable(7.5)
     maxFuelSpeed = magicbot.tunable(15.0)
+
+    # Desired launched fuel backspin (RPM).
+    # Positive values make bottom wheel faster than top wheel.
+    backspinFuelRPM: magicbot.tunable[units.revolutions_per_minute] = magicbot.tunable(60)
+
+    # Target kicker surface speed while actively feeding (m/s)
+    targetKickerFuelSpeed: magicbot.tunable[units.meters_per_second] = magicbot.tunable(3.0)
 
     # Maximum heading error (degrees) to allow shooting
     maxHeadingError = magicbot.tunable(2.0)
@@ -81,6 +88,78 @@ class Shooter:
         """
         # v = ωr
         return flywheelSpeed * const.RobotDimension.FLYWHEEL_RADIUS
+
+    def _surfaceSpeedToMotorSpeed(
+        self,
+        surfaceSpeed: units.meters_per_second,
+        wheelRadius: units.meters,
+        motorToAxleTeethRatio: float,
+    ) -> units.radians_per_second:
+        """Convert mechanism surface speed to TalonFX motor angular velocity.
+
+        The conversion is:
+            wheel_rad_per_sec = surface_m_per_sec / wheel_radius
+            motor_rad_per_sec = wheel_rad_per_sec / motor_to_axle_teeth_ratio
+
+        where motor_to_axle_teeth_ratio = motor_teeth / axle_teeth.
+        """
+        wheelAngularSpeed = surfaceSpeed / wheelRadius
+        return wheelAngularSpeed / motorToAxleTeethRatio
+
+    def _wheelSpeedToMotorSpeed(
+        self,
+        wheelSpeed: units.radians_per_second,
+        motorToAxleTeethRatio: float,
+    ) -> units.radians_per_second:
+        """Convert mechanism wheel angular velocity to TalonFX motor angular velocity."""
+        return wheelSpeed / motorToAxleTeethRatio
+
+    def _motorSpeedToDutyCycle(self, motorSpeed: units.radians_per_second) -> float:
+        """Convert target motor angular velocity to open-loop duty cycle [-1, 1]."""
+        maxMotorAngularSpeed = const.ShooterSpec.MOTOR_FREE_SPEED_RPM * 2.0 * math.pi / 60.0
+        if maxMotorAngularSpeed <= 0:
+            return 0.0
+        return max(-1.0, min(1.0, motorSpeed / maxMotorAngularSpeed))
+
+    def _backspinRpmToFuelSpeedDelta(self, backspinRpm: units.revolutions_per_minute) -> units.meters_per_second:
+        """Convert launched fuel spin rate (RPM) to wheel surface speed differential (m/s).
+
+        For two-wheel shooter contact:
+            delta_surface_speed = omega_fuel * fuel_diameter
+        where omega_fuel is in rad/s.
+        """
+        fuelAngularSpeed = backspinRpm * 2.0 * math.pi / 60.0
+        return fuelAngularSpeed * const.Field.FUEL_DIAMETER
+
+    def _getShooterWheelTargets(self) -> tuple[units.radians_per_second, units.radians_per_second]:
+        """Get top/bottom shooter wheel targets including backspin differential."""
+        backspinFuelSpeedDelta = self._backspinRpmToFuelSpeedDelta(self.backspinFuelRPM)
+        backspinDeltaWheelSpeed = backspinFuelSpeedDelta / const.RobotDimension.FLYWHEEL_RADIUS
+        topWheelTargetAngularSpeed = max(0.0, self._targetFlywheelSpeed - 0.5 * backspinDeltaWheelSpeed)
+        bottomWheelTargetAngularSpeed = max(0.0, self._targetFlywheelSpeed + 0.5 * backspinDeltaWheelSpeed)
+        return topWheelTargetAngularSpeed, bottomWheelTargetAngularSpeed
+
+    def getShooterTargetMotorSpeeds(self) -> tuple[units.radians_per_second, units.radians_per_second]:
+        """Get top/bottom shooter motor targets in rad/s."""
+        topWheelTargetAngularSpeed, bottomWheelTargetAngularSpeed = self._getShooterWheelTargets()
+        return (
+            self._wheelSpeedToMotorSpeed(
+                topWheelTargetAngularSpeed,
+                const.RobotDimension.SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO,
+            ),
+            self._wheelSpeedToMotorSpeed(
+                bottomWheelTargetAngularSpeed,
+                const.RobotDimension.SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO,
+            ),
+        )
+
+    def getKickerTargetMotorSpeed(self) -> units.radians_per_second:
+        """Get kicker motor target in rad/s."""
+        return self._surfaceSpeedToMotorSpeed(
+            self.targetKickerFuelSpeed,
+            const.RobotDimension.KICKER_RADIUS,
+            const.RobotDimension.KICKER_MOTOR_TO_AXLE_TEETH_RATIO,
+        )
 
     def setTargetMuzzleSpeed(self, muzzleSpeed: units.meters_per_second) -> None:
         """Set the target flywheel speed to achieve the desired muzzle velocity.
@@ -310,27 +389,19 @@ class Shooter:
         # Clamp to max speed
         return min(v, self.maxFuelSpeed)
 
-    # TODO: Dual flywheel implementation
-    # The real shooter has two TalonFX motors: upperShooterMotor and lowerShooterMotor.
-    # They control flywheels above and below the fuel. To impart backspin:
-    # - Upper motor runs slightly slower than target
-    # - Lower motor runs slightly faster than target
-    # The differential creates backspin while maintaining equivalent launch speed.
-    # For now, we simulate a single flywheel that imparts all speed with no rotation.
-
     def execute(self):
         """This gets called at the end of the control loop."""
         if self._targetFlywheelSpeed <= 0.0:
             self.shooterMotorTop.set(0)
             self.shooterMotorBottom.set(0)
         else:
-            # FIXME: figure out how to drive the motor(s) towards the target rotational speed(s)
-            self.shooterMotorTop.set(1)
-            self.shooterMotorBottom.set(1)
+            topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
+            self.shooterMotorTop.set(self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed))
+            self.shooterMotorBottom.set(self._motorSpeedToDutyCycle(bottomMotorTargetAngularSpeed))
 
         if self.activelyShoot and self.isReadyToFire():
-            # TODO: do we need to set the kicker motor to max speed, or can we get away with less battery?
-            self.kickerMotor.set(1)
+            kickerMotorTargetAngularSpeed = self.getKickerTargetMotorSpeed()
+            self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)
