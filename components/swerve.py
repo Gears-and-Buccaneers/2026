@@ -18,6 +18,13 @@ from generated.tuner_constants import TunerConstants
 SIM_LOOP_PERIOD = 0.020
 
 
+def CurrentLimitingTalon(port: int, currentLimit: int, *args, **kwargs) -> wpilib.Talon:
+    """Helper function to create a Talon motor controller with current limiting configured."""
+    talon = wpilib.Talon(port)
+    talon.setCurrentLimit(currentLimit)
+    return talon
+
+
 class Drivetrain:
     """Swerve drivetrain wrapper using CTRE Phoenix 6 SwerveDrivetrain.
 
