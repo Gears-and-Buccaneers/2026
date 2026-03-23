@@ -41,6 +41,9 @@ class Scurvy(magicbot.MagicRobot):
         # Have we told the Drivetrain which alliance we are on yet?
         self._alliance_perspective: wpilib.DriverStation.Alliance | None = None
 
+        # Tracks the last auto name copied from chooser selection to legacy key.
+        self._last_auto_selector_value: str | None = None
+
     # ------------------------------------------------------------------------------------------------------------------
     # MagicBot methods called at the right time; implement these as desired.
     # ------------------------------------------------------------------------------------------------------------------
@@ -73,7 +76,8 @@ class Scurvy(magicbot.MagicRobot):
 
     def disabledPeriodic(self) -> None:
         """Called periodically while the robot is disabled, before all components' execute()."""
-        pass
+        if RobotBase.isSimulation():
+            self.syncAutoSelectionFromDashboard()
 
     def testInit(self) -> None:
         """Called when starting test mode."""
@@ -316,3 +320,20 @@ class Scurvy(magicbot.MagicRobot):
             # Pick the color based on the current shift
             shift: const.TeleopShift = self.currentShift()
             self.lighting.showShift(shift=shift, canScoreInHub=self.hubIsActive())
+
+    def syncAutoSelectionFromDashboard(self) -> None:
+        """Mirror chooser selection into RobotPy's legacy Auto Selector key.
+
+        In sim, some dashboard widgets only update
+        SmartDashboard/Autonomous Mode/selected. RobotPy's selector checks
+        SmartDashboard/Auto Selector first at autonomous enable time.
+        Keeping these in sync lets students pick autos from one UI without
+        opening a second terminal.
+        """
+        selected = wpilib.SmartDashboard.getString("Autonomous Mode/selected", "")
+        if not selected:
+            return
+
+        if selected != self._last_auto_selector_value:
+            wpilib.SmartDashboard.putString("Auto Selector", selected)
+            self._last_auto_selector_value = selected
