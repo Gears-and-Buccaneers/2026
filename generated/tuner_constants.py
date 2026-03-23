@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, overload
+
 from phoenix6 import CANBus, configs, hardware, signals, swerve, units
 from wpimath.units import inchesToMeters
 
@@ -24,20 +25,11 @@ class TunerConstants:
         .with_k_s(0.1)
         .with_k_v(2.66)
         .with_k_a(0)
-        .with_static_feedforward_sign(
-            signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN
-        )
+        .with_static_feedforward_sign(signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN)
     )
     # When using closed-loop control, the drive motor uses the control
     # output type specified by SwerveModuleConstants.DriveMotorClosedLoopOutput
-    _drive_gains = (
-        configs.Slot0Configs()
-        .with_k_p(0.1)
-        .with_k_i(0)
-        .with_k_d(0)
-        .with_k_s(0)
-        .with_k_v(0.124)
-    )
+    _drive_gains = configs.Slot0Configs().with_k_p(0.1).with_k_i(0).with_k_d(0).with_k_s(0).with_k_v(0.124)
 
     # The closed-loop output type to use for the steer motors;
     # This affects the PID/FF gains for the steer motors
@@ -92,7 +84,7 @@ class TunerConstants:
     _invert_left_side = False
     _invert_right_side = True
 
-    _pigeon_id = 1
+    _pigeon_id = 19
 
     # These are only used for simulation
     _steer_inertia: units.kilogram_square_meter = 0.01
@@ -136,11 +128,10 @@ class TunerConstants:
         .with_drive_friction_voltage(_drive_friction_voltage)
     )
 
-
     # Front Left
-    _front_left_drive_motor_id = 6
-    _front_left_steer_motor_id = 3
-    _front_left_encoder_id = 0
+    _front_left_drive_motor_id = 2
+    _front_left_steer_motor_id = 0
+    _front_left_encoder_id = 1
     _front_left_encoder_offset: units.rotation = 0.115234375
     _front_left_steer_motor_inverted = True
     _front_left_encoder_inverted = False
@@ -149,9 +140,9 @@ class TunerConstants:
     _front_left_y_pos: units.meter = inchesToMeters(9.75)
 
     # Front Right
-    _front_right_drive_motor_id = 5
-    _front_right_steer_motor_id = 0
-    _front_right_encoder_id = 1
+    _front_right_drive_motor_id = 6
+    _front_right_steer_motor_id = 4
+    _front_right_encoder_id = 5
     _front_right_encoder_offset: units.rotation = -0.3896484375
     _front_right_steer_motor_inverted = True
     _front_right_encoder_inverted = False
@@ -160,9 +151,9 @@ class TunerConstants:
     _front_right_y_pos: units.meter = inchesToMeters(-9.75)
 
     # Back Left
-    _back_left_drive_motor_id = 7
-    _back_left_steer_motor_id = 2
-    _back_left_encoder_id = 3
+    _back_left_drive_motor_id = 18
+    _back_left_steer_motor_id = 16
+    _back_left_encoder_id = 17
     _back_left_encoder_offset: units.rotation = 0.277099609375
     _back_left_steer_motor_inverted = True
     _back_left_encoder_inverted = False
@@ -171,16 +162,15 @@ class TunerConstants:
     _back_left_y_pos: units.meter = inchesToMeters(9.75)
 
     # Back Right
-    _back_right_drive_motor_id = 4
-    _back_right_steer_motor_id = 1
-    _back_right_encoder_id = 2
+    _back_right_drive_motor_id = 12
+    _back_right_steer_motor_id = 10
+    _back_right_encoder_id = 11
     _back_right_encoder_offset: units.rotation = -0.001953125
     _back_right_steer_motor_inverted = True
     _back_right_encoder_inverted = False
 
     _back_right_x_pos: units.meter = inchesToMeters(-12.375)
     _back_right_y_pos: units.meter = inchesToMeters(-9.75)
-
 
     front_left = _constants_creator.create_module_constants(
         _front_left_steer_motor_id,
@@ -246,9 +236,7 @@ class TunerConstants:
         )
 
 
-class TunerSwerveDrivetrain(
-    swerve.SwerveDrivetrain[hardware.TalonFX, hardware.TalonFX, hardware.CANcoder]
-):
+class TunerSwerveDrivetrain(swerve.SwerveDrivetrain[hardware.TalonFX, hardware.TalonFX, hardware.CANcoder]):
     """Swerve Drive class utilizing CTR Electronics' Phoenix 6 API with the selected device types."""
 
     @overload
