@@ -13,6 +13,7 @@ from wpilib import RobotBase
 
 import components
 import constants as const
+import utils
 from generated.tuner_constants import TunerConstants
 
 # Maximum rotation speed in rad/s
@@ -30,6 +31,8 @@ class Scurvy(magicbot.MagicRobot):
     driverController: components.DriverController
     operatorController: components.OperatorController
     lighting: components.Lighting
+
+    precisionSlowdown = magicbot.tunable(0.5)
 
     def __init__(self) -> None:
         """Initialize the robot."""
@@ -164,6 +167,41 @@ class Scurvy(magicbot.MagicRobot):
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
         self.intakeCANCoder = p6.hardware.CANcoder(const.CANID.INTAKE_MOTOR_FORE_CANCODER, const.CANBUS_NAME)
 
+        utils.setMotorLimits(self.kickerMotor, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.shooterMotorTop, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.shooterMotorBottom, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.intakeMotorExtendFore, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.intakeMotorExtendAft, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.intakeMotorIntake, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.transitMotor, maxSupplyCurrent=60)
+
+        # in init function
+        talonfx_configs = p6.configs.TalonFXConfiguration()
+        talonfxs_configs = p6.configs.TalonFXSConfiguration()
+
+        # set slot 0 gains
+        slot0_configs = talonfx_configs.slot0
+        slot0_configs.k_s = 0.25  # Add 0.25 V output to overcome static friction
+        slot0_configs.k_v = 0.12  # A velocity target of 1 rps results in 0.12 V output
+        slot0_configs.k_a = 0.01  # An acceleration of 1 rps/s requires 0.01 V output
+        slot0_configs.k_p = 4.8  # A position error of 2.5 rotations results in 12 V output
+        slot0_configs.k_i = 0  # no output for integrated error
+        slot0_configs.k_d = 0.1  # A velocity error of 1 rps results in 0.1 V output
+
+        # set Motion Magic settings
+        motion_magic_configs = talonfx_configs.motion_magic
+        motion_magic_configs.motion_magic_cruise_velocity = 80  # Target cruise velocity of 80 rps
+        motion_magic_configs.motion_magic_acceleration = 160  # Target acceleration of 160 rps/s (0.5 seconds)
+        motion_magic_configs.motion_magic_jerk = 1600  # Target jerk of 1600 rps/s/s (0.1 seconds)
+
+        self.kickerMotor.configurator.apply(talonfx_configs)
+        self.shooterMotorTop.configurator.apply(talonfx_configs)
+        self.shooterMotorBottom.configurator.apply(talonfx_configs)
+        self.intakeMotorExtendFore.configurator.apply(talonfx_configs)
+        self.intakeMotorExtendAft.configurator.apply(talonfx_configs)
+        self.intakeMotorIntake.configurator.apply(talonfxs_configs)
+        self.transitMotor.configurator.apply(talonfx_configs)
+
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
 
@@ -196,7 +234,8 @@ class Scurvy(magicbot.MagicRobot):
             self.drivetrain.brake()
         else:
             max_speed = TunerConstants.speed_at_12_volts
-
+            if self.driverController.activatePrecisionMode:
+                max_speed = max_speed * self.precisionSlowdown
             # Note that the drivetrain automatically handles field-centric control
             # so that "forward" on the joystick is always away from the driver,
             # regardless of which alliance the team is assigned to.
