@@ -38,7 +38,7 @@ class Intake:
     transitMotor: p6.hardware.TalonFX
     activelyIntake = magicbot.will_reset_to(False)
     activelyTransit = magicbot.will_reset_to(False)
-    intakeCANCoder: p6.hardware.CANcoder
+    # intakeCANCoder: p6.hardware.CANcoder
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(0.8)  # positive: pick up
@@ -69,19 +69,19 @@ class Intake:
         """
         magnet_sensor = p6.configs.MagnetSensorConfigs()
         config = p6.configs.CANcoderConfiguration().with_magnet_sensor(magnet_sensor)
-        status = self.intakeCANCoder.configurator.apply(config)
-        if status.is_error():
-            print(f"Intake CANcoder config failed: {status.name}: {status.description}")
-            return
+        # status = self.intakeCANCoder.configurator.apply(config)
+        # if status.is_error():
+        #     print(f"Intake CANcoder config failed: {status.name}: {status.description}")
+        #     return
 
-        self._position = self.intakeCANCoder.get_position(False)
-        self._position.set_update_frequency(50.0)
+        # self._position = self.intakeCANCoder.get_position(False)
+        # self._position.set_update_frequency(50.0)
 
     @magicbot.feedback
     def extensionPosition(self) -> units.meters:
         """Linear extension position in meters."""
         if self._position is None:
-            return -666
+            return 0
         self._position.refresh()
         # CANcoder reads final extension gear, so one sensor rotation equals one gear circumference.
         return float(self._position.value) * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
