@@ -10,7 +10,7 @@ from autonomous.choreo_auto import ChoreoStateMachine
 
 
 class ShootMoveShoot(ChoreoStateMachine):
-    """Starts in left trench, shoots, gathers from neutral zone, returns to left trench to unload."""
+    """Base class that handles shooting, running a trajectory, and then shooting again."""
 
     MODE_NAME = "(Placeholder)"
     DISABLED = True  # Override this in subclasses to enable them
