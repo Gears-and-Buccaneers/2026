@@ -25,12 +25,10 @@ class ShootMoveShoot(ChoreoStateMachine):
 
     def _prepare_to_fire(self):
         """Turn to face the hub and spin up the shooter."""
-        if self._target_heading is None:
-            self.drivetrain.stop()
-            solution = self.pewpew.calculateShootingSolution(self.drivetrain.getVelocity())
-            self.pewpew.shooterMode = "auto"
-            self.pewpew.setTargetMuzzleSpeed(solution.muzzleSpeed)
-            self._target_heading = solution.targetHeading
+        solution = self.pewpew.calculateShootingSolution(self.drivetrain.getVelocity())
+        self.pewpew.shooterMode = "auto"
+        self.pewpew.setTargetMuzzleSpeed(solution.muzzleSpeed)
+        self._target_heading = solution.targetHeading
         self.intake.activelyTransit = True
         self.drivetrain.driveFacingAngle(targetAngle=self._target_heading)
 
@@ -48,7 +46,7 @@ class ShootMoveShoot(ChoreoStateMachine):
             self.next_state("shoot_1")
 
     # Shoot for…long enough to probably shoot all pieces.
-    @mb.timed_state(duration=8, next_state="move_trajectory")
+    @mb.timed_state(duration=4, next_state="move_trajectory")
     def shoot_1(self, initial_call: bool):
         self.pewpew.activelyShoot = True
         # TODO: if we can use shooter speed sag to detect a shot, leave when we've shot all 8
@@ -80,7 +78,7 @@ class ShootMoveShoot(ChoreoStateMachine):
         if self.pewpew.isReadyToFire():
             self.next_state("shoot_2")
 
-    @mb.timed_state(duration=8, next_state="finished")
+    @mb.timed_state(duration=4, next_state="finished")
     def shoot_2(self):
         self.pewpew.activelyShoot = True
         # TODO: if we can count

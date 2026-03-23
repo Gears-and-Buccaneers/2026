@@ -162,7 +162,7 @@ class Scurvy(magicbot.MagicRobot):
         self.intakeMotorExtendAft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
         self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
-        # TODO: Add cancoders
+        self.intakeCANCoder = p6.hardware.CANcoder(const.CANID.INTAKE_MOTOR_FORE_CANCODER, const.CANBUS_NAME)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.

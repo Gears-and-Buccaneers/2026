@@ -34,15 +34,12 @@ class CANID(enum.IntEnum):
     SHOOTER_MOTOR_TOP = 15
     SHOOTER_MOTOR_BOTTOM = 16
 
-    SHOOTER_MOTOR_TOP_CANCODER = 18
-    SHOOTER_MOTOR_BOTTOM_CANCODER = 19
-
     KICKER_MOTOR = 17  # Sends fuel from the bottom of the shooter to the shooting wheels
 
     INTAKE_MOTOR_EXTEND_FORE = 20  # Extends/retracts the intake mechanism; on the forward side
     INTAKE_MOTOR_EXTEND_AFT = 23  # Extends/retracts the intake mechanism; on the rear side of the bot
-    INTAKE_MOTOR_FORE_CANCODER = 24  # CANCoder for intake extension position; on the forward side
     INTAKE_MOTOR_INTAKE = 21  # Runs the intake rollers
+    INTAKE_MOTOR_FORE_CANCODER = 24  # CANCoder for intake extension position; on the forward side
 
     TRANSIT_MOTOR = 22  # Moves fuel from intake to shooter (positive = toward shooter)
 
@@ -78,7 +75,8 @@ class RobotDimension:
     SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 42 / 20  # 42T motor driving 20T axle; 2.1x speed increase
     KICKER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 32 / 20  # 32T motor driving 20T axle; 1.6x speed increase
 
-    INTAKE_EXTENSION_MOTOR_TO_ARM_TEETH_RATIO: Final[float] = 10 / 1  # 10:1 gear ratio (motor faster than arm gear)
+    INTAKE_EXTENSION_GEAR_DIAMETER: Final[units.meters] = units.inchesToMeters(3.676)  # Diameter of the gear
+    MAX_INTAKE_EXTENSION_SPEED: Final[units.meters_per_second] = units.inchesToMeters(236)  # Max speed it slides (Rami)
 
 
 class ControllerPort:
