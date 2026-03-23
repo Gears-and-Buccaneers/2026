@@ -32,6 +32,8 @@ class Scurvy(magicbot.MagicRobot):
     operatorController: components.OperatorController
     lighting: components.Lighting
 
+    precisionSlowdown = magicbot.tunable(0.5)
+
     def __init__(self) -> None:
         """Initialize the robot."""
         super().__init__()
@@ -232,7 +234,8 @@ class Scurvy(magicbot.MagicRobot):
             self.drivetrain.brake()
         else:
             max_speed = TunerConstants.speed_at_12_volts
-
+            if self.driverController.activatePrecisionMode:
+                max_speed = max_speed * self.precisionSlowdown
             # Note that the drivetrain automatically handles field-centric control
             # so that "forward" on the joystick is always away from the driver,
             # regardless of which alliance the team is assigned to.
