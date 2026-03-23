@@ -40,7 +40,7 @@ def color8FromHSV(h: float, s: float, v: float) -> wpilib.Color8Bit:
 
 
 def setMotorLimits(
-    motorController: p6.hardware.TalonFXS,
+    motorController: p6.hardware.TalonFX | p6.hardware.TalonFXS,
     maxSupplyCurrent: units.amperes | None = None,
     maxStatorCurrent: units.amperes | None = None,
 ) -> None:
@@ -49,18 +49,19 @@ def setMotorLimits(
     See https://v6.docs.ctr-electronics.com/en/stable/docs/hardware-reference/talonfx/improving-performance-with-current-limits.html
 
     Args:
-        motorController: The TalonFXS motor controller to configure.
+        motorController: The TalonFX or TalonFXS motor controller to configure.
         maxSupplyCurrent: The max supply current in amperes, helping to prevent brownouts, or None to leave unchanged.
         maxStatorCurrent: The max stator current in amperes, helping to prevent wheel sleep (or None to leave unlimited).
     """
     if maxSupplyCurrent is None and maxStatorCurrent is None:
         return  # nothing to do
 
-    cfg = p6.configs.TalonFXSConfiguration()
+    is_fxs = isinstance(motorController, p6.hardware.TalonFXS)
+    cfg = p6.configs.TalonFXSConfiguration() if is_fxs else p6.configs.TalonFXConfiguration()
     if maxSupplyCurrent is not None:
         cfg.current_limits.supply_current_limit_enable = True
         cfg.current_limits.supply_current_limit = maxSupplyCurrent
     if maxStatorCurrent is not None:
         cfg.current_limits.stator_current_limit_enable = True
         cfg.current_limits.stator_current_limit = maxStatorCurrent
-    motorController.configurator.apply(cfg)
+    motorController.configurator.apply(cfg)  # type: ignore

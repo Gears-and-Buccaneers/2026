@@ -26,9 +26,10 @@ class Intake:
 
     # Motor injected by MagicBot when the robot sets an attribute of the
     # same name on the robot class.
-    intakeMotorExtend: p6.hardware.TalonFXS
+    intakeMotorExtendFore: p6.hardware.TalonFX
+    intakeMotorExtendAft: p6.hardware.TalonFX
     intakeMotorIntake: p6.hardware.TalonFXS
-    transitMotor: p6.hardware.TalonFXS
+    transitMotor: p6.hardware.TalonFX
     activelyIntake = magicbot.will_reset_to(False)
     activelyTransit = magicbot.will_reset_to(False)
 
@@ -71,9 +72,11 @@ class Intake:
 
     def extend(self) -> None:
         """Lower the intake mechanism."""
+        print("Extending intake!")  # FIXME: Replace with actual motor commands to extend the intake
 
     def retract(self) -> None:
         """Raise the intake mechanism."""
+        print("Retracting intake!")  # FIXME: Replace with actual motor commands to retract the intake
 
     def _setPower(self, power: float) -> None:
         """Directly set motor output. Clips to [-1.0, 1.0]."""

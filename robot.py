@@ -50,6 +50,7 @@ class Scurvy(magicbot.MagicRobot):
 
     def createObjects(self) -> None:
         """Create motors and stuff here."""
+        self.scurvy = self  # So auto modes can talk to the robot
         self.createMotors()
         self.createControllers()
         self.createLights()
@@ -154,12 +155,13 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.kickerMotor = p6.hardware.TalonFXS(const.CANID.KICKER_MOTOR, const.CANBUS_NAME)
-        self.shooterMotorTop = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_TOP, const.CANBUS_NAME)
-        self.shooterMotorBottom = p6.hardware.TalonFXS(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
-        self.intakeMotorExtend = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_EXTEND, const.CANBUS_NAME)
+        self.kickerMotor = p6.hardware.TalonFX(const.CANID.KICKER_MOTOR, const.CANBUS_NAME)
+        self.shooterMotorTop = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_TOP, const.CANBUS_NAME)
+        self.shooterMotorBottom = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
+        self.intakeMotorExtendFore = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_FORE, const.CANBUS_NAME)
+        self.intakeMotorExtendAft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
         self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
-        self.transitMotor = p6.hardware.TalonFXS(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
+        self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
         # TODO: Add cancoders
 
     def createControllers(self) -> None:
@@ -213,16 +215,21 @@ class Scurvy(magicbot.MagicRobot):
         if self.operatorController.shouldToggleLEDMode():
             self._operatorCanShowArbitraryLEDColors = not self._operatorCanShowArbitraryLEDColors
 
+        # Try and actively shoot; gets turned off if we're not in smart aim mode or fallback spin-up mode
+        self.pewpew.activelyShoot = self.operatorController.shouldShoot()
+
         # Handle shooter spin-up modes
         if self.operatorController.shouldSetFallbackShooterSpinSpeed():
+            self.pewpew.shooterMode = "fallback"
             self.pewpew.fallbackSpin()
         elif self.operatorController.shouldSmartAim():
             # Rotate the bot and calculate flywheel speed to aim at the hub
+            self.pewpew.shooterMode = "auto"
             self.dynamicallyTargetHub()
         else:
+            self.pewpew.shooterMode = None
             self.pewpew.spinDown()
-
-        self.pewpew.activelyShoot = self.operatorController.shouldShoot()
+            self.pewpew.activelyShoot = False
 
     def dynamicallyTargetHub(self) -> None:
         """Aim at the hub and set flywheel speed for shoot-while-moving.

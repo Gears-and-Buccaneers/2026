@@ -39,8 +39,10 @@ class CANID(enum.IntEnum):
 
     KICKER_MOTOR = 17  # Sends fuel from the bottom of the shooter to the shooting wheels
 
-    INTAKE_MOTOR_EXTEND = 20  # Extends/retracts the intake mechanism (positive = extend/lower)
-    INTAKE_MOTOR_INTAKE = 21  # Runs the intake rollers (positive = pick up, negative = release)
+    INTAKE_MOTOR_EXTEND_FORE = 20  # Extends/retracts the intake mechanism; on the forward side
+    INTAKE_MOTOR_EXTEND_AFT = 23  # Extends/retracts the intake mechanism; on the rear side of the bot
+    INTAKE_MOTOR_FORE_CANCODER = 24  # CANCoder for intake extension position; on the forward side
+    INTAKE_MOTOR_INTAKE = 21  # Runs the intake rollers
 
     TRANSIT_MOTOR = 22  # Moves fuel from intake to shooter (positive = toward shooter)
 
@@ -71,6 +73,12 @@ class RobotDimension:
 
     # Flywheel/wheel radius for shooter (wheels only, no flywheel)
     FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(2.0)  # 4" diameter wheels
+    KICKER_RADIUS: Final[units.meters] = units.inchesToMeters(4.0)  # 8" diameter kicker wheel
+
+    SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 42 / 20  # 42T motor driving 20T axle; 2.1x speed increase
+    KICKER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 32 / 20  # 32T motor driving 20T axle; 1.6x speed increase
+
+    INTAKE_EXTENSION_MOTOR_TO_ARM_TEETH_RATIO: Final[float] = 10 / 1  # 10:1 gear ratio (motor faster than arm gear)
 
 
 class ControllerPort:
@@ -139,11 +147,10 @@ class ShooterSpec:
     # Motor and mechanical specs
     MOTORS_PER_SIDE: Final[int] = 1
     WHEELS_PER_SIDE: Final[int] = 2
-    GEAR_RATIO: Final[float] = 2.0  # 2:1 gear ratio
 
     # Derived motor limits at wheel (after gear reduction)
     # Motor runs 2x faster than wheel, so wheel max = motor free speed / gear ratio
-    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / GEAR_RATIO  # 3032.5 RPM
+    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / RobotDimension.SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO  # 3032.5 RPM
 
     # Moment of inertia (converted from lb-in² to kg-m²)
     # 3.6 lb-in² = 3.6 * 0.0002926397 kg-m² ≈ 0.00105 kg-m²
