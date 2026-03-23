@@ -13,6 +13,7 @@ from wpilib import RobotBase
 
 import components
 import constants as const
+import utils
 from generated.tuner_constants import TunerConstants
 
 # Maximum rotation speed in rad/s
@@ -163,6 +164,14 @@ class Scurvy(magicbot.MagicRobot):
         self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
         # TODO: Add cancoders
+
+        utils.setMotorLimits(self.kickerMotor, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.shooterMotorTop, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.shooterMotorBottom, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.intakeMotorExtendFore, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.intakeMotorExtendAft, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.intakeMotorIntake, maxSupplyCurrent=60)
+        utils.setMotorLimits(self.transitMotor, maxSupplyCurrent=60)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
