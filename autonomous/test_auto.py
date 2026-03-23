@@ -86,3 +86,22 @@ class WaitThenMove(ChoreoMultiTrajectoryAuto):
     def wait(self):
         """Called immediately at the start of autonomous."""
         time.sleep(2)
+
+
+class CompetitionTrajectories(ChoreoMultiTrajectoryAuto):
+    """Ensure all of our trajectories work."""
+
+    MODE_NAME = "Autos for Competition"
+    DISABLED = True  # Enable this auto mode (base class is disabled by default)
+
+    def setup_trajectories(self) -> TrajectoriesAndCallbacks:
+        """Define the sequence of trajectories and subsequent actions."""
+        return [
+            ("LeftTrenchToDepot", self.wait),
+            ("LeftTrench_Twice", self.wait),
+            ("LeftTrench_Bulldoze_RightTrench", None),
+        ]
+
+    def wait(self):
+        """Called when we want to shoot."""
+        time.sleep(2.5)

@@ -661,6 +661,21 @@ class ChoreoStateMachine(mb.AutonomousStateMachine):
         self._event_tracker = None
         self._has_run_trajectory = False
 
+    def robot_is_placed_at_start_of(self, name: str) -> None:
+        """Reset odometry to the start of a Choreo trajectory without running it."""
+        traj = ChoreoAuto.load_trajectory_or_segment(name)
+        if traj is None:
+            wpilib.reportError(f"{self.MODE_NAME}: could not load trajectory '{name}'", True)
+            return
+
+        initial_pose = traj.get_initial_pose(ChoreoAuto.is_red_alliance())
+        if initial_pose is None:
+            wpilib.reportWarning(f"{self.MODE_NAME}: trajectory '{name}' has no initial pose", False)
+            return
+
+        self.drivetrain.resetPose(initial_pose)
+        self._has_run_trajectory = True
+
     def run_trajectory(
         self,
         name: str,
