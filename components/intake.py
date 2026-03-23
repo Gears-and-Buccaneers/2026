@@ -36,6 +36,7 @@ class Intake:
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(0.8)  # positive: pick up
     releaseSpeed = magicbot.tunable(-0.6)  # negative: release
+    transitSpeed = magicbot.tunable(0.5)
 
     def __init__(self) -> None:
         """Initialize internal state."""
@@ -98,8 +99,12 @@ class Intake:
     def execute(self) -> None:
         """Called each loop to command the motor."""
         if self.activelyIntake:
-            # make sure its extended, run intake motor, run transit motor
-            pass
+            self.intakeMotorIntake.set(self._power)
+            self.transitMotor.set(self.transitSpeed)
+            if not self.isFullyExtended():
+                self.extend()
         else:
-            pass
-            # retract intake, stop intake motor, stop transit motor
+            if not self.isFullyRaised():
+                self.retract()
+            self.transitMotor.set(0)
+            self.intakeMotorIntake.set(0)
