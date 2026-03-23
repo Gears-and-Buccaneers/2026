@@ -11,46 +11,46 @@ To create a new Choreo auto:
 5. Optionally override on_trajectory_start() and on_trajectory_end()
 """
 
-from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto
+from autonomous.choreo_auto import ChoreoAuto, ChoreoMultiTrajectoryAuto, ChoreoStateMachine
 
 
-class SimpleChoreoAuto(ChoreoAuto):
-    """A simple auto that follows a single Choreo trajectory.
-
-    This auto mode loads a trajectory called "simple_path" from
-    deploy/choreo/simple_path.traj and follows it.
-
-    To use this:
-    1. Open Choreo and create a path called "simple_path"
-    2. Generate the trajectory and save to deploy/choreo/simple_path.traj
-    3. Select "Simple Choreo Path" on the driver station
-    """
-
-    MODE_NAME = "Some Sassy Swerve Slide"
-    TRAJECTORY_NAME = "DriveToNeutralZone"
-    DISABLED = False  # Enable this auto mode (base class is disabled by default)
-    DEFAULT = True
-
-    # You can add other components here that will be injected by MagicBot
-    # shooter: components.Shooter
-
-    def on_trajectory_start(self) -> None:
-        """Called when the trajectory starts.
-
-        Use this to start mechanisms at the beginning of auto.
-        Examples: start spinning up shooter, deploy intake, etc.
-        """
-        # Example: self.shooter.spin_up()
-        pass
-
-    def on_trajectory_end(self) -> None:
-        """Called when the trajectory ends.
-
-        Use this to perform actions after the robot stops moving.
-        Examples: shoot a game piece, retract intake, etc.
-        """
-        # Example: self.shooter.shoot()
-        pass
+# class SimpleChoreoAuto(ChoreoAuto):
+#     """A simple auto that follows a single Choreo trajectory.
+#
+#     This auto mode loads a trajectory called "simple_path" from
+#     deploy/choreo/simple_path.traj and follows it.
+#
+#     To use this:
+#     1. Open Choreo and create a path called "simple_path"
+#     2. Generate the trajectory and save to deploy/choreo/simple_path.traj
+#     3. Select "Simple Choreo Path" on the driver station
+#     """
+#
+#     MODE_NAME = "Some Sassy Swerve Slide"
+#     TRAJECTORY_NAME = "DriveToNeutralZone"
+#     DISABLED = False  # Enable this auto mode (base class is disabled by default)
+#     DEFAULT = True
+#
+#     # You can add other components here that will be injected by MagicBot
+#     # shooter: components.Shooter
+#
+#     def on_trajectory_start(self) -> None:
+#         """Called when the trajectory starts.
+#
+#         Use this to start mechanisms at the beginning of auto.
+#         Examples: start spinning up shooter, deploy intake, etc.
+#         """
+#         # Example: self.shooter.spin_up()
+#         pass
+#
+#     def on_trajectory_end(self) -> None:
+#         """Called when the trajectory ends.
+#
+#         Use this to perform actions after the robot stops moving.
+#         Examples: shoot a game piece, retract intake, etc.
+#         """
+#         # Example: self.shooter.shoot()
+#         pass
 
 
 # Uncomment and modify this example once you have multiple trajectories
@@ -89,3 +89,43 @@ class SimpleChoreoAuto(ChoreoAuto):
 #     def score_piece(self):
 #         """Called after reaching the scoring position."""
 #         self.shooter.shoot()
+
+
+# Uncomment and modify this example for a custom state-machine auto
+#
+# import magicbot as mb
+#
+# class ExampleStateMachineAuto(ChoreoStateMachine):
+#     """Example of a custom state machine that follows Choreo trajectories."""
+#
+#     MODE_NAME = "My Auto Name"
+#     DISABLED = False
+#
+#     # Injected components
+#     shooter: components.Shooter
+#
+#     @mb.state(first=True)
+#     def drive_to_speaker(self, initial_call: bool) -> None:
+#         if initial_call:
+#             self.run_trajectory("DriveToNeutralZone[0]", reset_pose=True)
+#         elif self.is_trajectory_done():
+#             self.next_state("spin_up")
+#
+#     @mb.state()
+#     def spin_up(self, initial_call: bool) -> None:
+#         if initial_call:
+#             self.shooter.spin_up()
+#         # Example wait before shooting
+#         if self.tm > 1.0:
+#             self.next_state("shoot")
+#
+#     @mb.state()
+#     def shoot(self, initial_call: bool) -> None:
+#         if initial_call:
+#             self.shooter.shoot()
+#         self.next_state("done")
+#
+#     @mb.state()
+#     def done(self, initial_call: bool) -> None:
+#         # Stay here; base class will keep the robot stopped
+#         pass
