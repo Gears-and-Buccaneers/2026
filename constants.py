@@ -21,7 +21,7 @@ ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geom.Rotation
 }
 
 # CAN bus name (if using multiple CAN buses, specify which one to use for each device)
-CANBUS_NAME = "rio"
+CANBUS_NAME = "canbus"
 
 
 class CANID(enum.IntEnum):
