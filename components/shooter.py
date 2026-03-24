@@ -41,7 +41,7 @@ class Shooter:
     activelyShoot = magicbot.will_reset_to(False)
 
     # Fallback fuel exit speed for a known shooting position (m/s)
-    fallbackFuelSpeed = magicbot.tunable(7.5)
+    fallbackFuelSpeed = magicbot.tunable(15)
     maxFuelSpeed = magicbot.tunable(15.0)
 
     # Desired launched fuel backspin (RPM).
@@ -49,7 +49,7 @@ class Shooter:
     backspinFuelRPM: magicbot.tunable[units.revolutions_per_minute] = magicbot.tunable(60)
 
     # Target kicker surface speed while actively feeding (m/s)
-    targetKickerFuelSpeed: magicbot.tunable[units.meters_per_second] = magicbot.tunable(3.0)
+    targetKickerFuelSpeed: magicbot.tunable[units.meters_per_second] = magicbot.tunable(18.0)
     # Maximum heading error (degrees) to allow shooting
     maxHeadingError = magicbot.tunable(2.0)
 
