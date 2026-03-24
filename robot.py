@@ -26,7 +26,7 @@ class Scurvy(magicbot.MagicRobot):
     # Components - the drivetrain now manages motors internally via CTRE swerve API
     drivetrain: components.Drivetrain
     pewpew: components.Shooter
-    vision: components.Vision
+    # vision: components.Vision
     intake: components.Intake
     driverController: components.DriverController
     operatorController: components.OperatorController
@@ -135,16 +135,16 @@ class Scurvy(magicbot.MagicRobot):
         if RobotBase.isSimulation():
             pose_2d = self.drivetrain.getPose()
             pose_3d = geom.Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians()))
-            self.vision.update_sim(pose_3d)
+            # self.vision.update_sim(pose_3d)
 
         # Feed vision measurements to drivetrain for pose estimation fusion
         # Each measurement includes distance-scaled standard deviations
-        for measurement in self.vision.get_measurements():
-            self.drivetrain.addVisionMeasurement(
-                measurement.pose,
-                measurement.timestamp,
-                measurement.std_devs,
-            )
+        # for measurement in self.vision.get_measurements():
+        #     self.drivetrain.addVisionMeasurement(
+        #         measurement.pose,
+        #         measurement.timestamp,
+        #         measurement.std_devs,
+        #     )
         self.maybeSetOperatorPerspective()
         self.updateLights()
 
