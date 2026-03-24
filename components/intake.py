@@ -41,11 +41,11 @@ class Intake:
     # intakeCANCoder: p6.hardware.CANcoder
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
-    intakeSpeed = magicbot.tunable(0.8)  # positive: pick up
-    releaseSpeed = magicbot.tunable(-0.6)  # negative: release
-    transitSpeed = magicbot.tunable(0.5)
-    intakeExtendSpeed = magicbot.tunable(0.1)
-    intakeRetractSpeed = magicbot.tunable(-0.1)
+    intakeSpeed = magicbot.tunable(-1)  # negative: pick up
+    releaseSpeed = magicbot.tunable(0.8)  # positive: release
+    transitSpeed = magicbot.tunable(0.75)
+    intakeExtendSpeed = magicbot.tunable(0.2)
+    intakeRetractSpeed = magicbot.tunable(-0.2)
 
     # Retracted value expected to be less than extended value.
     intakeRetractedMeters = magicbot.tunable(units.meters(0.0))
@@ -119,6 +119,18 @@ class Intake:
         """Raise the intake mechanism."""
         self._extendState = "retract"
 
+    def manuallyExtend(self) -> None:
+        """Hack method to manually control the intake extension."""
+        self._manualState = "extend"
+
+    def manuallyRetract(self) -> None:
+        """Hack method to manually control the intake retraction."""
+        self._manualState = "retract"
+
+    def manuallyHold(self) -> None:
+        """Hack method to manually control the intake retraction."""
+        self._manualState = "hold"
+
     def _setPower(self, power: float) -> None:
         """Directly set motor output. Clips to [-1.0, 1.0]."""
         self._power = float(max(-1.0, min(1.0, power)))
@@ -149,19 +161,19 @@ class Intake:
             self.transitMotor.set(0)
             self.intakeMotorIntake.set(0)
 
-        if self._extendState == "extend":
-            if not self.isFullyExtended():
-                self.intakeMotorExtendFore.set(self.intakeExtendSpeed)
-                self.intakeMotorExtendAft.set(self.intakeExtendSpeed)
-            else:
-                self._extendState = "hold"
-        elif self._extendState == "retract":
-            if not self.isFullyRaised():
-                self.intakeMotorExtendFore.set(self.intakeRetractSpeed)
-                self.intakeMotorExtendAft.set(self.intakeRetractSpeed)
-            else:
-                self._extendState = "hold"
+        if self._manualState == "extend":
+            # if not self.isFullyExtended():
+            self.intakeMotorExtendFore.set(-self.intakeExtendSpeed)
+            self.intakeMotorExtendAft.set(self.intakeExtendSpeed)
+            # else:
+            #     self._extendState = "hold"
+        elif self._manualState == "retract":
+            # if not self.isFullyRaised():
+            self.intakeMotorExtendFore.set(-self.intakeRetractSpeed)
+            self.intakeMotorExtendAft.set(self.intakeRetractSpeed)
+            # else:
+            # self._extendState = "hold"
 
-        if self._extendState == "hold":
+        if self._manualState == "hold":
             self.intakeMotorExtendFore.set(0)
             self.intakeMotorExtendAft.set(0)

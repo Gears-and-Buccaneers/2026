@@ -447,6 +447,14 @@ class OperatorController(MappedController):
         """
         return self._colorFromStickValues(self.getLeftX(), self.getLeftY())
 
+    def manuallyExtend(self) -> bool:
+        """Hack method to manually control the intake extension."""
+        return self.getRightY() > 0.5
+
+    def manuallyRetract(self) -> bool:
+        """Hack method to manually control the intake retraction."""
+        return self.getRightY() < -0.5
+
     def _colorFromStickValues(self, x: float, y: float) -> wpilib.Color8Bit:
         """Convert joystick x/y values to a color."""
         # Remap square joystick values to circular values
