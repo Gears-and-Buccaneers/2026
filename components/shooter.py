@@ -413,12 +413,16 @@ class Shooter:
             self.shooterMotorBottom.set(0)
         else:
             topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
-            self.shooterMotorTop.set(self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed))
-            self.shooterMotorBottom.set(self._motorSpeedToDutyCycle(bottomMotorTargetAngularSpeed))
+            # self.shooterMotorTop.set(self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed))
+            # self.shooterMotorBottom.set(self._motorSpeedToDutyCycle(-bottomMotorTargetAngularSpeed))
+            self.shooterMotorTop.set(0.8)
+            self.shooterMotorBottom.set(-0.8)
 
-        if self.activelyShoot and self.isReadyToFire():
+        # if self.activelyShoot and self.isReadyToFire():
+        if self.activelyShoot:
             kickerMotorTargetAngularSpeed = self.getKickerTargetMotorSpeed()
-            self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
+            # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
+            self.kickerMotor.set(0.8)
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)

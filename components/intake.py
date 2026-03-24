@@ -61,6 +61,7 @@ class Intake:
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
         self.activelyIntake = False
         self._position: p6.StatusSignal[p6_units.rotation] | None = None
+        self._manualState: Literal["extend", "retract", "hold"] = "hold"
 
     def setup(self) -> None:
         """Configure CANcoder.
@@ -151,13 +152,14 @@ class Intake:
     def execute(self) -> None:
         """Called each loop to command the motor."""
         if self.activelyIntake:
-            self.intakeMotorIntake.set(self._power)
+            # self.intakeMotorIntake.set(self._power)
+            self.intakeMotorIntake.set(0.8)
             self.transitMotor.set(self.transitSpeed)
-            if not self.isFullyExtended():
-                self.extend()
+            # if not self.isFullyExtended():
+            # self.extend()
         else:
-            if not self.isFullyRaised():
-                self.retract()
+            # if not self.isFullyRaised():
+            # self.retract()
             self.transitMotor.set(0)
             self.intakeMotorIntake.set(0)
 
