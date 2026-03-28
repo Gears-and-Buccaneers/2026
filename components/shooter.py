@@ -13,6 +13,13 @@ import constants as const
 from components.swerve import Drivetrain
 
 
+def CurrentLimitingTalon(port: int, currentLimit: int, *args, **kwargs) -> wpilib.Talon:
+    """Helper function to create a Talon motor controller with current limiting configured."""
+    talon = wpilib.Talon(port)
+    talon.setCurrentLimit(currentLimit)
+    return talon
+
+
 class ShootingSolution(NamedTuple):
     """Complete solution for a shot, stationary or moving."""
 

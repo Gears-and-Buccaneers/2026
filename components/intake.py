@@ -17,6 +17,13 @@ import wpimath.units as units
 import constants as const
 
 
+def CurrentLimitingTalon(port: int, currentLimit: int, *args, **kwargs) -> wpilib.Talon:
+    """Helper function to create a Talon motor controller with current limiting configured."""
+    talon = wpilib.Talon(port)
+    talon.setCurrentLimit(currentLimit)
+    return talon
+
+
 class Intake:
     """A simple intake subsystem.
 
