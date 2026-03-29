@@ -163,7 +163,7 @@ class Scurvy(magicbot.MagicRobot):
         self.shooterMotorBottom = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
         self.intakeMotorExtendFore = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_FORE, const.CANBUS_NAME)
         self.intakeMotorExtendAft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
-        # self.intakeMotorIntake = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
+        self.intakeMotorIntake = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
         self.intakeCANCoder = p6.hardware.CANcoder(const.CANID.INTAKE_MOTOR_FORE_CANCODER, const.CANBUS_NAME)
 
@@ -173,7 +173,7 @@ class Scurvy(magicbot.MagicRobot):
             self.shooterMotorBottom,
             self.intakeMotorExtendFore,
             self.intakeMotorExtendAft,
-            # self.intakeMotorIntake,
+            self.intakeMotorIntake,
             self.transitMotor,
         ]
         for motor in nonSwerveMotors:
