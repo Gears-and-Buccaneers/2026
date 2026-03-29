@@ -59,8 +59,6 @@ class Intake:
 
     def __init__(self) -> None:
         """Initialize internal state."""
-        # _power is the desired motor output [-1.0, 1.0]
-        self._power: float = 0.0
         # human friendly state string for telemetry/debugging
         self._state: str = "stopped"
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
@@ -131,27 +129,6 @@ class Intake:
         """Raise the intake mechanism."""
         self._extendState = "retract"
 
-    def manuallyExtend(self) -> None:
-        """Hack method to manually control the intake extension."""
-        self._manualState = "extend"
-
-    def manuallyRetract(self) -> None:
-        """Hack method to manually control the intake retraction."""
-        self._manualState = "retract"
-
-    def manuallyHold(self) -> None:
-        """Hack method to manually control the intake retraction."""
-        self._manualState = "hold"
-
-    def _setPower(self, power: float) -> None:
-        """Directly set motor output. Clips to [-1.0, 1.0]."""
-        self._power = float(max(-1.0, min(1.0, power)))
-        self._state = "manual" if self._power != 0.0 else "stopped"
-
-    def isRunning(self) -> bool:
-        """Return True when the intake is applying non-zero output."""
-        return abs(self._power) > 1e-6
-
     def isFullyExtended(self) -> bool:
         """Return True if the intake is fully lowered to the field."""
         return self.extensionPosition() >= (self.intakeExtendedMeters - self.intakeToleranceMeters)
@@ -163,16 +140,13 @@ class Intake:
     def execute(self) -> None:
         """Called each loop to command the motor."""
         if self.activelyIntake:
-            # self.intakeMotorIntake.set(self._power)
-            # self.intakeMotorIntake.set(0.8)
+            self.intakeMotorIntake.set(0.8)
             self.transitMotor.set(self.transitSpeed)
             if not self.isFullyExtended():
                 self.extend()
         else:
-            if not self.isFullyRetracted():
-                self.retract()
             self.transitMotor.set(0)
-            # self.intakeMotorIntake.set(0)
+            self.intakeMotorIntake.set(0)
 
         if self.activelyTransit:
             self.transitMotor.set(self.transitSpeed)

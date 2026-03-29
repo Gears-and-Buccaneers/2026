@@ -242,6 +242,9 @@ class Scurvy(magicbot.MagicRobot):
             )
         self.intake.activelyIntake = self.driverController.shouldIntake()
 
+        if self.driverController.retractIntake():
+            self.intake.retract()
+
         if self.driverController.shouldZeroGyro():
             self.drivetrain.zeroHeading()
 
@@ -253,13 +256,6 @@ class Scurvy(magicbot.MagicRobot):
         # Try and actively shoot; gets turned off if we're not in smart aim mode or fallback spin-up mode
         self.pewpew.activelyShoot = self.operatorController.shouldShoot()
         self.intake.activelyTransit = self.pewpew.activelyShoot
-
-        if self.operatorController.manuallyExtend():
-            self.intake.manuallyExtend()
-        elif self.operatorController.manuallyRetract():
-            self.intake.manuallyRetract()
-        else:
-            self.intake.manuallyHold()
 
         # Handle shooter spin-up modes
         if self.operatorController.shouldSetFallbackShooterSpinSpeed():
