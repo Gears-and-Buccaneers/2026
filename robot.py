@@ -163,44 +163,40 @@ class Scurvy(magicbot.MagicRobot):
         self.shooterMotorBottom = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
         self.intakeMotorExtendFore = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_FORE, const.CANBUS_NAME)
         self.intakeMotorExtendAft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
-        self.intakeMotorIntake = p6.hardware.TalonFXS(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
+        # self.intakeMotorIntake = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
-        # self.intakeCANCoder = p6.hardware.CANcoder(const.CANID.INTAKE_MOTOR_FORE_CANCODER, const.CANBUS_NAME)
+        self.intakeCANCoder = p6.hardware.CANcoder(const.CANID.INTAKE_MOTOR_FORE_CANCODER, const.CANBUS_NAME)
 
-        utils.setMotorLimits(self.kickerMotor, maxSupplyCurrent=60)
-        utils.setMotorLimits(self.shooterMotorTop, maxSupplyCurrent=60)
-        utils.setMotorLimits(self.shooterMotorBottom, maxSupplyCurrent=60)
-        utils.setMotorLimits(self.intakeMotorExtendFore, maxSupplyCurrent=60)
-        utils.setMotorLimits(self.intakeMotorExtendAft, maxSupplyCurrent=60)
-        utils.setMotorLimits(self.intakeMotorIntake, maxSupplyCurrent=60)
-        utils.setMotorLimits(self.transitMotor, maxSupplyCurrent=60)
+        nonSwerveMotors = [
+            self.kickerMotor,
+            self.shooterMotorTop,
+            self.shooterMotorBottom,
+            self.intakeMotorExtendFore,
+            self.intakeMotorExtendAft,
+            # self.intakeMotorIntake,
+            self.transitMotor,
+        ]
+        for motor in nonSwerveMotors:
+            # Baseline current limits for all non-swerve motors to help prevent damage and brownouts
+            utils.setMotorLimits(motor, maxSupplyCurrent=60)
+            utils.setMotorMotionMagic(
+                motor,
+                k_s=0.25,  # Add 0.25 V output to overcome static friction
+                k_v=0.12,  # A velocity target of 1 rps results in 0.12 V output
+                k_a=0.01,  # An acceleration of 1 rps/s requires 0.01 V output
+                k_p=4.8,  # A position error of 2.5 rotations results in 12 V output
+                k_i=0.0,  # no output for integrated error
+                k_d=0.1,  # A velocity error of 1 rps results in 0.1 V output
+                cruise_velocity=80,  # Target cruise velocity of 80 rps
+                acceleration=160,  # Target acceleration of 160 rps/s (0.5 seconds)
+                jerk=1600,  # Target jerk of 1600 rps/s/s (0.1 seconds)
+            )
 
-        # in init function
-        talonfx_configs = p6.configs.TalonFXConfiguration()
-        talonfxs_configs = p6.configs.TalonFXSConfiguration()
-
-        # set slot 0 gains
-        slot0_configs = talonfx_configs.slot0
-        slot0_configs.k_s = 0.25  # Add 0.25 V output to overcome static friction
-        slot0_configs.k_v = 0.12  # A velocity target of 1 rps results in 0.12 V output
-        slot0_configs.k_a = 0.01  # An acceleration of 1 rps/s requires 0.01 V output
-        slot0_configs.k_p = 4.8  # A position error of 2.5 rotations results in 12 V output
-        slot0_configs.k_i = 0  # no output for integrated error
-        slot0_configs.k_d = 0.1  # A velocity error of 1 rps results in 0.1 V output
-
-        # set Motion Magic settings
-        motion_magic_configs = talonfx_configs.motion_magic
-        motion_magic_configs.motion_magic_cruise_velocity = 80  # Target cruise velocity of 80 rps
-        motion_magic_configs.motion_magic_acceleration = 160  # Target acceleration of 160 rps/s (0.5 seconds)
-        motion_magic_configs.motion_magic_jerk = 1600  # Target jerk of 1600 rps/s/s (0.1 seconds)
-
-        self.kickerMotor.configurator.apply(talonfx_configs)
-        self.shooterMotorTop.configurator.apply(talonfx_configs)
-        self.shooterMotorBottom.configurator.apply(talonfx_configs)
-        self.intakeMotorExtendFore.configurator.apply(talonfx_configs)
-        self.intakeMotorExtendAft.configurator.apply(talonfx_configs)
-        self.intakeMotorIntake.configurator.apply(talonfxs_configs)
-        self.transitMotor.configurator.apply(talonfx_configs)
+            # Intake extension motors should be in brake mode so they hold position when not powered; others coast
+            if motor in (self.intakeMotorExtendFore, self.intakeMotorExtendAft):
+                utils.setMotorNeutralBrake(motor, brake_in_neutral=True)
+            else:
+                utils.setMotorNeutralBrake(motor, brake_in_neutral=False)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
@@ -256,6 +252,7 @@ class Scurvy(magicbot.MagicRobot):
 
         # Try and actively shoot; gets turned off if we're not in smart aim mode or fallback spin-up mode
         self.pewpew.activelyShoot = self.operatorController.shouldShoot()
+        self.intake.activelyTransit = self.pewpew.activelyShoot
 
         if self.operatorController.manuallyExtend():
             self.intake.manuallyExtend()
