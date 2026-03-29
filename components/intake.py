@@ -34,7 +34,7 @@ class Intake:
     # Motors+ injected by MagicBot when the robot sets an attribute of the same name on the robot class.
     intakeMotorExtendFore: p6.hardware.TalonFX
     intakeMotorExtendAft: p6.hardware.TalonFX
-    intakeMotorIntake: p6.hardware.TalonFXS
+    intakeMotorIntake: p6.hardware.TalonFX
     transitMotor: p6.hardware.TalonFX
     activelyIntake: bool = False
     activelyTransit: bool = False
@@ -141,7 +141,6 @@ class Intake:
         """Called each loop to command the motor."""
         if self.activelyIntake:
             self.intakeMotorIntake.set(0.8)
-            self.transitMotor.set(self.transitSpeed)
             if not self.isFullyExtended():
                 self.extend()
         else:
