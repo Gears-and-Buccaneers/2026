@@ -1,10 +1,13 @@
 """LED control component for the robot."""
 
+import math
+
 import wpilib
 import wpimath.units as units
 from wpilib import DriverStation
 
 import constants as const
+import utils
 
 # Mapping of robot phase or shift name, and whether our alliance can score in the hub,
 # to the color to show on the LEDs.
@@ -96,6 +99,11 @@ class Lighting:
 
     def execute(self) -> None:
         """Update the LED hardware states based on the current settings."""
+        # Pulse the brightness of the color at 2Hz, between 50% and 100% brightness.
+        t = wpilib.Timer.getFPGATimestamp()
+        pulse_scale: float = math.sin(2.0 * math.pi * 2.0 * t) * 0.25 + 0.75
+        self._desiredColor = utils.scaleColor(self._desiredColor, pulse_scale)
+
         # TODO: can we improve performance by only updating when something changes?
         litCountSideLeft = int(len(LIGHTS_ON_SIDE_LEFT) * self._desiredPercent)
         litCountSideRight = int(len(LIGHTS_ON_SIDE_RIGHT) * self._desiredPercent)

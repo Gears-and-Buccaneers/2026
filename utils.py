@@ -116,3 +116,12 @@ def setMotorMotionMagic(
 
     motorController.configurator.apply(slot0_cfg)
     motorController.configurator.apply(motion_magic_cfg)
+
+
+def scaleColor(color: wpilib.Color8Bit, scale: float) -> wpilib.Color8Bit:
+    """Scale a Color8Bit's brightness by a given factor."""
+    return wpilib.Color8Bit(
+        int(max(0, min(255, color.red * scale))),
+        int(max(0, min(255, color.green * scale))),
+        int(max(0, min(255, color.blue * scale))),
+    )
