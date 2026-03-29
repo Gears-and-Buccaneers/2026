@@ -36,32 +36,40 @@ class Intake:
     intakeMotorExtendAft: p6.hardware.TalonFX
     intakeMotorIntake: p6.hardware.TalonFXS
     transitMotor: p6.hardware.TalonFX
-    activelyIntake = magicbot.will_reset_to(False)
-    activelyTransit = magicbot.will_reset_to(False)
-    # intakeCANCoder: p6.hardware.CANcoder
+    activelyIntake: bool = False
+    activelyTransit: bool = False
+    intakeCANCoder: p6.hardware.CANcoder
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(-1)  # negative: pick up
     releaseSpeed = magicbot.tunable(0.8)  # positive: release
     transitSpeed = magicbot.tunable(0.75)
-    intakeExtendSpeed = magicbot.tunable(0.2)
-    intakeRetractSpeed = magicbot.tunable(-0.2)
+    intakeExtendSpeed = magicbot.tunable(0.3)
+    intakeRetractSpeed = magicbot.tunable(-0.3)
 
-    # Retracted value expected to be less than extended value.
-    intakeRetractedMeters = magicbot.tunable(units.meters(0.0))
-    intakeExtendedMeters = magicbot.tunable(units.inchesToMeters(15.0))
-    intakeToleranceMeters = magicbot.tunable(units.inchesToMeters(1.0))
+    # Calibrated CANCoder readings at extension limit (in sensor rotations).
+    # Keep this as internal calibration constant; operators tune physical limits in meters.
+    _RETRACTED_CANCODER_ROTATIONS = 0.089355469
+
+    # Linear extension setpoints (meters).
+    intakeRetractedMeters = magicbot.tunable(units.inchesToMeters(1))  # Physically stops around 0.0
+    intakeExtendedMeters = magicbot.tunable(units.inchesToMeters(10))  # Physically stops around 11.875
+    # How close to the target extension we need to be to consider it "close enough" for control purposes
+    intakeToleranceMeters = magicbot.tunable(units.inchesToMeters(0.75))
 
     def __init__(self) -> None:
         """Initialize internal state."""
-        # _power is the desired motor output [-1.0, 1.0]
-        self._power: float = 0.0
         # human friendly state string for telemetry/debugging
         self._state: str = "stopped"
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
+
         self.activelyIntake = False
+        """Set to True to extend the intake fully and run the intake rollers; False to stop the intake and retract."""
+
+        self.activelyTransit = False
+        """Set to True to run the transit mechanism; False to stop it."""
+
         self._position: p6.StatusSignal[p6_units.rotation] | None = None
-        self._manualState: Literal["extend", "retract", "hold"] = "hold"
 
     def setup(self) -> None:
         """Configure CANcoder.
@@ -70,13 +78,13 @@ class Intake:
         """
         magnet_sensor = p6.configs.MagnetSensorConfigs()
         config = p6.configs.CANcoderConfiguration().with_magnet_sensor(magnet_sensor)
-        # status = self.intakeCANCoder.configurator.apply(config)
-        # if status.is_error():
-        #     print(f"Intake CANcoder config failed: {status.name}: {status.description}")
-        #     return
+        status = self.intakeCANCoder.configurator.apply(config)
+        if status.is_error():
+            print(f"Intake CANcoder config failed: {status.name}: {status.description}")
+            return
 
-        # self._position = self.intakeCANCoder.get_position(False)
-        # self._position.set_update_frequency(50.0)
+        self._position = self.intakeCANCoder.get_position(False)
+        self._position.set_update_frequency(50.0)
 
     @magicbot.feedback
     def extensionPosition(self) -> units.meters:
@@ -84,8 +92,9 @@ class Intake:
         if self._position is None:
             return 0
         self._position.refresh()
-        # CANcoder reads final extension gear, so one sensor rotation equals one gear circumference.
-        return float(self._position.value) * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
+        encoder_rotations = float(self._position.value) - self._RETRACTED_CANCODER_ROTATIONS
+        pinion_rotations = -encoder_rotations * const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
+        return pinion_rotations * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
 
     def ingest(self, speed: float | None = None) -> None:
         """Start the intake to pick up fuel.
@@ -120,62 +129,43 @@ class Intake:
         """Raise the intake mechanism."""
         self._extendState = "retract"
 
-    def manuallyExtend(self) -> None:
-        """Hack method to manually control the intake extension."""
-        self._manualState = "extend"
-
-    def manuallyRetract(self) -> None:
-        """Hack method to manually control the intake retraction."""
-        self._manualState = "retract"
-
-    def manuallyHold(self) -> None:
-        """Hack method to manually control the intake retraction."""
-        self._manualState = "hold"
-
-    def _setPower(self, power: float) -> None:
-        """Directly set motor output. Clips to [-1.0, 1.0]."""
-        self._power = float(max(-1.0, min(1.0, power)))
-        self._state = "manual" if self._power != 0.0 else "stopped"
-
-    def isRunning(self) -> bool:
-        """Return True when the intake is applying non-zero output."""
-        return abs(self._power) > 1e-6
-
     def isFullyExtended(self) -> bool:
         """Return True if the intake is fully lowered to the field."""
         return self.extensionPosition() >= (self.intakeExtendedMeters - self.intakeToleranceMeters)
 
-    def isFullyRaised(self) -> bool:
+    def isFullyRetracted(self) -> bool:
         """Return True if the intake is fully raised to the robot."""
         return self.extensionPosition() <= (self.intakeRetractedMeters + self.intakeToleranceMeters)
 
     def execute(self) -> None:
         """Called each loop to command the motor."""
         if self.activelyIntake:
-            # self.intakeMotorIntake.set(self._power)
             self.intakeMotorIntake.set(0.8)
             self.transitMotor.set(self.transitSpeed)
-            # if not self.isFullyExtended():
-            # self.extend()
+            if not self.isFullyExtended():
+                self.extend()
         else:
-            # if not self.isFullyRaised():
-            # self.retract()
             self.transitMotor.set(0)
             self.intakeMotorIntake.set(0)
 
-        if self._manualState == "extend":
-            # if not self.isFullyExtended():
-            self.intakeMotorExtendFore.set(-self.intakeExtendSpeed)
-            self.intakeMotorExtendAft.set(self.intakeExtendSpeed)
-            # else:
-            #     self._extendState = "hold"
-        elif self._manualState == "retract":
-            # if not self.isFullyRaised():
-            self.intakeMotorExtendFore.set(-self.intakeRetractSpeed)
-            self.intakeMotorExtendAft.set(self.intakeRetractSpeed)
-            # else:
-            # self._extendState = "hold"
+        if self.activelyTransit:
+            self.transitMotor.set(self.transitSpeed)
+        else:
+            self.transitMotor.set(0)
 
-        if self._manualState == "hold":
+        if self._extendState == "extend":
+            if not self.isFullyExtended():
+                self.intakeMotorExtendFore.set(-self.intakeExtendSpeed)
+                self.intakeMotorExtendAft.set(self.intakeExtendSpeed)
+            else:
+                self._extendState = "hold"
+        elif self._extendState == "retract":
+            if not self.isFullyRetracted():
+                self.intakeMotorExtendFore.set(-self.intakeRetractSpeed)
+                self.intakeMotorExtendAft.set(self.intakeRetractSpeed)
+            else:
+                self._extendState = "hold"
+
+        if self._extendState == "hold":
             self.intakeMotorExtendFore.set(0)
             self.intakeMotorExtendAft.set(0)

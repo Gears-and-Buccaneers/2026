@@ -86,7 +86,7 @@ class ShootMoveShoot(ChoreoStateMachine):
     @mb.state
     def finished(self):
         self.pewpew.spinDown()
-        if not self.intake.isFullyRaised():
+        if not self.intake.isFullyRetracted():
             self.intake.retract()
 
 

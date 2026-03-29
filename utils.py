@@ -51,17 +51,68 @@ def setMotorLimits(
     Args:
         motorController: The TalonFX or TalonFXS motor controller to configure.
         maxSupplyCurrent: The max supply current in amperes, helping to prevent brownouts, or None to leave unchanged.
-        maxStatorCurrent: The max stator current in amperes, helping to prevent wheel sleep (or None to leave unlimited).
+        maxStatorCurrent: The max stator current in amperes, helping to prevent wheel slip (or None to leave unlimited).
     """
     if maxSupplyCurrent is None and maxStatorCurrent is None:
         return  # nothing to do
 
-    is_fxs = isinstance(motorController, p6.hardware.TalonFXS)
-    cfg = p6.configs.TalonFXSConfiguration() if is_fxs else p6.configs.TalonFXConfiguration()
+    cfg = p6.configs.CurrentLimitsConfigs()
     if maxSupplyCurrent is not None:
-        cfg.current_limits.supply_current_limit_enable = True
-        cfg.current_limits.supply_current_limit = maxSupplyCurrent
+        cfg.supply_current_limit_enable = True
+        cfg.supply_current_limit = maxSupplyCurrent
     if maxStatorCurrent is not None:
-        cfg.current_limits.stator_current_limit_enable = True
-        cfg.current_limits.stator_current_limit = maxStatorCurrent
-    motorController.configurator.apply(cfg)  # type: ignore
+        cfg.stator_current_limit_enable = True
+        cfg.stator_current_limit = maxStatorCurrent
+    motorController.configurator.apply(cfg)
+
+
+def setMotorNeutralBrake(
+    motorController: p6.hardware.TalonFX | p6.hardware.TalonFXS,
+    brake_in_neutral: bool = True,
+) -> None:
+    """Set motor neutral behavior to BRAKE or COAST.
+
+    See https://v6.docs.ctr-electronics.com/en/stable/docs/api-reference/api-usage/configuration.html
+
+    Args:
+        motorController: The TalonFX or TalonFXS motor controller to configure.
+        brake_in_neutral: True sets neutral mode to BRAKE. False sets neutral mode to COAST.
+    """
+    cfg = p6.configs.MotorOutputConfigs()
+    cfg.neutral_mode = p6.signals.NeutralModeValue.BRAKE if brake_in_neutral else p6.signals.NeutralModeValue.COAST
+    motorController.configurator.apply(cfg)
+
+
+def setMotorMotionMagic(
+    motorController: p6.hardware.TalonFX | p6.hardware.TalonFXS,
+    *,
+    k_s: float = 0.25,
+    k_v: float = 0.12,
+    k_a: float = 0.01,
+    k_p: float = 4.8,
+    k_i: float = 0.0,
+    k_d: float = 0.1,
+    cruise_velocity: float = 80,
+    acceleration: float = 160,
+    jerk: float = 1600,
+) -> None:
+    """Apply Slot 0 and Motion Magic configs using subgroup applies.
+
+    This updates only the Slot0 and MotionMagic config groups, avoiding
+    accidental resets of unrelated persistent settings.
+    """
+    slot0_cfg = p6.configs.Slot0Configs()
+    slot0_cfg.k_s = k_s
+    slot0_cfg.k_v = k_v
+    slot0_cfg.k_a = k_a
+    slot0_cfg.k_p = k_p
+    slot0_cfg.k_i = k_i
+    slot0_cfg.k_d = k_d
+
+    motion_magic_cfg = p6.configs.MotionMagicConfigs()
+    motion_magic_cfg.motion_magic_cruise_velocity = cruise_velocity
+    motion_magic_cfg.motion_magic_acceleration = acceleration
+    motion_magic_cfg.motion_magic_jerk = jerk
+
+    motorController.configurator.apply(slot0_cfg)
+    motorController.configurator.apply(motion_magic_cfg)

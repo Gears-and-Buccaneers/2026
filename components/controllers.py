@@ -406,6 +406,10 @@ class DriverController(MappedController):
         """Determine if the cycle mode button is being pressed."""
         return self.getYButton()
 
+    def retractIntake(self) -> bool:
+        """Determine if the retract intake button is being pressed."""
+        return self.getBButtonPressed()
+
 
 class OperatorController(MappedController):
     """Controller with information focused on the operator controls."""
