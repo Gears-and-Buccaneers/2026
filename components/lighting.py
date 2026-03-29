@@ -26,7 +26,10 @@ STATE_COLORS: dict[tuple[str, bool], wpilib.Color8Bit] = {
 }
 # fmt: on
 
-LIGHTS_IN_STRIP: int = 30
+LIGHTS_IN_STRIP: int = 33
+LIGHTS_ON_SIDE_LEFT = range(0, 12)
+LIGHTS_ON_SIDE_RIGHT = range(32, 20, -1)
+LIGHTS_ON_BOTTOM = range(12, 21)
 OFF_COLOR: wpilib.Color8Bit = wpilib.Color8Bit(0, 0, 0)
 
 
@@ -94,9 +97,28 @@ class Lighting:
     def execute(self) -> None:
         """Update the LED hardware states based on the current settings."""
         # TODO: can we improve performance by only updating when something changes?
-        litCount = int(LIGHTS_IN_STRIP * self._desiredPercent)
-        for i, led in enumerate(self.ledBuffer):
-            if i < litCount:
+        litCountSideLeft = int(len(LIGHTS_ON_SIDE_LEFT) * self._desiredPercent)
+        litCountSideRight = int(len(LIGHTS_ON_SIDE_RIGHT) * self._desiredPercent)
+        for idx, i in enumerate(LIGHTS_ON_SIDE_LEFT):
+            led = self.ledBuffer[i]
+            if idx >= len(LIGHTS_ON_SIDE_LEFT) - litCountSideLeft:
+                led.setLED(self._desiredColor)
+            else:
+                led.setLED(OFF_COLOR)
+
+        for idx, i in enumerate(LIGHTS_ON_SIDE_RIGHT):
+            led = self.ledBuffer[i]
+            if idx >= len(LIGHTS_ON_SIDE_RIGHT) - litCountSideRight:
+                led.setLED(self._desiredColor)
+            else:
+                led.setLED(OFF_COLOR)
+
+        left_active = litCountSideLeft >= len(LIGHTS_ON_SIDE_LEFT)
+        right_active = litCountSideRight >= len(LIGHTS_ON_SIDE_RIGHT)
+        bottom_on = litCountSideLeft > 0 or litCountSideRight > 0
+        for i in LIGHTS_ON_BOTTOM:
+            led = self.ledBuffer[i]
+            if bottom_on:
                 led.setLED(self._desiredColor)
             else:
                 led.setLED(OFF_COLOR)
