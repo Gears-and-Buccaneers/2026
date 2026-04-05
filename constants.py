@@ -58,12 +58,11 @@ class RobotDimension:
     WIDTH: Final[units.meters] = units.inchesToMeters(25.0)  # Side to side
     LENGTH: Final[units.meters] = units.inchesToMeters(30.0)  # Front to back
 
-    # Shooter location relative to robot center (X=forward, Y=left, Z=up)
-    # At lateral center, at front edge of robot frame, at shooter height
+    # Location of center of fuel when it launches, relative to robot center (X=forward, Y=left, Z=up)
     SHOOTER_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
-        units.inchesToMeters(12.0),  # Inside the front edge (half of 30" length)
-        0.0,  # Centered laterally on the robot.
-        units.inchesToMeters(15.0),  # Height from ground of center of fuel when launched
+        units.inchesToMeters(4.456),  # Forward from the center of the robot
+        units.inchesToMeters(-8.25),  # Left from the center of the robot
+        units.inchesToMeters(16.375),  # Height from ground to center of fuel
     )
 
     BACK_LEFT_CAMERA_LOCATION: Final[geom.Translation3d] = geom.Translation3d(

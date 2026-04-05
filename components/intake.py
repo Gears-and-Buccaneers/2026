@@ -42,14 +42,14 @@ class Intake:
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(-1)  # negative: pick up
-    releaseSpeed = magicbot.tunable(0.8)  # positive: release
+    releaseSpeed = magicbot.tunable(1)  # positive: release
     transitSpeed = magicbot.tunable(0.75)
-    intakeExtendSpeed = magicbot.tunable(0.3)
-    intakeRetractSpeed = magicbot.tunable(-0.3)
+    intakeExtendSpeed = magicbot.tunable(0.45)
+    intakeRetractSpeed = magicbot.tunable(-0.45)
 
     # Calibrated CANCoder readings at extension limit (in sensor rotations).
     # Keep this as internal calibration constant; operators tune physical limits in meters.
-    _RETRACTED_CANCODER_ROTATIONS = 0.089355469
+    _RETRACTED_CANCODER_ROTATIONS = 0.889850959
 
     # Linear extension setpoints (meters).
     intakeRetractedMeters = magicbot.tunable(units.inchesToMeters(1))  # Physically stops around 0.0
@@ -62,6 +62,9 @@ class Intake:
         # human friendly state string for telemetry/debugging
         self._state: str = "stopped"
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
+
+        # Runtime calibration offset for the CANCoder's retracted reference point.
+        self._retractedCancoderRotations = self._RETRACTED_CANCODER_ROTATIONS
 
         self.activelyIntake = False
         """Set to True to extend the intake fully and run the intake rollers; False to stop the intake and retract."""
@@ -92,9 +95,36 @@ class Intake:
         if self._position is None:
             return 0
         self._position.refresh()
-        encoder_rotations = float(self._position.value) - self._RETRACTED_CANCODER_ROTATIONS
+        encoder_rotations = float(self._position.value) - self._retractedCancoderRotations
         pinion_rotations = -encoder_rotations * const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
         return pinion_rotations * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
+
+    def calibrateFullyExtendedNow(self) -> None:
+        """Treat the current CANcoder reading as the fully-extended position.
+
+        This updates the internal calibration offset used by `extensionPosition()`.
+        """
+        if self._position is None:
+            return
+
+        self._position.refresh()
+        encoder_rotations = float(self._position.value)
+
+        meters_per_encoder_rotation = (
+            -const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
+            * math.pi
+            * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
+        )
+
+        if meters_per_encoder_rotation == 0:
+            return
+
+        # Solve for retracted reference so current reading maps to intakeExtendedMeters.
+        self._retractedCancoderRotations = encoder_rotations - (self.intakeExtendedMeters / meters_per_encoder_rotation)
+        print(
+            "Intake calibration captured. "
+            f"Use this in code: _RETRACTED_CANCODER_ROTATIONS = {self._retractedCancoderRotations:.9f}"
+        )
 
     def ingest(self, speed: float | None = None) -> None:
         """Start the intake to pick up fuel.

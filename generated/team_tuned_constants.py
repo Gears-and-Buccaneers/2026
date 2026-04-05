@@ -40,8 +40,8 @@ class TunedConstants(TunerConstants):
     # TODO: Measure actual wheel radius after wear for accurate odometry
     _wheel_radius: units.meter = 0.0508  # 2 inch wheels (in meters)
 
-    # Gear ratios (SDS MK4i L2)
-    _drive_gear_ratio = 6.75
+    # Gear ratios (SDS MK4i L1 16T)
+    _drive_gear_ratio = 7.12
     _steer_gear_ratio = 150.0 / 7.0  # ~21.43
 
     # ==========================================================================

@@ -469,3 +469,7 @@ class OperatorController(MappedController):
             s=1,
             v=(circularX**2 + circularY**2) ** 0.5,
         )
+
+    def calibrateIntakeAsFullyExtended(self) -> bool:
+        """Calibrate the intake extension encoder to consider the current position as fully extended."""
+        return self.getAButtonPressed()

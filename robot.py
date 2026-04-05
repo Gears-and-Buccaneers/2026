@@ -270,6 +270,9 @@ class Scurvy(magicbot.MagicRobot):
             self.pewpew.spinDown()
             self.pewpew.activelyShoot = False
 
+        if self.operatorController.calibrateIntakeAsFullyExtended():
+            self.intake.calibrateFullyExtendedNow()
+
     def dynamicallyTargetHub(self) -> None:
         """Aim at the hub and set flywheel speed for shoot-while-moving.
 
