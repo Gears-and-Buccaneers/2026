@@ -42,10 +42,10 @@ class Intake:
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(-1)  # negative: pick up
-    releaseSpeed = magicbot.tunable(0.8)  # positive: release
+    releaseSpeed = magicbot.tunable(1)  # positive: release
     transitSpeed = magicbot.tunable(0.75)
-    intakeExtendSpeed = magicbot.tunable(0.3)
-    intakeRetractSpeed = magicbot.tunable(-0.3)
+    intakeExtendSpeed = magicbot.tunable(0.45)
+    intakeRetractSpeed = magicbot.tunable(-0.45)
 
     # Calibrated CANCoder readings at extension limit (in sensor rotations).
     # Keep this as internal calibration constant; operators tune physical limits in meters.
