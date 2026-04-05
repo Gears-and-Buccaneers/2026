@@ -63,6 +63,9 @@ class Intake:
         self._state: str = "stopped"
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
 
+        # Runtime calibration offset for the CANCoder's retracted reference point.
+        self._retractedCancoderRotations = self._RETRACTED_CANCODER_ROTATIONS
+
         self.activelyIntake = False
         """Set to True to extend the intake fully and run the intake rollers; False to stop the intake and retract."""
 
@@ -92,9 +95,36 @@ class Intake:
         if self._position is None:
             return 0
         self._position.refresh()
-        encoder_rotations = float(self._position.value) - self._RETRACTED_CANCODER_ROTATIONS
+        encoder_rotations = float(self._position.value) - self._retractedCancoderRotations
         pinion_rotations = -encoder_rotations * const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
         return pinion_rotations * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
+
+    def calibrateFullyExtendedNow(self) -> None:
+        """Treat the current CANcoder reading as the fully-extended position.
+
+        This updates the internal calibration offset used by `extensionPosition()`.
+        """
+        if self._position is None:
+            return
+
+        self._position.refresh()
+        encoder_rotations = float(self._position.value)
+
+        meters_per_encoder_rotation = (
+            -const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
+            * math.pi
+            * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
+        )
+
+        if meters_per_encoder_rotation == 0:
+            return
+
+        # Solve for retracted reference so current reading maps to intakeExtendedMeters.
+        self._retractedCancoderRotations = encoder_rotations - (self.intakeExtendedMeters / meters_per_encoder_rotation)
+        print(
+            "Intake calibration captured. "
+            f"Use this in code: _RETRACTED_CANCODER_ROTATIONS = {self._retractedCancoderRotations:.9f}"
+        )
 
     def ingest(self, speed: float | None = None) -> None:
         """Start the intake to pick up fuel.
