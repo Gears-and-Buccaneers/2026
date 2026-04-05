@@ -29,10 +29,10 @@ STATE_COLORS: dict[tuple[str, bool], wpilib.Color8Bit] = {
 }
 # fmt: on
 
-LIGHTS_IN_STRIP: int = 33
-LIGHTS_ON_SIDE_LEFT = range(0, 12)
-LIGHTS_ON_SIDE_RIGHT = range(32, 20, -1)
-LIGHTS_ON_BOTTOM = range(12, 21)
+LIGHTS_IN_STRIP: int = 50
+LIGHTS_ON_SIDE_LEFT = range(0, 19)
+LIGHTS_ON_SIDE_RIGHT = range(49, 30, -1)
+LIGHTS_ON_BOTTOM = range(19, 31)
 OFF_COLOR: wpilib.Color8Bit = wpilib.Color8Bit(0, 0, 0)
 
 
