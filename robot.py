@@ -232,16 +232,20 @@ class Scurvy(magicbot.MagicRobot):
             self.drivetrain.brake()
         else:
             max_speed = TunerConstants.speed_at_12_volts
+            max_rotation_speed = MAX_ROTATION_SPEED
             if self.driverController.activatePrecisionMode():
-                max_speed = max_speed * self.precisionSlowdown
+                max_speed *= self.precisionSlowdown
+                max_rotation_speed *= self.precisionSlowdown
+
             # Note that the drivetrain automatically handles field-centric control
             # so that "forward" on the joystick is always away from the driver,
             # regardless of which alliance the team is assigned to.
             self.drivetrain.drive(
                 velocityX=self.driverController.getMoveForwardPercent() * max_speed,
                 velocityY=self.driverController.getMoveLeftPercent() * max_speed,
-                rotationRate=self.driverController.getRotateCounterClockwisePercent() * MAX_ROTATION_SPEED,
+                rotationRate=self.driverController.getRotateCounterClockwisePercent() * max_rotation_speed,
             )
+
         self.intake.runIntake = self.driverController.shouldIntake()
         self.intake.reverseIntake = self.driverController.shouldVomit()
 
