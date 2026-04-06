@@ -2,7 +2,6 @@
 
 import math
 import random
-from typing import ClassVar
 
 import wpilib
 import wpimath.geometry as geom

@@ -25,7 +25,6 @@ import wpilib
 from choreo import load_swerve_trajectory
 from choreo.trajectory import EventMarker, SwerveSample, SwerveTrajectory
 from wpilib import DriverStation
-from wpimath.geometry import Pose2d
 
 import components
 

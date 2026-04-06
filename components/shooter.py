@@ -9,7 +9,6 @@ import wpilib
 import wpimath.geometry as geom
 import wpimath.units as units
 
-import components
 import constants as const
 from components.swerve import Drivetrain
 
@@ -453,5 +452,8 @@ class Shooter:
 
     def shoot(self) -> None:
         """Shoots the fuel from the robot (triggers feeder)."""
-        # TODO: activate the feeder mechanism to launch fuel
-        pass
+        self.activelyShoot = True
+
+    def stopShooting(self) -> None:
+        """Stop shooting."""
+        self.activelyShoot = False
