@@ -191,13 +191,21 @@ class Shooter:
 
     def isFlywheelNearTargetSpeed(self) -> bool:
         """Check if flywheel speeds are within tolerance of target speed."""
-        realTopMotorSpeed: units.radians_per_second = self.shooterMotorTop.get_velocity().value * 60
-        realBottomMotorSpeed: units.radians_per_second = self.shooterMotorBottom.get_velocity().value * 60
         targetTopMotorSpeed, targetBottomMotorSpeed = self.getShooterTargetMotorSpeeds()
-        return (
-            abs(realBottomMotorSpeed - targetBottomMotorSpeed) / targetBottomMotorSpeed <= self.flywheelSpeedTolerance
-            and abs(realTopMotorSpeed - targetTopMotorSpeed) / targetTopMotorSpeed <= self.flywheelSpeedTolerance
+        realTopMotorSpeed: units.radians_per_second = self.shooterMotorTop.get_velocity().value * (2.0 * math.pi)
+        realBottomMotorSpeed: units.radians_per_second = self.shooterMotorBottom.get_velocity().value * (2.0 * math.pi)
+        # Bottom Talon is driven with the opposite sign in execute().
+        checks = (
+            (targetTopMotorSpeed, realTopMotorSpeed, 1.0),
+            (targetBottomMotorSpeed, realBottomMotorSpeed, -1.0),
         )
+        for target, actual, sign in checks:
+            if abs(target) < 1e-6:
+                if abs(actual) >= 1e-6:
+                    return False
+            elif abs(actual - sign * target) / abs(target) > self.flywheelSpeedTolerance:
+                return False
+        return True
 
     def isReadyToFire(self) -> bool:
         """Check if the shooter is ready to fire."""
