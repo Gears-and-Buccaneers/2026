@@ -67,10 +67,6 @@ class Intake:
         self._retractedCancoderRotations = self._RETRACTED_CANCODER_ROTATIONS
 
         self.runIntake = False
-
-        # The desired speed for the intake rollers; only applied when `runIntake` is True.
-        self.targetIntakeSpeed = self.intakeSpeed
-
         self.activelyTransit = False
         """Set to True to run the transit mechanism; False to stop it."""
 
