@@ -209,9 +209,9 @@ class Vision:
 
         # Check if pose is on the field (basic sanity check)
         pose_2d = pose.toPose2d()
-        if pose_2d.X() < -1.0 or pose_2d.X() > 17.0:  # Field is ~16.5m long
+        if pose_2d.X() < -2.0 or pose_2d.X() > 18.0:  # Field is ~16.5m long
             return False
-        if pose_2d.Y() < -1.0 or pose_2d.Y() > 9.0:  # Field is ~8m wide
+        if pose_2d.Y() < -2.0 or pose_2d.Y() > 10.0:  # Field is ~8m wide
             return False
 
         return True
