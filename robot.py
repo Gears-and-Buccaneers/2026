@@ -198,6 +198,8 @@ class Scurvy(magicbot.MagicRobot):
             else:
                 utils.setMotorNeutralBrake(motor, brake_in_neutral=False)
 
+        utils.setMotorMotionMagic(self.kickerMotor, k_p=9.6)
+
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
 
