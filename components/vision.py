@@ -84,15 +84,15 @@ class Vision:
         # Initialize all three cameras
         self._setup_camera(
             const.VisionConfig.FRONT_CAMERA_NAME,
-            const.VisionConfig.FRONT_CAMERA_TRANSFORM,
+            const.RobotDimension.FRONT_CAMERA_TRANSFORM,
         )
         self._setup_camera(
-            const.VisionConfig.BACK_LEFT_CAMERA_NAME,
-            const.VisionConfig.BACK_LEFT_CAMERA_TRANSFORM,
+            const.VisionConfig.LEFT_CAMERA_NAME,
+            const.RobotDimension.LEFT_CAMERA_TRANSFORM,
         )
         self._setup_camera(
-            const.VisionConfig.BACK_RIGHT_CAMERA_NAME,
-            const.VisionConfig.BACK_RIGHT_CAMERA_TRANSFORM,
+            const.VisionConfig.REAR_CAMERA_NAME,
+            const.RobotDimension.REAR_CAMERA_TRANSFORM,
         )
 
         # Store latest measurements for each camera

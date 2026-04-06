@@ -12,7 +12,6 @@ from typing import Final
 import wpilib
 import wpimath.geometry as geom
 import wpimath.units as units
-from wpimath.geometry import Rotation3d, Transform3d, Translation3d
 
 # Associate alliances with the field-centric rotation that is forward.
 ALLIANCE_PERSPECTIVE_ROTATION: dict[wpilib.DriverStation.Alliance, geom.Rotation2d] = {
@@ -65,26 +64,47 @@ class RobotDimension:
         units.inchesToMeters(16.375),  # Height from ground to center of fuel
     )
 
-    BACK_LEFT_CAMERA_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
-        units.inchesToMeters(-8.500),
-        units.inchesToMeters(-14.750),
-        units.inchesToMeters(16.000),
+    # The camera in front of the shooter
+    FRONT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
+        geom.Translation3d(
+            units.inchesToMeters(14.75),  # Near the front edge of the robot
+            units.inchesToMeters(-8.5),  # On the right side of center
+            units.inchesToMeters(16.0),  # Up from the ground
+        ),
+        geom.Rotation3d(
+            units.degreesToRadians(0.0),  # No roll (hopefully)
+            units.degreesToRadians(-28.0),  # 28° CW around +Y to tilt slightly up
+            units.degreesToRadians(0.0),  # No yaw, camera faces straight forward
+        ),
     )
-    BACK_LEFT_CAMERA_ANGLE: Final[units.radians] = units.degreesToRadians(28.0)  # Up from horizontal
 
-    BACK_RIGHT_CAMERA_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
-        units.inchesToMeters(-9.500),
-        units.inchesToMeters(15.000000),
-        units.inchesToMeters(16.250),
+    # The camera centered above the intake
+    LEFT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
+        geom.Translation3d(
+            units.inchesToMeters(0.0),  # Centered on the forward axis
+            units.inchesToMeters(12.348),  # On the left side
+            units.inchesToMeters(19.898),  # Up from the ground
+        ),
+        geom.Rotation3d(
+            units.degreesToRadians(0.0),  # No roll (hopefully)
+            units.degreesToRadians(-18.0),  # CW around +Y to tilt slightly up, before…
+            units.degreesToRadians(90.0),  # …yawing 90° CCW around +Z to point left
+        ),
     )
-    BACK_RIGHT_CAMERA_ANGLE: Final[units.radians] = units.degreesToRadians(18.0)  # Up from horizontal
 
-    FRONT_CAMERA_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
-        units.inchesToMeters(12.347596),
-        0.0,
-        units.inchesToMeters(19.898),
+    # The camera behind the shooter
+    REAR_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
+        geom.Translation3d(
+            units.inchesToMeters(-15.0),  # Back of the robot
+            units.inchesToMeters(-9.5),  # On the right side of center
+            units.inchesToMeters(16.25),  # Up from the ground
+        ),
+        geom.Rotation3d(
+            units.degreesToRadians(0.0),  # No roll (hopefully)
+            units.degreesToRadians(-18.0),  # CW around +Y to tilt slightly up, before…
+            units.degreesToRadians(180.0),  # …yawing 180° around Z to point backwards
+        ),
     )
-    FRONT_CAMERA_ANGLE: Final[units.radians] = units.degreesToRadians(18.0)  # Up from horizontal
 
     SHOOTER_ANGLE: Final[units.radians] = units.degreesToRadians(60.0)  # Selected angle (optimal: 75°)
 
@@ -309,32 +329,7 @@ class VisionConfig:
     """
 
     # Camera names - must match names configured in PhotonVision
-    FRONT_CAMERA_NAME: Final[str] = "front_camera"
-    BACK_LEFT_CAMERA_NAME: Final[str] = "back_left_camera"
-    BACK_RIGHT_CAMERA_NAME: Final[str] = "back_right_camera"
-
-    # Robot-to-camera transforms
-    # Front camera: mounted on front of robot, facing forward
-    FRONT_CAMERA_TRANSFORM: Final[Transform3d] = Transform3d(
-        # Use the RobotDimension-defined location and pitch for the front camera.
-        RobotDimension.FRONT_CAMERA_LOCATION,
-        Rotation3d(0, RobotDimension.FRONT_CAMERA_ANGLE, 0),
-    )
-
-    # Back-left camera: mounted on back-left corner, facing backward-left
-    BACK_LEFT_CAMERA_TRANSFORM: Final[Transform3d] = Transform3d(
-        # Use RobotDimension back camera location and pitch. Keep previous yaw
-        # direction (facing back-left) using the same yaw as before.
-        RobotDimension.BACK_LEFT_CAMERA_LOCATION,
-        Rotation3d(0, RobotDimension.BACK_LEFT_CAMERA_ANGLE, units.degreesToRadians(150)),
-    )
-
-    # Back-right camera: mounted on back-right corner, facing backward-right
-    BACK_RIGHT_CAMERA_TRANSFORM: Final[Transform3d] = Transform3d(
-        # Use RobotDimension camera constants where available. The back cameras
-        # share the RobotDimension.CAMERA_LOCATION_BACK translation and use
-        # RobotDimension.CAMERA_ANGLE_BACK for pitch. Yaw is preserved from the
-        # previous configuration (facing back-right).
-        RobotDimension.BACK_RIGHT_CAMERA_LOCATION,
-        Rotation3d(0, RobotDimension.BACK_RIGHT_CAMERA_ANGLE, units.degreesToRadians(-150)),
-    )
+    # GK: I believe that the camera names are wrong, and I'm fixing them to match here.
+    FRONT_CAMERA_NAME: Final[str] = "back_right_camera"
+    LEFT_CAMERA_NAME: Final[str] = "front_camera"
+    REAR_CAMERA_NAME: Final[str] = "back_left_camera"
