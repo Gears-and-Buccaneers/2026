@@ -10,7 +10,7 @@ from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
-from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Translation2d
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Transform3d, Translation2d, Translation3d
 from wpimath.units import meters_per_second, radians_per_second, seconds
 
 from generated.tuner_constants import TunerConstants
