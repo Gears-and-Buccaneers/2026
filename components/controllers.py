@@ -410,6 +410,10 @@ class DriverController(MappedController):
         """Determine if the retract intake button is being pressed."""
         return self.getBButtonPressed()
 
+    def shouldVomit(self) -> bool:
+        """Determine if the outtake button is actively being pressed."""
+        return self.getLeftTriggerAxis() > 0.5
+
 
 class OperatorController(MappedController):
     """Controller with information focused on the operator controls."""
@@ -422,10 +426,6 @@ class OperatorController(MappedController):
             profileName: Name of the controller profile (e.g., "xbox", "wireless", "macwired").
         """
         super().__init__(port, profileName)
-
-    def shouldVomit(self) -> bool:
-        """Determine if the outtake button is actively being pressed."""
-        return self.getLeftTriggerAxis() > 0.5
 
     def shouldSmartAim(self) -> bool:
         """Determine if the auto aim button is actively being pressed."""

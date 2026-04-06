@@ -28,7 +28,6 @@ class Intake:
     - Call `ingest()` to run the rollers inward and pick up fuel.
     - Call `release()` to run the rollers outward and eject fuel.
     - Call `stop()` to stop the rollers.
-    - `setPower()` allows manual control with a value in [-1.0, 1.0].
     """
 
     # Motors+ injected by MagicBot when the robot sets an attribute of the same name on the robot class.
@@ -36,13 +35,15 @@ class Intake:
     intakeMotorExtendAft: p6.hardware.TalonFX
     intakeMotorIntake: p6.hardware.TalonFX
     transitMotor: p6.hardware.TalonFX
-    activelyIntake: bool = False
+    runIntake: bool = False
+    """Set to True to extend the intake fully and run the intake rollers; False to stop the intake and retract."""
+
     activelyTransit: bool = False
+    reverseIntake: bool = False
     intakeCANCoder: p6.hardware.CANcoder
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
-    intakeSpeed = magicbot.tunable(-1)  # negative: pick up
-    releaseSpeed = magicbot.tunable(1)  # positive: release
+    intakeSpeed = magicbot.tunable(-1)  # negative: pick up; positive: vomit
     transitSpeed = magicbot.tunable(0.75)
     intakeExtendSpeed = magicbot.tunable(0.45)
     intakeRetractSpeed = magicbot.tunable(-0.45)
@@ -60,14 +61,15 @@ class Intake:
     def __init__(self) -> None:
         """Initialize internal state."""
         # human friendly state string for telemetry/debugging
-        self._state: str = "stopped"
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
 
         # Runtime calibration offset for the CANCoder's retracted reference point.
         self._retractedCancoderRotations = self._RETRACTED_CANCODER_ROTATIONS
 
-        self.activelyIntake = False
-        """Set to True to extend the intake fully and run the intake rollers; False to stop the intake and retract."""
+        self.runIntake = False
+
+        # The desired speed for the intake rollers; only applied when `runIntake` is True.
+        self.targetIntakeSpeed = self.intakeSpeed
 
         self.activelyTransit = False
         """Set to True to run the transit mechanism; False to stop it."""
@@ -126,30 +128,19 @@ class Intake:
             f"Use this in code: _RETRACTED_CANCODER_ROTATIONS = {self._retractedCancoderRotations:.9f}"
         )
 
-    def ingest(self, speed: float | None = None) -> None:
-        """Start the intake to pick up fuel.
+    def ingest(self) -> None:
+        """Start the intake to pick up fuel."""
+        self.runIntake = True
+        self.reverseIntake = False
 
-        Args:
-                speed: optional manual speed override in [-1.0, 1.0]. If omitted
-                           the configured `intakeSpeed` is used.
-        """
-        self._power = self.intakeSpeed if speed is None else float(max(-1.0, min(1.0, speed)))
-        self._state = "intake"
-
-    def release(self, speed: float | None = None) -> None:
-        """Run the intake in reverse to release fuel.
-
-        Args:
-                speed: optional manual speed override in [-1.0, 1.0]. If omitted
-                           the configured `releaseSpeed` is used.
-        """
-        self._power = self.releaseSpeed if speed is None else float(max(-1.0, min(1.0, speed)))
-        self._state = "release"
+    def vomit(self) -> None:
+        """Run the intake in reverse to release fuel."""
+        self.runIntake = True
+        self.reverseIntake = True
 
     def stop(self) -> None:
         """Stop the intake rollers."""
-        self._power = 0.0
-        self._state = "stopped"
+        self.runIntake = False
 
     def extend(self) -> None:
         """Lower the intake mechanism."""
@@ -169,8 +160,8 @@ class Intake:
 
     def execute(self) -> None:
         """Called each loop to command the motor."""
-        if self.activelyIntake:
-            self.intakeMotorIntake.set(0.8)
+        if self.runIntake:
+            self.intakeMotorIntake.set(self.intakeSpeed if not self.reverseIntake else -self.intakeSpeed)
             if not self.isFullyExtended():
                 self.extend()
         else:
@@ -178,7 +169,7 @@ class Intake:
             self.intakeMotorIntake.set(0)
 
         if self.activelyTransit:
-            self.transitMotor.set(self.transitSpeed)
+            self.transitMotor.set(self.transitSpeed if not self.reverseIntake else -self.transitSpeed)
         else:
             self.transitMotor.set(0)
 

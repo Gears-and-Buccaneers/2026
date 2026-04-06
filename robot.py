@@ -242,7 +242,8 @@ class Scurvy(magicbot.MagicRobot):
                 velocityY=self.driverController.getMoveLeftPercent() * max_speed,
                 rotationRate=self.driverController.getRotateCounterClockwisePercent() * MAX_ROTATION_SPEED,
             )
-        self.intake.activelyIntake = self.driverController.shouldIntake()
+        self.intake.runIntake = self.driverController.shouldIntake()
+        self.intake.reverseIntake = self.driverController.shouldVomit()
 
         if self.driverController.retractIntake():
             self.intake.retract()
@@ -257,7 +258,7 @@ class Scurvy(magicbot.MagicRobot):
 
         # Try and actively shoot; gets turned off if we're not in smart aim mode or fallback spin-up mode
         self.pewpew.activelyShoot = self.operatorController.shouldShoot()
-        self.intake.activelyTransit = self.intake.activelyIntake or self.pewpew.activelyShoot
+        self.intake.activelyTransit = self.intake.runIntake or self.pewpew.activelyShoot
 
         # Handle shooter spin-up modes
         if self.operatorController.shouldSetFallbackShooterSpinSpeed():
