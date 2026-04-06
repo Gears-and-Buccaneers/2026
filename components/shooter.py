@@ -42,7 +42,7 @@ class Shooter:
     activelyShoot = magicbot.will_reset_to(False)
 
     # Fallback fuel exit speed for a known shooting position (m/s)
-    fallbackFuelSpeed = magicbot.tunable(15)
+    fallbackFuelSpeed = magicbot.tunable(45)
     maxFuelSpeed = magicbot.tunable(15.0)
 
     # Desired launched fuel backspin (RPM).
@@ -51,6 +51,7 @@ class Shooter:
 
     # Target kicker surface speed while actively feeding (m/s)
     targetKickerFuelSpeed: magicbot.tunable[units.meters_per_second] = magicbot.tunable(18.0)
+    manualKickerSpeed = magicbot.tunable(1.0)
     # Maximum heading error (degrees) to allow shooting
     maxHeadingError = magicbot.tunable(2.0)
 
@@ -420,7 +421,8 @@ class Shooter:
         # if self.activelyShoot and self.isReadyToFire():
         if self.activelyShoot:
             kickerMotorTargetAngularSpeed = self.getKickerTargetMotorSpeed()
-            self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
+            # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
+            self.kickerMotor.set(self.manualKickerSpeed)
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)
