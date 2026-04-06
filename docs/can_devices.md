@@ -22,3 +22,6 @@ The order in which the devices are connected to the Pigeon's CAN bus, and their 
 |   s   | Front left drive             |  2 |
 |   t   | Front left CANcoder          |  1 |
 |   u   | Front left steer             |  0 |
+
+## TODO: this needs to be added to the CAN bus
+|       | CANdle                       |    |
