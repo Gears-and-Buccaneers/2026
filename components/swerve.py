@@ -280,26 +280,6 @@ class Drivetrain:
         robotRelativeVelocity = Translation2d(speeds.vx, speeds.vy)
         return robotRelativeVelocity.rotateBy(self.getHeading())
 
-    def add_vision_measurement(
-        self,
-        pose: Pose3d,
-        timestamp: seconds,
-        std_devs: tuple[float, float, float] = (0.5, 0.5, 0.1),
-    ) -> None:
-        """Add a vision measurement to the pose estimator.
-
-        This fuses the vision measurement with wheel odometry to improve
-        pose estimation accuracy. Call this for each valid vision measurement.
-
-        Args:
-            pose: The robot pose estimated by vision (Pose3d).
-            timestamp: The timestamp when the image was captured (seconds).
-            std_devs: Standard deviations (x_meters, y_meters, rotation_radians).
-                      Higher values = less trust in this measurement.
-        """
-        # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
-        self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, std_devs)
-
     def setup(self) -> None:
         """Run one-time component initialization after injection is complete."""
         # Create an AdvantageScope publisher for the robot's Transform3d if AdvantageScope is enabled.
