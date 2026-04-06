@@ -387,8 +387,8 @@ class DriverController(MappedController):
         return self.getRightTriggerAxis() > 0.5
 
     def activatePrecisionMode(self) -> bool:
-        """Determine if the presicion mode button was pressed since the last check."""
-        return self.getLeftBumperButtonPressed()
+        """Determine if the precision mode button is being held."""
+        return self.getLeftBumperButton()
 
     def moveToOutpost(self) -> bool:
         """Determine if the move to outpost button is being pressed."""
