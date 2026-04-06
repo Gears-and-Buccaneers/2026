@@ -437,7 +437,7 @@ class Shooter:
 
     def fallbackSpin(self) -> None:
         """Set the shooter to a known good speed for a fixed shooting position."""
-        self._mode = "fallback"
+        self.shooterMode = "fallback"
         self._targetFlywheelSpeed = self._fuelSpeedToFlywheelSpeed(self.fallbackFuelSpeed)
 
     def autoShooterMotorPower(self) -> None:
