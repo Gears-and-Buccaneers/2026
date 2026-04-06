@@ -2,6 +2,7 @@
 
 import math
 
+import ntcore
 import wpimath.kinematics as kinematics
 from choreo.trajectory import SwerveSample
 from magicbot import feedback
@@ -16,6 +17,9 @@ from generated.tuner_constants import TunerConstants
 
 # Simulation period in seconds (20ms = 0.020s for standard robot loop)
 SIM_LOOP_PERIOD = 0.020
+
+# How often to publish AdvantageScope transform telemetry (in seconds). 0.02 = every loop.
+_NT_PUBLISH_OPTIONS = ntcore.PubSubOptions(periodic=0.02)
 
 
 class Drivetrain:
@@ -88,6 +92,9 @@ class Drivetrain:
 
         # Track if we're running in simulation
         self._isSimulation = RobotBase.isSimulation()
+
+        # Optional publisher for AdvantageScope transform telemetry.
+        self._advantageScopeTransformPublisher = None
 
         # PID controllers for trajectory following
         self._xController = PIDController(self.TRAJECTORY_X_KP, 0.0, 0.0)
@@ -293,6 +300,25 @@ class Drivetrain:
         # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
         self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, std_devs)
 
+    def setup(self) -> None:
+        """Run one-time component initialization after injection is complete."""
+        # Create an AdvantageScope publisher for the robot's Transform3d if AdvantageScope is enabled.
+        self._advantageScopeTransformPublisher = (
+            ntcore.NetworkTableInstance.getDefault()
+            .getStructTopic("/AdvantageScope/RobotTransform", Transform3d)
+            .publish(_NT_PUBLISH_OPTIONS)
+        )
+
+    def getTransform(self) -> Transform3d:
+        """Get robot transform from field origin to robot pose in 3D."""
+        pose = self.getPose()
+        try:
+            rotation3d = self._drivetrain.get_rotation3d()
+        except AttributeError:
+            rotation3d = Pose3d(pose).rotation()
+
+        return Transform3d(Translation3d(pose.X(), pose.Y(), 0.0), rotation3d)
+
     @feedback
     def headingDegrees(self) -> float:
         """Report heading in degrees to the dashboard."""
@@ -327,3 +353,7 @@ class Drivetrain:
 
         # Update field visualization
         self._field.setRobotPose(self.getPose())
+
+        # Publish Transform3d for AdvantageScope if enabled.
+        if self._advantageScopeTransformPublisher is not None:
+            self._advantageScopeTransformPublisher.set(self.getTransform())
