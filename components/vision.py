@@ -197,10 +197,13 @@ class Vision:
         """
         is_multi_tag = tag_count >= 2
 
-        # Check ambiguity threshold (stricter for single-tag)
-        max_ambiguity = self.MAX_POSE_AMBIGUITY_MULTI_TAG if is_multi_tag else self.MAX_POSE_AMBIGUITY_SINGLE_TAG
-        if ambiguity > max_ambiguity:
-            SmartDashboard.putString("Vision/RejectReason", f"ambiguity {ambiguity:.3f} > {max_ambiguity}")
+        # Check ambiguity threshold (only for single-tag — multi-tag PNP is geometrically
+        # constrained so individual target ambiguity is not meaningful)
+        if not is_multi_tag and ambiguity > self.MAX_POSE_AMBIGUITY_SINGLE_TAG:
+            SmartDashboard.putString(
+                "Vision/RejectReason",
+                f"ambiguity {ambiguity:.3f} > {self.MAX_POSE_AMBIGUITY_SINGLE_TAG}",
+            )
             return False
 
         # Check distance threshold (stricter for single-tag)

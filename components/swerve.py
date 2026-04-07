@@ -8,7 +8,7 @@ from choreo.trajectory import SwerveSample
 from magicbot import feedback
 from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
-from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
+from wpilib import Field2d, RobotBase, RobotController, SmartDashboard, Timer
 from wpimath.controller import PIDController
 from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d, Transform3d, Translation2d, Translation3d
 from wpimath.units import meters_per_second, radians_per_second, seconds
@@ -271,6 +271,16 @@ class Drivetrain:
                      Higher values = less trust in this measurement.
         """
         # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
+        now = Timer.getFPGATimestamp()
+        latency = now - timestamp
+        SmartDashboard.putNumber("Vision/FPGA_Now", now)
+        SmartDashboard.putNumber("Vision/MeasureTimestamp", timestamp)
+        SmartDashboard.putNumber("Vision/Latency", latency)
+        SmartDashboard.putNumber("Vision/StdDevX", stdDevs[0])
+        SmartDashboard.putNumber("Vision/StdDevY", stdDevs[1])
+        SmartDashboard.putNumber("Vision/StdDevRot", stdDevs[2])
+        SmartDashboard.putNumber("Vision/InputPoseX", pose.toPose2d().X())
+        SmartDashboard.putNumber("Vision/InputPoseY", pose.toPose2d().Y())
         self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, stdDevs)
 
     def getVelocity(self) -> Translation2d:
