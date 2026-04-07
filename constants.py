@@ -67,13 +67,13 @@ class RobotDimension:
     # The camera in front of the shooter
     FRONT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(-14.75),  # Near the front edge of the robot
-            units.inchesToMeters(8.5),  # On the right side of center
-            units.inchesToMeters(-16.0),  # Up from the ground
+            units.inchesToMeters(14.75),  # Near the front edge of the robot
+            units.inchesToMeters(-8.5),  # On the right side of center
+            units.inchesToMeters(16.0),  # Up from the ground
         ),
         geom.Rotation3d(
             units.degreesToRadians(0.0),  # No roll (hopefully)
-            units.degreesToRadians(28.0),  # 28° CW around +Y to tilt slightly up
+            units.degreesToRadians(-28.0),  # 28° CW around +Y to tilt slightly up
             units.degreesToRadians(0.0),  # No yaw, camera faces straight forward
         ),
     )
