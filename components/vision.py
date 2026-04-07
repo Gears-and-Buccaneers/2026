@@ -11,7 +11,7 @@ from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
 from photonlibpy.targeting import PhotonPipelineResult
 from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
-from wpilib import RobotBase, SmartDashboard
+from wpilib import RobotBase, SmartDashboard, Timer
 from wpimath.geometry import Pose3d, Rotation2d, Transform3d
 
 import constants as const
@@ -343,9 +343,12 @@ class Vision:
                 # Calculate distance-based standard deviations
                 std_devs = self._calculate_std_devs(tag_count, avg_distance)
 
+                # Use FPGA time minus pipeline latency since NT4 time sync is broken
+                corrected_timestamp = Timer.getFPGATimestamp() - (result.getLatencyMillis() / 1000.0)
+
                 measurement = VisionMeasurement(
                     pose=pose,
-                    timestamp=estimated_pose.timestampSeconds,
+                    timestamp=corrected_timestamp,
                     ambiguity=ambiguity,
                     camera_name=name,
                     tag_count=tag_count,
