@@ -278,6 +278,10 @@ class Vision:
 
         Updates all camera pose estimates and stores valid measurements.
         """
+        # DEBUG: Confirm execute() is running and cameras are initialized
+        SmartDashboard.putBoolean("Vision/ExecuteRunning", True)
+        SmartDashboard.putNumber("Vision/CameraCount", len(self._cameras))
+
         # Process each camera
         for i, (camera, estimator, robot_to_camera, name) in enumerate(self._cameras):
             self._latest_measurements[i] = None
