@@ -10,7 +10,7 @@ from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard
 from wpimath.controller import PIDController
-from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Transform3d, Translation2d, Translation3d
+from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d, Transform3d, Translation2d, Translation3d
 from wpimath.units import meters_per_second, radians_per_second, seconds
 
 from generated.tuner_constants import TunerConstants
@@ -292,10 +292,13 @@ class Drivetrain:
     def getTransform(self) -> Transform3d:
         """Get robot transform from field origin to robot pose in 3D."""
         pose = self.getPose()
-        try:
+        if RobotBase.isReal():
+            # Use IMU directly for pitch/roll (needed for ramp traversal)
             rotation3d = self._drivetrain.get_rotation3d()
-        except AttributeError:
-            rotation3d = Pose3d(pose).rotation()
+        else:
+            # Pigeon sim state isn't updated by the drivetrain sim, so
+            # get_rotation3d() always returns identity. Use odometry yaw instead.
+            rotation3d = Rotation3d(0.0, 0.0, pose.rotation().radians())
 
         return Transform3d(Translation3d(pose.X(), pose.Y(), 0.0), rotation3d)
 
