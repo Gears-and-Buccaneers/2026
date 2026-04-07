@@ -328,6 +328,12 @@ class Vision:
                 SmartDashboard.putNumber(f"Vision/{name}/AvgDist", avg_distance)
                 SmartDashboard.putNumber(f"Vision/{name}/Timestamp", estimated_pose.timestampSeconds)
 
+                # DEBUG: Dig into timestamp components
+                SmartDashboard.putNumber(f"Vision/{name}/NtReceiveMicros", result.ntReceiveTimestampMicros)
+                SmartDashboard.putNumber(f"Vision/{name}/PublishMicros", result.metadata.publishTimestampMicros)
+                SmartDashboard.putNumber(f"Vision/{name}/CaptureMicros", result.metadata.captureTimestampMicros)
+                SmartDashboard.putNumber(f"Vision/{name}/PipelineLatencyMs", result.getLatencyMillis())
+
                 # Validate the measurement
                 valid = self._is_valid_measurement(pose, ambiguity, tag_count, avg_distance)
                 SmartDashboard.putBoolean(f"Vision/{name}/ValidationPass", valid)
