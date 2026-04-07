@@ -200,18 +200,22 @@ class Vision:
         # Check ambiguity threshold (stricter for single-tag)
         max_ambiguity = self.MAX_POSE_AMBIGUITY_MULTI_TAG if is_multi_tag else self.MAX_POSE_AMBIGUITY_SINGLE_TAG
         if ambiguity > max_ambiguity:
+            SmartDashboard.putString("Vision/RejectReason", f"ambiguity {ambiguity:.3f} > {max_ambiguity}")
             return False
 
         # Check distance threshold (stricter for single-tag)
         max_distance = self.MAX_MULTI_TAG_DISTANCE if is_multi_tag else self.MAX_SINGLE_TAG_DISTANCE
         if avg_distance > max_distance:
+            SmartDashboard.putString("Vision/RejectReason", f"distance {avg_distance:.2f} > {max_distance}")
             return False
 
         # Check if pose is on the field (basic sanity check)
         pose_2d = pose.toPose2d()
         if pose_2d.X() < -2.0 or pose_2d.X() > 18.0:  # Field is ~16.5m long
+            SmartDashboard.putString("Vision/RejectReason", f"X out of bounds: {pose_2d.X():.2f}")
             return False
         if pose_2d.Y() < -2.0 or pose_2d.Y() > 10.0:  # Field is ~8m wide
+            SmartDashboard.putString("Vision/RejectReason", f"Y out of bounds: {pose_2d.Y():.2f}")
             return False
 
         return True
@@ -281,15 +285,24 @@ class Vision:
             # Get the latest result from the camera
             results = camera.getAllUnreadResults()
 
+            # DEBUG: Log result count per camera
+            SmartDashboard.putNumber(f"Vision/{name}/ResultCount", len(results))
+
             for result in results:
                 # Get tag count and distance info
                 tag_count, avg_distance = self._get_tag_distances(result, robot_to_camera)
+
+                SmartDashboard.putNumber(f"Vision/{name}/TagsSeen", tag_count)
 
                 if tag_count == 0:
                     continue
 
                 # Estimate pose using appropriate strategy
+                is_multi_tag = tag_count >= 2
                 estimated_pose = self._estimate_pose(estimator, result, tag_count)
+
+                SmartDashboard.putBoolean(f"Vision/{name}/EstimateSuccess", estimated_pose is not None)
+                SmartDashboard.putBoolean(f"Vision/{name}/IsMultiTag", is_multi_tag)
 
                 if estimated_pose is None:
                     continue
@@ -300,15 +313,25 @@ class Vision:
                 if best_target is not None:
                     ambiguity = best_target.poseAmbiguity
 
+                # DEBUG: Log pre-validation values
+                pose = estimated_pose.estimatedPose
+                SmartDashboard.putNumber(f"Vision/{name}/RawPoseX", pose.toPose2d().X())
+                SmartDashboard.putNumber(f"Vision/{name}/RawPoseY", pose.toPose2d().Y())
+                SmartDashboard.putNumber(f"Vision/{name}/Ambiguity", ambiguity)
+                SmartDashboard.putNumber(f"Vision/{name}/AvgDist", avg_distance)
+                SmartDashboard.putNumber(f"Vision/{name}/Timestamp", estimated_pose.timestampSeconds)
+
                 # Validate the measurement
-                if not self._is_valid_measurement(estimated_pose.estimatedPose, ambiguity, tag_count, avg_distance):
+                valid = self._is_valid_measurement(pose, ambiguity, tag_count, avg_distance)
+                SmartDashboard.putBoolean(f"Vision/{name}/ValidationPass", valid)
+                if not valid:
                     continue
 
                 # Calculate distance-based standard deviations
                 std_devs = self._calculate_std_devs(tag_count, avg_distance)
 
                 measurement = VisionMeasurement(
-                    pose=estimated_pose.estimatedPose,
+                    pose=pose,
                     timestamp=estimated_pose.timestampSeconds,
                     ambiguity=ambiguity,
                     camera_name=name,

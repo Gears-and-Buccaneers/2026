@@ -139,7 +139,9 @@ class Scurvy(magicbot.MagicRobot):
 
         # Feed vision measurements to drivetrain for pose estimation fusion
         # Each measurement includes distance-scaled standard deviations
-        for measurement in self.vision.get_measurements():
+        measurements = self.vision.get_measurements()
+        wpilib.SmartDashboard.putNumber("Vision/MeasurementsFed", len(measurements))
+        for measurement in measurements:
             self.drivetrain.addVisionMeasurement(
                 measurement.pose,
                 measurement.timestamp,

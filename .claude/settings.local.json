@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/ramim/OneDrive/Documents/2026/.venv/Lib/site-packages/ -name *.py -type f)",
+      "Bash(find /c/Users/ramim/OneDrive/Documents/2026 -name *.py -type f)",
+      "Bash(xargs grep:*)",
+      "Bash(python -c \"import sys; print\\(''''\\\\n''''.join\\(sys.path\\)\\)\")",
+      "Bash(python -c \"import photonlibpy; print\\(photonlibpy.__file__\\)\")"
+    ]
+  }
+}
