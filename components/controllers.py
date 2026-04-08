@@ -3,6 +3,7 @@
 import math
 from typing import NamedTuple
 
+import talon
 import wpilib
 
 import utils
@@ -21,6 +22,13 @@ def joystickSquareToCircle(x: float, y: float) -> tuple[float, float]:
         x * math.sqrt(1 - y * y / 2),
         y * math.sqrt(1 - x * x / 2),
     )
+
+
+def CurrentLimitingTalon(port: int, currentLimit: int, *args, **kwargs) -> wpilib.Talon:
+    """Helper function to create a Talon motor controller with current limiting configured."""
+    talon = wpilib.Talon(port)
+    talon.setCurrentLimit(currentLimit)
+    return talon
 
 
 class AxisMapping(NamedTuple):
