@@ -137,8 +137,10 @@ class Scurvy(magicbot.MagicRobot):
             pose_3d = geom.Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians()))
             self.vision.update_sim(pose_3d)
 
-        # Feed vision measurements to drivetrain for pose estimation fusion
-        # Each measurement includes distance-scaled standard deviations
+        # Give vision the current gyro heading for single-tag consistency checking
+        self.vision.set_gyro_heading(self.drivetrain.getHeading())
+
+        # Feed ALL valid vision measurements to drivetrain for pose estimation fusion
         measurements = self.vision.get_measurements()
         wpilib.SmartDashboard.putNumber("Vision/MeasurementsFed", len(measurements))
         for measurement in measurements:

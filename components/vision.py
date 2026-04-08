@@ -62,6 +62,13 @@ class Vision:
     # Multi-tag bonus - divide std devs by this when using multiple tags
     MULTI_TAG_STD_DEV_DIVISOR = 2.0
 
+    # Gyro consistency check - only applied to single-tag measurements
+    MAX_GYRO_ROTATION_DIFF_RADIANS = math.radians(15.0)
+
+    # Cross-camera outlier detection
+    CROSS_CAMERA_MAX_DISAGREEMENT_METERS = 0.5
+    CROSS_CAMERA_STD_DEV_PENALTY_MULTIPLIER = 3.0
+
     def __init__(self) -> None:
         """Initialize the vision subsystem with all configured cameras."""
         # Load the AprilTag field layout for the current game
@@ -97,6 +104,9 @@ class Vision:
 
         # Store latest measurements for each camera
         self._latest_measurements: list[VisionMeasurement | None] = [None] * len(self._cameras)
+
+        # Gyro heading for consistency checks (set each cycle by robot.py)
+        self._gyro_heading: Rotation2d | None = None
 
     def _setup_camera(self, name: str, robot_to_camera: Transform3d) -> None:
         """Set up a single camera with its pose estimator.
@@ -148,14 +158,103 @@ class Vision:
         if self._vision_sim is not None:
             self._vision_sim.update(robot_pose)
 
+    def set_gyro_heading(self, heading: Rotation2d) -> None:
+        """Set the current gyro heading for vision validation.
+
+        Call this each cycle before get_measurements().
+        """
+        self._gyro_heading = heading
+
     def get_measurements(self) -> list[VisionMeasurement]:
         """Get all valid vision measurements from this cycle.
 
+        Applies gyro consistency check (single-tag only) and cross-camera
+        validation, then returns all surviving measurements for Kalman filter fusion.
+
         Returns:
-            List of VisionMeasurement objects with pose, timestamp, and metadata.
-            Only includes measurements that pass validation checks.
+            List of VisionMeasurements from all cameras that pass validation.
         """
-        return [m for m in self._latest_measurements if m is not None]
+        valid = [m for m in self._latest_measurements if m is not None]
+
+        # Gyro consistency filter (single-tag only)
+        valid = [m for m in valid if self._passes_gyro_check(m)]
+
+        # Cross-camera outlier detection (penalizes std_devs, does not reject)
+        valid = self._apply_cross_camera_validation(valid)
+
+        SmartDashboard.putNumber("Vision/MeasurementsReturned", len(valid))
+        camera_names = ", ".join(m.camera_name for m in valid) if valid else "none"
+        SmartDashboard.putString("Vision/ActiveCameras", camera_names)
+
+        return valid
+
+    def _passes_gyro_check(self, measurement: VisionMeasurement) -> bool:
+        """Check if a single-tag measurement's rotation is consistent with the gyro.
+
+        Multi-tag measurements always pass (they don't suffer from rotation flips,
+        and must pass on startup before the gyro is corrected).
+        """
+        # Multi-tag always passes
+        if measurement.tag_count >= 2:
+            return True
+
+        if self._gyro_heading is None:
+            return True
+
+        vision_rotation = measurement.pose.toPose2d().rotation()
+        diff = abs((vision_rotation - self._gyro_heading).radians())
+        # Normalize to [0, pi]
+        if diff > math.pi:
+            diff = 2 * math.pi - diff
+
+        if diff > self.MAX_GYRO_ROTATION_DIFF_RADIANS:
+            SmartDashboard.putString(
+                f"Vision/{measurement.camera_name}/GyroReject",
+                f"diff={math.degrees(diff):.1f}deg",
+            )
+            return False
+        return True
+
+    def _apply_cross_camera_validation(self, measurements: list[VisionMeasurement]) -> list[VisionMeasurement]:
+        """Penalize outlier cameras when multiple cameras disagree.
+
+        When 2+ cameras have valid measurements, compute the median X and Y.
+        If any camera disagrees by more than the threshold, inflate its std_devs.
+        """
+        if len(measurements) < 2:
+            return measurements
+
+        xs = sorted(m.pose.toPose2d().X() for m in measurements)
+        ys = sorted(m.pose.toPose2d().Y() for m in measurements)
+        median_x = xs[len(xs) // 2]
+        median_y = ys[len(ys) // 2]
+
+        result = []
+        for m in measurements:
+            pose_2d = m.pose.toPose2d()
+            dist_from_median = math.hypot(pose_2d.X() - median_x, pose_2d.Y() - median_y)
+
+            if dist_from_median > self.CROSS_CAMERA_MAX_DISAGREEMENT_METERS:
+                penalty = self.CROSS_CAMERA_STD_DEV_PENALTY_MULTIPLIER
+                penalized = VisionMeasurement(
+                    pose=m.pose,
+                    timestamp=m.timestamp,
+                    ambiguity=m.ambiguity,
+                    camera_name=m.camera_name,
+                    tag_count=m.tag_count,
+                    avg_tag_distance=m.avg_tag_distance,
+                    std_devs=(m.std_devs[0] * penalty, m.std_devs[1] * penalty, m.std_devs[2] * penalty),
+                )
+                SmartDashboard.putString(
+                    f"Vision/{m.camera_name}/CrossCamStatus",
+                    f"OUTLIER dist={dist_from_median:.2f}m",
+                )
+                result.append(penalized)
+            else:
+                SmartDashboard.putString(f"Vision/{m.camera_name}/CrossCamStatus", "OK")
+                result.append(m)
+
+        return result
 
     def _calculate_std_devs(self, tag_count: int, avg_distance: float) -> tuple[float, float, float]:
         """Calculate standard deviations based on tag count and distance.
@@ -197,12 +296,12 @@ class Vision:
         """
         is_multi_tag = tag_count >= 2
 
-        # Check ambiguity threshold (only for single-tag — multi-tag PNP is geometrically
-        # constrained so individual target ambiguity is not meaningful)
-        if not is_multi_tag and ambiguity > self.MAX_POSE_AMBIGUITY_SINGLE_TAG:
+        # Check ambiguity threshold
+        max_ambiguity = self.MAX_POSE_AMBIGUITY_MULTI_TAG if is_multi_tag else self.MAX_POSE_AMBIGUITY_SINGLE_TAG
+        if ambiguity > max_ambiguity:
             SmartDashboard.putString(
                 "Vision/RejectReason",
-                f"ambiguity {ambiguity:.3f} > {self.MAX_POSE_AMBIGUITY_SINGLE_TAG}",
+                f"ambiguity {ambiguity:.3f} > {max_ambiguity}",
             )
             return False
 
