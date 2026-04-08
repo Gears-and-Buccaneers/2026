@@ -8,6 +8,7 @@ from choreo.trajectory import SwerveSample
 from magicbot import feedback
 from phoenix6 import swerve
 from phoenix6.hardware import CANcoder, TalonFX
+from phoenix6.utils import fpga_to_current_time
 from wpilib import Field2d, RobotBase, RobotController, SmartDashboard, Timer
 from wpimath.controller import PIDController
 from wpimath.geometry import Pose2d, Pose3d, Rotation2d, Rotation3d, Transform3d, Translation2d, Translation3d
@@ -281,7 +282,7 @@ class Drivetrain:
         SmartDashboard.putNumber("Vision/StdDevRot", stdDevs[2])
         SmartDashboard.putNumber("Vision/InputPoseX", pose.toPose2d().X())
         SmartDashboard.putNumber("Vision/InputPoseY", pose.toPose2d().Y())
-        self._drivetrain.add_vision_measurement(pose.toPose2d(), timestamp, stdDevs)
+        self._drivetrain.add_vision_measurement(pose.toPose2d(), fpga_to_current_time(timestamp), stdDevs)
 
     def getVelocity(self) -> Translation2d:
         """Get the robot's current field-centric velocity as (vx, vy) in m/s."""
