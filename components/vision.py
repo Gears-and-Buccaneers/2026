@@ -343,9 +343,12 @@ class Vision:
                 # Calculate distance-based standard deviations
                 std_devs = self._calculate_std_devs(tag_count, avg_distance)
 
+                # Use FPGA time minus pipeline latency since NT4 time sync is broken
+                corrected_timestamp = Timer.getFPGATimestamp() - (result.getLatencyMillis() / 1000.0)
+
                 measurement = VisionMeasurement(
                     pose=pose,
-                    timestamp=estimated_pose.timestampSeconds,
+                    timestamp=corrected_timestamp,
                     ambiguity=ambiguity,
                     camera_name=name,
                     tag_count=tag_count,
