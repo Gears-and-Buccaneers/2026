@@ -40,8 +40,8 @@ class TunedConstants(TunerConstants):
     # TODO: Measure actual wheel radius after wear for accurate odometry
     _wheel_radius: units.meter = 0.0508  # 2 inch wheels (in meters)
 
-    # Gear ratios (SDS MK4i L1 16T)
-    _drive_gear_ratio = 7.12
+    # Gear ratios (SDS MK4i L2)
+    _drive_gear_ratio = 6.75
     _steer_gear_ratio = 150.0 / 7.0  # ~21.43
 
     # ==========================================================================
@@ -132,11 +132,11 @@ class TunedConstants(TunerConstants):
     # ==========================================================================
     _steer_gains = (
         configs.Slot0Configs()
-        .with_k_p(0)  # Start: 0 | Tune up in Tuner X | Amps per rotation of error
+        .with_k_p(90)  # Start: 0 | Tune up in Tuner X | Amps per rotation of error
         .with_k_i(0)  # Start: 0 | Avoid unless steady-state error persists
-        .with_k_d(0)  # Start: 0 | Tune up in Tuner X | Dampens oscillation
-        .with_k_s(0)  # Start: 0 | Tune up in Tuner X | Amps to overcome friction
-        .with_k_v(_steer_kv)  # DERIVED ~78.4 | Adjust ±10% if needed | Amps per RPS
+        .with_k_d(8)  # Start: 0 | Tune up in Tuner X | Dampens oscillation
+        .with_k_s(3)  # Start: 0 | Tune up in Tuner X | Amps to overcome friction
+        .with_k_v(_steer_kv)  # DERIVED ~7  bxkj jkxbb 8.4 | Adjust ±10% if needed | Amps per RPS
         .with_k_a(0)  # Usually leave at 0 unless tuning acceleration
         .with_static_feedforward_sign(signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN)
     )
@@ -199,8 +199,8 @@ class TunedConstants(TunerConstants):
         .with_k_p(0)  # Start: 0 | Tune up in Tuner X | Amps per RPS of error
         .with_k_i(0)  # Keep at 0 - can cause windup issues
         .with_k_d(0)  # Usually not needed for drive motors
-        .with_k_s(0)  # Start: 0 | Tune up in Tuner X | Amps to overcome friction
-        .with_k_v(_drive_kv)  # DERIVED ~24.7 | Adjust ±10% if needed | Amps per RPS
+        .with_k_s(1.2)  # Start: 0 | Tune up in Tuner X | Amps to overcome friction
+        .with_k_v(30)  # _drive_kv)  # DERIVED ~24.7 | Adjust ±10% if needed | Amps per RPS
     )
 
     # ==========================================================================
