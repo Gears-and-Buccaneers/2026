@@ -267,6 +267,7 @@ class Scurvy(magicbot.MagicRobot):
         # Try and actively shoot; gets turned off if we're not in smart aim mode or fallback spin-up mode
         self.pewpew.activelyShoot = self.operatorController.shouldShoot()
         self.intake.activelyTransit = self.intake.runIntake or self.pewpew.activelyShoot
+        self.pewpew.activelyUnshoot = not self.pewpew.activelyShoot and self.operatorController.shouldUnShoot()
 
         # Handle shooter spin-up modes
         if self.operatorController.shouldSetFallbackShooterSpinSpeed():
