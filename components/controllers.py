@@ -356,7 +356,7 @@ class DriverController(MappedController):
         Returns:
             A value in the range [-1.0, 1.0], where positive is forward.
         """
-        return -self.getRightY()
+        return -self.getLeftY()
 
     def getMoveLeftPercent(self) -> float:
         """Get the desired left/right percent from the "move" stick.
@@ -364,7 +364,7 @@ class DriverController(MappedController):
         Returns:
             A value in the range [-1.0, 1.0], where positive is left.
         """
-        return -self.getRightX()
+        return -self.getLeftX()
 
     def getRotateCounterClockwisePercent(self) -> float:
         """Get the desired rotation percent from the "rotate" stick.
@@ -372,7 +372,7 @@ class DriverController(MappedController):
         Returns:
             A value in the range [-1.0, 1.0], where positive is counterclockwise.
         """
-        return -self.getLeftX()
+        return -self.getRightX()
 
     def shouldBrake(self) -> bool:
         """Determine if the brake button is actively being pressed."""
