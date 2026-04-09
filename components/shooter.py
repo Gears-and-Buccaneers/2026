@@ -41,7 +41,8 @@ class Shooter:
     kickerMotor: p6.hardware.TalonFX
     shooterMotorTop: p6.hardware.TalonFX
     shooterMotorBottom: p6.hardware.TalonFX
-    activelyShoot = magicbot.will_reset_to(False)
+    activelyShoot = False
+    activelyUnshoot = False
 
     # Fallback fuel exit speed for a known shooting position (m/s)
     fallbackFuelSpeed = magicbot.tunable(45)
@@ -83,9 +84,9 @@ class Shooter:
         self._shooterPosePublisher = nt.getStructTopic("/AdvantageScope/ShooterPose", geom.Pose2d).publish(
             _NT_PUBLISH_OPTIONS
         )
-        self._smartAimTargetPublisher = nt.getStructTopic(
-            "/AdvantageScope/SmartAimTarget", geom.Pose2d
-        ).publish(_NT_PUBLISH_OPTIONS)
+        self._smartAimTargetPublisher = nt.getStructTopic("/AdvantageScope/SmartAimTarget", geom.Pose2d).publish(
+            _NT_PUBLISH_OPTIONS
+        )
 
     def _publishSmartAimTelemetry(self) -> None:
         """Publish smart-aim debugging poses as individual AdvantageScope topics.
@@ -104,9 +105,7 @@ class Shooter:
         self._shooterPosePublisher.set(geom.Pose2d(shooterTrans, robotPose.rotation()))
 
         targetRotation = (
-            self._currentSolution.targetHeading
-            if self._currentSolution is not None
-            else robotPose.rotation()
+            self._currentSolution.targetHeading if self._currentSolution is not None else robotPose.rotation()
         )
         self._smartAimTargetPublisher.set(geom.Pose2d(robotPose.translation(), targetRotation))
 
@@ -474,6 +473,8 @@ class Shooter:
             kickerMotorTargetAngularSpeed = self.getKickerTargetMotorSpeed()
             # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
             self.kickerMotor.set(self.manualKickerSpeed)
+        elif self.activelyUnshoot:
+            self.kickerMotor.set(-self.manualKickerSpeed)
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)
