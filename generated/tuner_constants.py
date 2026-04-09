@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, overload
+
 from phoenix6 import CANBus, configs, hardware, signals, swerve, units
 from wpimath.units import inchesToMeters
 
@@ -24,20 +25,11 @@ class TunerConstants:
         .with_k_s(0.1)
         .with_k_v(2.66)
         .with_k_a(0)
-        .with_static_feedforward_sign(
-            signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN
-        )
+        .with_static_feedforward_sign(signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN)
     )
     # When using closed-loop control, the drive motor uses the control
     # output type specified by SwerveModuleConstants.DriveMotorClosedLoopOutput
-    _drive_gains = (
-        configs.Slot0Configs()
-        .with_k_p(0.1)
-        .with_k_i(0)
-        .with_k_d(0)
-        .with_k_s(0)
-        .with_k_v(0.124)
-    )
+    _drive_gains = configs.Slot0Configs().with_k_p(0.1).with_k_i(0).with_k_d(0).with_k_s(0).with_k_v(0.124)
 
     # The closed-loop output type to use for the steer motors;
     # This affects the PID/FF gains for the steer motors
@@ -61,12 +53,18 @@ class TunerConstants:
 
     # Initial configs for the drive and steer motors and the azimuth encoder; these cannot be null.
     # Some configs will be overwritten; check the `with_*_initial_configs()` API documentation.
-    _drive_initial_configs = configs.TalonFXConfiguration()
-    _steer_initial_configs = configs.TalonFXConfiguration().with_current_limits(
+    _drive_initial_configs = configs.TalonFXConfiguration().with_current_limits(
         configs.CurrentLimitsConfigs()
         # Swerve azimuth does not require much torque output, so we can set a relatively low
         # stator current limit to help avoid brownouts without impacting performance.
         .with_stator_current_limit(60.0)
+        .with_stator_current_limit_enable(True)
+    )
+    _steer_initial_configs = configs.TalonFXConfiguration().with_current_limits(
+        configs.CurrentLimitsConfigs()
+        # Swerve azimuth does not require much torque output, so we can set a relatively low
+        # stator current limit to help avoid brownouts without impacting performance.
+        .with_stator_current_limit(50.0)
         .with_stator_current_limit_enable(True)
     )
     _encoder_initial_configs = configs.CANcoderConfiguration()
@@ -136,7 +134,6 @@ class TunerConstants:
         .with_drive_friction_voltage(_drive_friction_voltage)
     )
 
-
     # Front Left
     _front_left_drive_motor_id = 2
     _front_left_steer_motor_id = 0
@@ -180,7 +177,6 @@ class TunerConstants:
 
     _back_right_x_pos: units.meter = inchesToMeters(-12.3125)
     _back_right_y_pos: units.meter = inchesToMeters(-9.8125)
-
 
     front_left = _constants_creator.create_module_constants(
         _front_left_steer_motor_id,
@@ -246,9 +242,7 @@ class TunerConstants:
         )
 
 
-class TunerSwerveDrivetrain(
-    swerve.SwerveDrivetrain[hardware.TalonFX, hardware.TalonFX, hardware.CANcoder]
-):
+class TunerSwerveDrivetrain(swerve.SwerveDrivetrain[hardware.TalonFX, hardware.TalonFX, hardware.CANcoder]):
     """Swerve Drive class utilizing CTR Electronics' Phoenix 6 API with the selected device types."""
 
     @overload
