@@ -4,6 +4,7 @@ import math
 from typing import NamedTuple
 
 import magicbot
+import ntcore
 import phoenix6 as p6
 import wpilib
 import wpimath.geometry as geom
@@ -11,6 +12,8 @@ import wpimath.units as units
 
 import constants as const
 from components.swerve import Drivetrain
+
+_NT_PUBLISH_OPTIONS = ntcore.PubSubOptions(periodic=0.02)
 
 
 class ShootingSolution(NamedTuple):
@@ -72,6 +75,40 @@ class Shooter:
         self._currentSolution: ShootingSolution | None = None
 
         self.shooterMode: str | None = None  # "fallback", "auto", or None for manual
+
+    def setup(self) -> None:
+        """Create the AdvantageScope publishers after dependency injection."""
+        nt = ntcore.NetworkTableInstance.getDefault()
+        self._hubPublisher = nt.getStructTopic("/AdvantageScope/Hub", geom.Pose2d).publish(_NT_PUBLISH_OPTIONS)
+        self._shooterPosePublisher = nt.getStructTopic("/AdvantageScope/ShooterPose", geom.Pose2d).publish(
+            _NT_PUBLISH_OPTIONS
+        )
+        self._smartAimTargetPublisher = nt.getStructTopic(
+            "/AdvantageScope/SmartAimTarget", geom.Pose2d
+        ).publish(_NT_PUBLISH_OPTIONS)
+
+    def _publishSmartAimTelemetry(self) -> None:
+        """Publish smart-aim debugging poses as individual AdvantageScope topics.
+
+        Topics published every loop (all under /AdvantageScope/ for easy discovery):
+            /AdvantageScope/Hub             - where the code thinks the alliance hub is
+            /AdvantageScope/ShooterPose     - field-frame muzzle location (rotation = robot heading)
+            /AdvantageScope/SmartAimTarget  - robot location with rotation = solution.targetHeading
+        """
+        alliance = wpilib.DriverStation.getAlliance()
+        hubTrans = const.Field.getHubPosition(alliance)
+        self._hubPublisher.set(geom.Pose2d(hubTrans, geom.Rotation2d()))
+
+        robotPose = self.drivetrain.getPose()
+        shooterTrans = self.getPosition()
+        self._shooterPosePublisher.set(geom.Pose2d(shooterTrans, robotPose.rotation()))
+
+        targetRotation = (
+            self._currentSolution.targetHeading
+            if self._currentSolution is not None
+            else robotPose.rotation()
+        )
+        self._smartAimTargetPublisher.set(geom.Pose2d(robotPose.translation(), targetRotation))
 
     def _fuelSpeedToFlywheelSpeed(self, fuelSpeed: units.meters_per_second) -> units.radians_per_second:
         """Convert fuel exit speed to flywheel angular velocity.
@@ -440,6 +477,8 @@ class Shooter:
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)
+
+        self._publishSmartAimTelemetry()
 
     def fallbackSpin(self) -> None:
         """Set the shooter to a known good speed for a fixed shooting position."""
