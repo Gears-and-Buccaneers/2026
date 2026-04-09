@@ -44,6 +44,9 @@ class Shooter:
     fallbackFuelSpeed = magicbot.tunable(45)
     maxFuelSpeed = magicbot.tunable(15.0)
 
+    shooterSpeedMultiplier = magicbot.tunable(1.0)
+    idleShooterSpeedMultiplier = magicbot.tunable(0.3)
+
     # Desired launched fuel backspin (RPM).
     # Positive values make bottom wheel faster than top wheel.
     backspinFuelRPM: magicbot.tunable[units.revolutions_per_minute] = magicbot.tunable(60)
@@ -417,13 +420,17 @@ class Shooter:
 
     def execute(self):
         """This gets called at the end of the control loop."""
+        topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
         if self._targetFlywheelSpeed <= 0.0:
-            self.shooterMotorTop.set(0)
-            self.shooterMotorBottom.set(0)
+            self.shooterMotorTop.set(topMotorTargetAngularSpeed * self.idleShooterSpeedMultiplier)
+            self.shooterMotorBottom.set(bottomMotorTargetAngularSpeed * self.idleShooterSpeedMultiplier)
         else:
-            topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
-            self.shooterMotorTop.set(self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed))
-            self.shooterMotorBottom.set(self._motorSpeedToDutyCycle(-bottomMotorTargetAngularSpeed))
+            self.shooterMotorTop.set(
+                self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed) * self.shooterSpeedMultiplier
+            )
+            self.shooterMotorBottom.set(
+                self._motorSpeedToDutyCycle(-bottomMotorTargetAngularSpeed) * self.shooterSpeedMultiplier
+            )
 
         # if self.activelyShoot and self.isReadyToFire():
         if self.activelyShoot:
