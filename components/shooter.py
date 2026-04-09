@@ -52,10 +52,10 @@ class Shooter:
 
     # Desired launched fuel backspin (RPM).
     # Positive values make bottom wheel faster than top wheel.
-    backspinFuelRPM: magicbot.tunable[units.revolutions_per_minute] = magicbot.tunable(60)
+    backspinFuelRPM = magicbot.tunable[units.revolutions_per_minute](60)
 
     # Target kicker surface speed while actively feeding (m/s)
-    targetKickerFuelSpeed: magicbot.tunable[units.meters_per_second] = magicbot.tunable(18.0)
+    targetKickerFuelSpeed = magicbot.tunable[units.meters_per_second](18.0)
     manualKickerSpeed = magicbot.tunable(1.0)
     # Maximum heading error (degrees) to allow shooting
     maxHeadingError = magicbot.tunable(2.0)
