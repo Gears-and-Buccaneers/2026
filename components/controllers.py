@@ -435,6 +435,10 @@ class OperatorController(MappedController):
         """Determine if the shoot button is actively being pressed."""
         return self.getRightBumperButton()
 
+    def shouldUnShoot(self) -> bool:
+        """Determine if the unshoot button is actively being pressed."""
+        return self.getLeftBumperButton()
+
     def shouldSetFallbackShooterSpinSpeed(self) -> bool:
         """Determine if the set-shooter-speed-to-predefined-speed button is actively being pressed."""
         return self.getYButton()
