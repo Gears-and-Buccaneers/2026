@@ -45,7 +45,7 @@ class Shooter:
     activelyUnshoot = False
 
     # Fallback fuel exit speed for a known shooting position (m/s)
-    fallbackFuelSpeed = magicbot.tunable(45)
+    fallbackFuelSpeed = magicbot.tunable(10)
     maxFuelSpeed = magicbot.tunable(15.0)
 
     shooterSpeedMultiplier = magicbot.tunable(1.0)
