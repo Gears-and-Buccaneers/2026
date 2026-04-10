@@ -50,6 +50,7 @@ class Shooter:
 
     shooterSpeedMultiplier = magicbot.tunable(2.0)
     idleShooterSpeedMultiplier = magicbot.tunable(0.3)
+    idleShooterSpeed = magicbot.tunable(0.5)
 
     # Desired launched fuel backspin (RPM).
     # Positive values make bottom wheel faster than top wheel.
@@ -458,8 +459,8 @@ class Shooter:
         """This gets called at the end of the control loop."""
         topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
         if self._targetFlywheelSpeed <= 0.0:
-            self.shooterMotorTop.set(-1.8)
-            self.shooterMotorBottom.set(1.8)
+            self.shooterMotorTop.set(self.idleShooterSpeed)
+            self.shooterMotorBottom.set(-self.idleShooterSpeed)
         else:
             self.shooterMotorTop.set(
                 self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed) * self.shooterSpeedMultiplier
@@ -469,7 +470,7 @@ class Shooter:
             )
 
         if self.activelyShoot and self.isReadyToFire():
-        #if self.activelyShoot:
+            # if self.activelyShoot:
             kickerMotorTargetAngularSpeed = self.getKickerTargetMotorSpeed()
             # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
             self.kickerMotor.set(self.manualKickerSpeed)
