@@ -6,15 +6,11 @@ simple commands (ingest, release, stop) and an `execute` method which is called 
 to apply the desired motor output.
 """
 
-import math
 from typing import Literal
 
 import magicbot
 import phoenix6 as p6
 import phoenix6.units as p6_units
-import wpimath.units as units
-
-import constants as const
 
 
 class Intake:
@@ -40,7 +36,6 @@ class Intake:
 
     activelyTransit: bool = False
     reverseIntake: bool = False
-    intakeCANCoder: p6.hardware.CANcoder
 
     # Tunable speeds (can be adjusted at runtime via NetworkTables)
     intakeSpeed = magicbot.tunable(-1)  # negative: pick up; positive: vomit
@@ -48,15 +43,12 @@ class Intake:
     intakeExtendSpeed = magicbot.tunable(0.45)
     intakeRetractSpeed = magicbot.tunable(-0.45)
 
-    # Calibrated CANCoder readings at extension limit (in sensor rotations).
-    # Keep this as internal calibration constant; operators tune physical limits in meters.
-    _RETRACTED_CANCODER_ROTATIONS = 0.912311
-
-    # Linear extension setpoints (meters).
-    intakeRetractedMeters = magicbot.tunable(units.inchesToMeters(1))  # Physically stops around 0.0
-    intakeExtendedMeters = magicbot.tunable(units.inchesToMeters(10))  # Physically stops around 11.875
-    # How close to the target extension we need to be to consider it "close enough" for control purposes
-    intakeToleranceMeters = magicbot.tunable(units.inchesToMeters(0.75))
+    # Extension setpoints in aft-extend-motor rotations. On enable we assume the intake
+    # is fully retracted (0 rotations), and it takes 5.667 rotations to go fully out.
+    intakeRetractedRotations = magicbot.tunable(0.0)
+    intakeExtendedRotations = magicbot.tunable(5.667)
+    # How close to the target we need to be to consider it "close enough" for control purposes
+    intakeToleranceRotations = magicbot.tunable(0.25)
 
     def __init__(self) -> None:
         """Initialize internal state."""
@@ -70,57 +62,38 @@ class Intake:
         self._position: p6.StatusSignal[p6_units.rotation] | None = None
 
     def setup(self) -> None:
-        """Configure the intake CANcoder and cache its position status signal.
+        """Cache the aft extend motor's position status signal.
 
-        The CANcoder is zeroed in `on_enable()` rather than here so the driver can
+        The motor position is zeroed in `on_enable()` rather than here so the driver can
         reposition the intake while disabled and have it recalibrated at enable time.
         """
-        magnet_sensor = p6.configs.MagnetSensorConfigs()
-        config = p6.configs.CANcoderConfiguration().with_magnet_sensor(magnet_sensor)
-        status = self.intakeCANCoder.configurator.apply(config)
-        if status.is_error():
-            print(f"Intake CANcoder config failed: {status.name}: {status.description}")
-            return
-
-        self._position = self.intakeCANCoder.get_position(False)
+        self._position = self.intakeMotorExtendAft.get_position(False)
         self._position.set_update_frequency(50.0)
 
     def on_enable(self) -> None:
-        """Zero the intake CANcoder each time the robot is enabled.
+        """Zero the aft extend motor's position each time the robot is enabled.
 
-        Assumes the intake is fully retracted at enable time.
+        Assumes the intake is fully retracted (in) at enable time.
         """
-        status = self.intakeCANCoder.set_position(0.0)
+        status = self.intakeMotorExtendAft.set_position(0.0)
         if status.is_error():
-            print(f"Intake CANcoder zero failed: {status.name}: {status.description}")
+            print(f"Intake aft motor zero failed: {status.name}: {status.description}")
 
     @magicbot.feedback
-    def extensionPosition(self) -> units.meters:
-        """Linear extension position in meters, relative to the retracted position at enable."""
+    def extensionPosition(self) -> float:
+        """Extension position in aft-extend-motor rotations (0 = fully in, 5.667 = fully out)."""
         if self._position is None:
-            return 0
+            return 0.0
         self._position.refresh()
-        encoder_rotations = float(self._position.value)
-        pinion_rotations = -encoder_rotations * const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
-        return pinion_rotations * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
+        return float(self._position.value)
 
     def calibrateFullyExtendedNow(self) -> None:
-        """Treat the current CANcoder reading as the fully-extended position.
+        """Treat the current aft motor position as the fully-extended position.
 
-        Re-zeroes the CANcoder so that the current physical position corresponds to
-        `intakeExtendedMeters`.
+        Re-zeroes the motor position so that the current physical position corresponds to
+        `intakeExtendedRotations`.
         """
-        meters_per_encoder_rotation = (
-            -const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
-            * math.pi
-            * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
-        )
-
-        if meters_per_encoder_rotation == 0:
-            return
-
-        new_position = self.intakeExtendedMeters / meters_per_encoder_rotation
-        self.intakeCANCoder.set_position(new_position)
+        self.intakeMotorExtendAft.set_position(self.intakeExtendedRotations)
 
     def ingest(self) -> None:
         """Start the intake to pick up fuel."""
@@ -146,11 +119,11 @@ class Intake:
 
     def isFullyExtended(self) -> bool:
         """Return True if the intake is fully lowered to the field."""
-        return self.extensionPosition() >= (self.intakeExtendedMeters - self.intakeToleranceMeters)
+        return self.extensionPosition() >= (self.intakeExtendedRotations - self.intakeToleranceRotations)
 
     def isFullyRetracted(self) -> bool:
         """Return True if the intake is fully raised to the robot."""
-        return self.extensionPosition() <= (self.intakeRetractedMeters + self.intakeToleranceMeters)
+        return self.extensionPosition() <= (self.intakeRetractedRotations + self.intakeToleranceRotations)
 
     def execute(self) -> None:
         """Called each loop to command the motor."""
