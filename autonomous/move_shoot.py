@@ -74,7 +74,7 @@ class MoveShoot(ChoreoStateMachine):
 
 
 class LeftTrenchToGatherNeutralShootFromLeft(MoveShoot):
-    """Starts in left trench, shoots, gathers from neutral zone, returns to left trench to shoot."""
+    """Starts in left trench, gathers from neutral zone, returns to left trench to shoot."""
 
     MODE_NAME = "1x LeftNeutralLeft"
     TRAJECTORY = "LeftTrench_Twice"
@@ -106,7 +106,7 @@ class RightTrenchToGatherNeutralShootFromRight(MoveShoot):
 
 
 class MiddleToGatherDepotShootFromCorner(MoveShoot):
-    """Starts in left trench, shoots, gathers from neutral zone, enters right trench and shoots."""
+    """Starts at left bump, slides to the depot and intakes those, then shoots from the corner."""
 
     MODE_NAME = "1x MiddleToDepotCorner"
     TRAJECTORY = "Middle_To_Depot"
