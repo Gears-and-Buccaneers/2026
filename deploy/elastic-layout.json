@@ -1,6 +1,6 @@
 {
   "version": 1.0,
-  "grid_size": 128.0,
+  "grid_size": 128,
   "tabs": [
     {
       "name": "Match",
@@ -16,23 +16,8 @@
             "type": "ComboBox Chooser",
             "properties": {
               "topic": "/SmartDashboard/Autonomous Mode",
-              "period": 0.06,
+              "period": 0.033,
               "sort_options": false
-            }
-          },
-          {
-            "title": "Match Time",
-            "x": 512.0,
-            "y": 0.0,
-            "width": 384.0,
-            "height": 256.0,
-            "type": "Match Time",
-            "properties": {
-              "topic": "/AdvantageKit/DriverStation/MatchTime",
-              "period": 0.06,
-              "time_display_mode": "Minutes and Seconds",
-              "red_start_time": 15,
-              "yellow_start_time": 30
             }
           },
           {
@@ -44,7 +29,7 @@
             "type": "FMSInfo",
             "properties": {
               "topic": "/FMSInfo",
-              "period": 0.06
+              "period": 0.033
             }
           },
           {
@@ -56,12 +41,11 @@
             "type": "Number Slider",
             "properties": {
               "topic": "/components/pewpew/fallbackFuelSpeed",
-              "period": 0.06,
-              "data_type": "double",
+              "period": 0.033,
               "min_value": 0.0,
               "max_value": 20.0,
-              "divisions": 41,
-              "publish_all": false
+              "divisions": 21,
+              "update_continuously": false
             }
           },
           {
@@ -73,25 +57,23 @@
             "type": "Number Slider",
             "properties": {
               "topic": "/components/pewpew/shooterSpeedMultiplier",
-              "period": 0.06,
-              "data_type": "double",
+              "period": 0.033,
               "min_value": 0.0,
               "max_value": 3.0,
-              "divisions": 31,
-              "publish_all": false
+              "divisions": 13,
+              "update_continuously": false
             }
           },
           {
             "title": "Fallback Speed (readout)",
             "x": 512.0,
             "y": 256.0,
-            "width": 256.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
               "topic": "/components/pewpew/fallbackFuelSpeed",
-              "period": 0.06,
-              "data_type": "double",
+              "period": 0.033,
               "show_submit_button": true
             }
           },
@@ -99,13 +81,12 @@
             "title": "Smart Aim Multiplier (readout)",
             "x": 512.0,
             "y": 384.0,
-            "width": 256.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
               "topic": "/components/pewpew/shooterSpeedMultiplier",
-              "period": 0.06,
-              "data_type": "double",
+              "period": 0.033,
               "show_submit_button": true
             }
           }
