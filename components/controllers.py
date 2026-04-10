@@ -23,6 +23,38 @@ def joystickSquareToCircle(x: float, y: float) -> tuple[float, float]:
     )
 
 
+def shapeDriveAxis(value: float, deadband: float, exponent: float) -> float:
+    """Apply a deadband and exponential curve to a joystick axis value.
+
+    Two transformations are applied, in order:
+
+    1. **Deadband**: inputs with magnitude below `deadband` are forced to 0,
+       and the remaining range is rescaled so that a value just outside the
+       deadband maps to 0 and ±1 still maps to ±1. This avoids the jump
+       that a naive deadband would create. The main purpose is to ignore
+       the small "drift" most controllers exhibit when sticks are at rest.
+    2. **Exponential curve**: the rescaled value is raised to `exponent`
+       (preserving sign) so the driver gets finer control near center while
+       still reaching full speed at the extremes. `exponent=1.0` is linear,
+       `2.0` is quadratic, `3.0` is cubic — higher values feel "softer".
+
+    Args:
+        value: Raw joystick value in [-1.0, 1.0].
+        deadband: Deadband size in [0.0, 1.0). Inputs below this are zeroed.
+        exponent: Curve exponent ≥ 1.0. 1.0 = linear, >1 = softer near center.
+
+    Returns:
+        The shaped value in [-1.0, 1.0].
+    """
+    magnitude = abs(value)
+    if magnitude < deadband:
+        return 0.0
+    # Rescale so values just outside the deadband start at 0, full input stays at 1.
+    rescaled = (magnitude - deadband) / (1.0 - deadband)
+    # Apply exponential curve and restore sign.
+    return math.copysign(rescaled**exponent, value)
+
+
 class AxisMapping(NamedTuple):
     """Mapping for a single axis."""
 
@@ -341,6 +373,15 @@ class DriverController(MappedController):
     - Arrow keys: Right stick (strafe/forward-back)
     """
 
+    # Joystick shaping constants for the drive sticks. The deadband ignores
+    # small resting-stick "drift"; the exponent softens response near center
+    # for finer control. Translation and rotation are tuned independently.
+    # See `shapeDriveAxis` for the math.
+    TRANSLATION_DEADBAND: float = 0.1  # 10%, matches the 2025 reference robot
+    TRANSLATION_EXPONENT: float = 2.0  # quadratic curve on the move stick
+    ROTATION_DEADBAND: float = 0.1
+    ROTATION_EXPONENT: float = 2.0
+
     def __init__(self, port: int, profileName: str = "wired") -> None:
         """Initialize the driver controller.
 
@@ -355,24 +396,27 @@ class DriverController(MappedController):
 
         Returns:
             A value in the range [-1.0, 1.0], where positive is forward.
+            Deadband and exponential shaping are applied.
         """
-        return -self.getLeftY()
+        return shapeDriveAxis(-self.getLeftY(), self.TRANSLATION_DEADBAND, self.TRANSLATION_EXPONENT)
 
     def getMoveLeftPercent(self) -> float:
         """Get the desired left/right percent from the "move" stick.
 
         Returns:
             A value in the range [-1.0, 1.0], where positive is left.
+            Deadband and exponential shaping are applied.
         """
-        return -self.getLeftX()
+        return shapeDriveAxis(-self.getLeftX(), self.TRANSLATION_DEADBAND, self.TRANSLATION_EXPONENT)
 
     def getRotateCounterClockwisePercent(self) -> float:
         """Get the desired rotation percent from the "rotate" stick.
 
         Returns:
             A value in the range [-1.0, 1.0], where positive is counterclockwise.
+            Deadband and exponential shaping are applied.
         """
-        return -self.getRightX()
+        return shapeDriveAxis(-self.getRightX(), self.ROTATION_DEADBAND, self.ROTATION_EXPONENT)
 
     def shouldBrake(self) -> bool:
         """Determine if the brake button is actively being pressed."""
