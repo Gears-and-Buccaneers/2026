@@ -468,8 +468,8 @@ class Shooter:
                 self._motorSpeedToDutyCycle(-bottomMotorTargetAngularSpeed) * self.shooterSpeedMultiplier
             )
 
-        # if self.activelyShoot and self.isReadyToFire():
-        if self.activelyShoot:
+        if self.activelyShoot and self.isReadyToFire():
+        #if self.activelyShoot:
             kickerMotorTargetAngularSpeed = self.getKickerTargetMotorSpeed()
             # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
             self.kickerMotor.set(self.manualKickerSpeed)
