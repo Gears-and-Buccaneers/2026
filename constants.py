@@ -109,7 +109,7 @@ class RobotDimension:
     SHOOTER_ANGLE: Final[units.radians] = units.degreesToRadians(60.0)  # Selected angle (optimal: 75°)
 
     # Flywheel/wheel radius for shooter (wheels only, no flywheel)
-    FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(2.0)  # 4" diameter wheels
+    FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(1.985)  # 4" diameter wheels, slightly degraded
     KICKER_RADIUS: Final[units.meters] = units.inchesToMeters(4.0)  # 8" diameter kicker wheel
 
     SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 42 / 20  # 42T motor driving 20T axle; 2.1x speed increase
