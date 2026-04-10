@@ -119,3 +119,19 @@ class RightBumpCollect(MoveShoot):
     MODE_NAME = "1x RightBumpNeutralRight"
     TRAJECTORY = "RightBump_Collect"
     DISABLED = False
+
+
+class CenterBackupShoot(MoveShoot):
+    """Start centered, backup to left of ladder, shoot preloaded."""
+
+    MODE_NAME = "1x CenterBackupShoot"
+    TRAJECTORY = "CenterBackupShoot"
+    DISABLED = False
+
+
+class LeftBumpCollect(MoveShoot):
+    """Start at left bump, collect balls from neutral zone, return over bump and shoot."""
+
+    MODE_NAME = "1x LeftBumpNeutralLeft"
+    TRAJECTORY = "LeftBump_Collect"
+    DISABLED = False
