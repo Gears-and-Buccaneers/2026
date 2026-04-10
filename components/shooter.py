@@ -48,7 +48,7 @@ class Shooter:
     fallbackFuelSpeed = magicbot.tunable(10)
     maxFuelSpeed = magicbot.tunable(15.0)
 
-    shooterSpeedMultiplier = magicbot.tunable(1.0)
+    shooterSpeedMultiplier = magicbot.tunable(2.0)
     idleShooterSpeedMultiplier = magicbot.tunable(0.3)
 
     # Desired launched fuel backspin (RPM).
