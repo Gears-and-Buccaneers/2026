@@ -48,6 +48,10 @@ class Intake:
     intakeExtendSpeed = magicbot.tunable(0.45)
     intakeRetractSpeed = magicbot.tunable(-0.45)
 
+    # Calibrated CANCoder readings at extension limit (in sensor rotations).
+    # Keep this as internal calibration constant; operators tune physical limits in meters.
+    _RETRACTED_CANCODER_ROTATIONS = 0.912311
+
     # Linear extension setpoints (meters).
     intakeRetractedMeters = magicbot.tunable(units.inchesToMeters(1))  # Physically stops around 0.0
     intakeExtendedMeters = magicbot.tunable(units.inchesToMeters(10))  # Physically stops around 11.875

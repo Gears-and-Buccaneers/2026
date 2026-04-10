@@ -188,7 +188,7 @@ class Scurvy(magicbot.MagicRobot):
         ]
         for motor in nonSwerveMotors:
             # Baseline current limits for all non-swerve motors to help prevent damage and brownouts
-            utils.setMotorLimits(motor, maxSupplyCurrent=60)
+            utils.setMotorLimits(motor, maxSupplyCurrent=50)
             utils.setMotorMotionMagic(
                 motor,
                 k_s=0.25,  # Add 0.25 V output to overcome static friction
