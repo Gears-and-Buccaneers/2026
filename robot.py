@@ -131,6 +131,12 @@ class Scurvy(magicbot.MagicRobot):
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
+        # Flush SmartDashboard + LiveWindow sendables so widgets like the auto chooser
+        # echo their state back to NetworkTables. Overriding robotPeriodic without this
+        # call leaves SendableChooser's `active` subtopic frozen, which makes Elastic
+        # show a permanent "Selected value has not been published" warning.
+        super().robotPeriodic()
+
         # Update vision simulation with current robot pose
         if RobotBase.isSimulation():
             pose_2d = self.drivetrain.getPose()
