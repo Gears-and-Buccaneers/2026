@@ -48,10 +48,6 @@ class Intake:
     intakeExtendSpeed = magicbot.tunable(0.45)
     intakeRetractSpeed = magicbot.tunable(-0.45)
 
-    # Calibrated CANCoder readings at extension limit (in sensor rotations).
-    # Keep this as internal calibration constant; operators tune physical limits in meters.
-    _RETRACTED_CANCODER_ROTATIONS = -.62
-
     # Linear extension setpoints (meters).
     intakeRetractedMeters = magicbot.tunable(units.inchesToMeters(1))  # Physically stops around 0.0
     intakeExtendedMeters = magicbot.tunable(units.inchesToMeters(10))  # Physically stops around 11.875
@@ -63,9 +59,6 @@ class Intake:
         # human friendly state string for telemetry/debugging
         self._extendState: Literal["extend", "retract", "hold"] = "hold"
 
-        # Runtime calibration offset for the CANCoder's retracted reference point.
-        self._retractedCancoderRotations = self._RETRACTED_CANCODER_ROTATIONS
-
         self.runIntake = False
         self.activelyTransit = False
         """Set to True to run the transit mechanism; False to stop it."""
@@ -73,9 +66,10 @@ class Intake:
         self._position: p6.StatusSignal[p6_units.rotation] | None = None
 
     def setup(self) -> None:
-        """Configure CANcoder.
+        """Configure the intake CANcoder and cache its position status signal.
 
-        We intentionally do not call set_position(0) here, as this is an absolute encoder.
+        The CANcoder is zeroed in `on_enable()` rather than here so the driver can
+        reposition the intake while disabled and have it recalibrated at enable time.
         """
         magnet_sensor = p6.configs.MagnetSensorConfigs()
         config = p6.configs.CANcoderConfiguration().with_magnet_sensor(magnet_sensor)
@@ -87,27 +81,31 @@ class Intake:
         self._position = self.intakeCANCoder.get_position(False)
         self._position.set_update_frequency(50.0)
 
+    def on_enable(self) -> None:
+        """Zero the intake CANcoder each time the robot is enabled.
+
+        Assumes the intake is fully retracted at enable time.
+        """
+        status = self.intakeCANCoder.set_position(0.0)
+        if status.is_error():
+            print(f"Intake CANcoder zero failed: {status.name}: {status.description}")
+
     @magicbot.feedback
     def extensionPosition(self) -> units.meters:
-        """Linear extension position in meters."""
+        """Linear extension position in meters, relative to the retracted position at enable."""
         if self._position is None:
             return 0
         self._position.refresh()
-        encoder_rotations = float(self._position.value) - self._retractedCancoderRotations
+        encoder_rotations = float(self._position.value)
         pinion_rotations = -encoder_rotations * const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
         return pinion_rotations * math.pi * const.RobotDimension.INTAKE_EXTENSION_GEAR_DIAMETER
 
     def calibrateFullyExtendedNow(self) -> None:
         """Treat the current CANcoder reading as the fully-extended position.
 
-        This updates the internal calibration offset used by `extensionPosition()`.
+        Re-zeroes the CANcoder so that the current physical position corresponds to
+        `intakeExtendedMeters`.
         """
-        if self._position is None:
-            return
-
-        self._position.refresh()
-        encoder_rotations = float(self._position.value)
-
         meters_per_encoder_rotation = (
             -const.RobotDimension.INTAKE_PINION_TO_ENCODER_RATIO
             * math.pi
@@ -117,12 +115,8 @@ class Intake:
         if meters_per_encoder_rotation == 0:
             return
 
-        # Solve for retracted reference so current reading maps to intakeExtendedMeters.
-        self._retractedCancoderRotations = encoder_rotations - (self.intakeExtendedMeters / meters_per_encoder_rotation)
-        print(
-            "Intake calibration captured. "
-            f"Use this in code: _RETRACTED_CANCODER_ROTATIONS = {self._retractedCancoderRotations:.9f}"
-        )
+        new_position = self.intakeExtendedMeters / meters_per_encoder_rotation
+        self.intakeCANCoder.set_position(new_position)
 
     def ingest(self) -> None:
         """Start the intake to pick up fuel."""
