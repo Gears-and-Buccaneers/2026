@@ -474,7 +474,7 @@ class Shooter:
             # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
             self.kickerMotor.set(self.manualKickerSpeed)
         elif self.activelyUnshoot:
-            self.kickerMotor.set(-self.manualKickerSpeed)
+            self.kickerMotor.set(-self.manualKickerSpeed * 0.5)
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)
