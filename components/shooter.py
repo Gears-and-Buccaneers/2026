@@ -458,8 +458,8 @@ class Shooter:
         """This gets called at the end of the control loop."""
         topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
         if self._targetFlywheelSpeed <= 0.0:
-            self.shooterMotorTop.set(topMotorTargetAngularSpeed * self.idleShooterSpeedMultiplier)
-            self.shooterMotorBottom.set(bottomMotorTargetAngularSpeed * self.idleShooterSpeedMultiplier)
+            self.shooterMotorTop.set(-1.8)
+            self.shooterMotorBottom.set(1.8)
         else:
             self.shooterMotorTop.set(
                 self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed) * self.shooterSpeedMultiplier
