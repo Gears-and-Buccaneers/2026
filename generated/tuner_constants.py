@@ -87,7 +87,7 @@ class TunerConstants:
 
     _drive_gear_ratio = 7.125
     _steer_gear_ratio = 21.428571428571427
-    _wheel_radius: units.meter = inchesToMeters(2)
+    _wheel_radius: units.meter = inchesToMeters(1.985)  # 4" diameter wheels, slightly degraded; RE-MEASURE OCCASIONALLY
 
     _invert_left_side = False
     _invert_right_side = True
