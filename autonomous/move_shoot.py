@@ -1,4 +1,4 @@
-"""Autos that all follow the pattern of start at a location, shoot, run a choreo trajectory, shoot."""
+"""Autos that all follow the pattern of: run a choreo trajectory, then shoot."""
 # Don't require docstrings for every state name.
 # ruff: noqa: D102
 
@@ -9,8 +9,8 @@ import components
 from autonomous.choreo_auto import ChoreoStateMachine
 
 
-class ShootMoveShoot(ChoreoStateMachine):
-    """Base class that handles shooting, running a trajectory, and then shooting again."""
+class MoveShoot(ChoreoStateMachine):
+    """Base class that handles starting by running a trajectory, and then shooting."""
 
     MODE_NAME = "(Placeholder)"
     DISABLED = True  # Override this in subclasses to enable them
@@ -37,25 +37,7 @@ class ShootMoveShoot(ChoreoStateMachine):
         super().on_enable()
         self.robot_is_placed_at_start_of(self.TRAJECTORY)
 
-    # This is only a timed state as a fallback, in case the robot never thinks it's ready to fire.
-    # When all is well, the robot should quickly transition to shoot_1 as soon as it's ready to fire.
-    @mb.timed_state(first=True, duration=2, next_state="shoot_1")
-    def prep1(self):
-        self._prepare_to_fire()
-        if self.pewpew.isReadyToFire():
-            self.next_state("shoot_1")
-
-    # Shoot for…long enough to probably shoot all pieces.
-    @mb.timed_state(duration=4, next_state="move_trajectory")
-    def shoot_1(self, initial_call: bool):
-        self.pewpew.activelyShoot = True
-        # TODO: if we can use shooter speed sag to detect a shot, leave when we've shot all 8
-        # if initial_call:
-        #     self.pewpew.piecesShot = 0
-        # if self.pewpew.piecesShot >= 8:
-        #     self.next_state("move_trajectory")
-
-    @mb.state
+    @mb.state(first=True)
     def move_trajectory(self, initial_call: bool):
         if initial_call:
             # Stop actively shooting while we drive
@@ -67,6 +49,7 @@ class ShootMoveShoot(ChoreoStateMachine):
                     "StartIntake": self.intake.ingest,
                     "StopIntake": self.intake.stop,
                     "ExtendIntake": self.intake.extend,
+                    "IntakeExtend": self.intake.extend,
                 },
             )
         elif self.is_trajectory_done():
@@ -78,7 +61,7 @@ class ShootMoveShoot(ChoreoStateMachine):
         if self.pewpew.isReadyToFire():
             self.next_state("shoot_2")
 
-    @mb.timed_state(duration=4, next_state="finished")
+    @mb.timed_state(duration=10, next_state="finished")
     def shoot_2(self):
         self.pewpew.activelyShoot = True
         # TODO: if we can count
@@ -90,25 +73,49 @@ class ShootMoveShoot(ChoreoStateMachine):
             self.intake.retract()
 
 
-class LeftTrenchTwice(ShootMoveShoot):
+class LeftTrenchToGatherNeutralShootFromLeft(MoveShoot):
     """Starts in left trench, shoots, gathers from neutral zone, returns to left trench to shoot."""
 
-    MODE_NAME = "2x Left Trench Twice"
+    MODE_NAME = "1x LeftNeutralLeft"
     TRAJECTORY = "LeftTrench_Twice"
     DISABLED = False
 
 
-class LeftTrenchToDepot(ShootMoveShoot):
-    """Starts in left trench, shoots, gathers from depot, moves to the near corner and shoots."""
+class LeftTrenchToGatherNeutralShootFromRight(MoveShoot):
+    """Starts in left trench, gathers from neutral zone, moves to right trench to shoot."""
 
-    MODE_NAME = "2x Left Trench to Depot"
-    TRAJECTORY = "LeftTrench_To_Depot"
+    MODE_NAME = "1x LeftNeutralRight"
+    TRAJECTORY = "LeftTrench_Gather_RightTrench"
     DISABLED = False
 
 
-class LeftTrenchToRightTrench(ShootMoveShoot):
+class RightTrenchToGatherNeutralShootFromLeft(MoveShoot):
+    """Starts in right trench, gathers from neutral zone, returns to left trench to shoot."""
+
+    MODE_NAME = "1x RightNeutralLeft"
+    TRAJECTORY = "RightToLeft"
+    DISABLED = False
+
+
+class RightTrenchToGatherNeutralShootFromRight(MoveShoot):
+    """Starts in right trench, gathers from neutral zone, moves to right trench to shoot."""
+
+    MODE_NAME = "1x RightNeutralRight"
+    TRAJECTORY = "RightNeutralRight"
+    DISABLED = False
+
+
+class MiddleToGatherDepotShootFromCorner(MoveShoot):
     """Starts in left trench, shoots, gathers from neutral zone, enters right trench and shoots."""
 
-    MODE_NAME = "2x Left Trench to Right Trench"
-    TRAJECTORY = "LeftTrench_Bulldoze_RightTrench"
+    MODE_NAME = "1x MiddleToDepotCorner"
+    TRAJECTORY = "Middle_To_Depot"
+    DISABLED = False
+
+
+class RightBumpCollect(MoveShoot):
+    """Start at right bump, collect balls from neutral zone, return over bump and shoot."""
+
+    MODE_NAME = "1x RightBumpNeutralRight"
+    TRAJECTORY = "RightBump_Collect"
     DISABLED = False
