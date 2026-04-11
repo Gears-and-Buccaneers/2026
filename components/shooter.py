@@ -45,11 +45,10 @@ class Shooter:
     activelyUnshoot = False
 
     # Fallback fuel exit speed for a known shooting position (m/s)
-    fallbackFuelSpeed = magicbot.tunable(45)
+    fallbackFuelSpeed = magicbot.tunable(30)
     maxFuelSpeed = magicbot.tunable(15.0)
 
-    shooterSpeedMultiplier = magicbot.tunable(1.0)
-    idleShooterSpeedMultiplier = magicbot.tunable(0.3)
+    shooterSpeedMultiplier = magicbot.tunable(5.2)
 
     # Desired launched fuel backspin (RPM).
     # Positive values make bottom wheel faster than top wheel.
@@ -458,8 +457,8 @@ class Shooter:
         """This gets called at the end of the control loop."""
         topMotorTargetAngularSpeed, bottomMotorTargetAngularSpeed = self.getShooterTargetMotorSpeeds()
         if self._targetFlywheelSpeed <= 0.0:
-            self.shooterMotorTop.set(topMotorTargetAngularSpeed * self.idleShooterSpeedMultiplier)
-            self.shooterMotorBottom.set(bottomMotorTargetAngularSpeed * self.idleShooterSpeedMultiplier)
+            self.shooterMotorTop.set(self.idleShooterSpeed)
+            self.shooterMotorBottom.set(-self.idleShooterSpeed)
         else:
             self.shooterMotorTop.set(
                 self._motorSpeedToDutyCycle(topMotorTargetAngularSpeed) * self.shooterSpeedMultiplier
@@ -474,7 +473,7 @@ class Shooter:
             # self.kickerMotor.set(self._motorSpeedToDutyCycle(kickerMotorTargetAngularSpeed))
             self.kickerMotor.set(self.manualKickerSpeed)
         elif self.activelyUnshoot:
-            self.kickerMotor.set(-self.manualKickerSpeed)
+            self.kickerMotor.set(-self.manualKickerSpeed * 0.5)
         else:
             # TODO: should we actively brake the kicker motor to ensure it stops, in case we're not ready to shoot?
             self.kickerMotor.set(0)

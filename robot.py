@@ -131,6 +131,12 @@ class Scurvy(magicbot.MagicRobot):
 
     def robotPeriodic(self) -> None:
         """Called periodically regardless of mode, after the mode-specific xxxPeriodic() is called."""
+        # Flush SmartDashboard + LiveWindow sendables so widgets like the auto chooser
+        # echo their state back to NetworkTables. Overriding robotPeriodic without this
+        # call leaves SendableChooser's `active` subtopic frozen, which makes Elastic
+        # show a permanent "Selected value has not been published" warning.
+        super().robotPeriodic()
+
         # Update vision simulation with current robot pose
         if RobotBase.isSimulation():
             pose_2d = self.drivetrain.getPose()
@@ -169,7 +175,6 @@ class Scurvy(magicbot.MagicRobot):
         self.intakeMotorExtendAft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
         self.intakeMotorIntake = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
-        self.intakeCANCoder = p6.hardware.CANcoder(const.CANID.INTAKE_MOTOR_FORE_CANCODER, const.CANBUS_NAME)
 
         nonSwerveMotors = [
             self.kickerMotor,
@@ -182,7 +187,7 @@ class Scurvy(magicbot.MagicRobot):
         ]
         for motor in nonSwerveMotors:
             # Baseline current limits for all non-swerve motors to help prevent damage and brownouts
-            utils.setMotorLimits(motor, maxSupplyCurrent=60)
+            utils.setMotorLimits(motor, maxSupplyCurrent=55)
             utils.setMotorMotionMagic(
                 motor,
                 k_s=0.25,  # Add 0.25 V output to overcome static friction

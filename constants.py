@@ -38,7 +38,6 @@ class CANID(enum.IntEnum):
     INTAKE_MOTOR_EXTEND_FORE = 3  # Extends/retracts the intake mechanism; on the forward side
     INTAKE_MOTOR_EXTEND_AFT = 14  # Extends/retracts the intake mechanism; on the rear side of the bot
     INTAKE_MOTOR_INTAKE = 15  # Runs the intake rollers
-    INTAKE_MOTOR_FORE_CANCODER = 20  # CANCoder for intake extension position; on the forward side
 
     TRANSIT_MOTOR = 13  # Moves fuel from intake to shooter (positive = toward shooter)
 
@@ -115,8 +114,6 @@ class RobotDimension:
     SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 42 / 20  # 42T motor driving 20T axle; 2.1x speed increase
     KICKER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 32 / 20  # 32T motor driving 20T axle; 1.6x speed increase
 
-    INTAKE_PINION_TO_ENCODER_RATIO: Final[float] = 60 / 40  # Intake rack pinion : encoder is 40:60
-    INTAKE_EXTENSION_GEAR_DIAMETER: Final[units.meters] = units.inchesToMeters(3.8243)  # Calibrated pitch diameter
     MAX_INTAKE_EXTENSION_SPEED: Final[units.meters_per_second] = units.inchesToMeters(236)  # Max speed it slides (Rami)
 
 

@@ -64,6 +64,32 @@ See lots of sample code in
 for isolated snippets demonstrating how to accomplish common tasks.
 
 
+## Elastic Dashboard
+
+The team uses [Elastic](https://github.com/Gold872/elastic-dashboard) as the
+driver-station dashboard. A pre-built layout lives at
+[deploy/elastic-layout.json](deploy/elastic-layout.json) and is copied to the
+RoboRIO every `robotpy deploy`.
+
+To load it on the driver station:
+
+1. Open Elastic.
+2. **File → Download From Robot** (or **Open Layout** and browse to the local
+   `deploy/elastic-layout.json`).
+3. You should see a **Match** tab containing:
+   - **Autonomous Mode** chooser — pick the auto routine before the match.
+   - **Fallback Shooter Speed** slider — tunes `Shooter.fallbackFuelSpeed`
+     (m/s) used when the operator triggers the fallback spin button.
+   - **Smart Aim Shooter Multiplier** slider — tunes
+     `Shooter.shooterSpeedMultiplier`, the open-loop duty-cycle scalar applied
+     to the smart-aim flywheel target.
+   - Match time + FMS info for situational awareness.
+
+Both sliders are backed by `magicbot.tunable` values, so any edit in Elastic
+is live on the robot immediately — no redeploy needed. If you want the tuned
+values to persist, copy them back into [components/shooter.py](components/shooter.py)
+before committing.
+
 ## Running the Simulator
 
 Open a Terminal in VS Code (hint: `` ctrl+` ``), and then run `robotpy sim` to start the simulator.
