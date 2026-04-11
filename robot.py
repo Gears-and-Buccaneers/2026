@@ -298,9 +298,6 @@ class Scurvy(magicbot.MagicRobot):
         """
         # Get shooting solution accounting for robot velocity
         robotVelocity = self.drivetrain.getVelocity()
-
-        # Hack: zero out velocity
-        robotVelocity = geom.Translation2d(0, 0)
         solution = self.pewpew.calculateShootingSolution(robotVelocity)
 
         # Always update flywheel speed to track the solution
