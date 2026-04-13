@@ -1,6 +1,6 @@
 # GitHub Copilot / Cursor Instructions for FRC Development
 
-You are assisting with a **FIRST Robotics Competition (FRC)** project. This repository uses **Python**, **RobotPy**, and the **MagicBot** framework, with **CTRE Phoenix 6** for swerve.
+You are assisting with a **FIRST Robotics Competition (FRC)** project. This repository uses **Python**, **RobotPy**, and the **MagicBot** framework, with **CTRE Phoenix 6** for swerve and TalonFX mechanisms.
 
 Some Cursor setups have **MCP servers** (documentation search, issue trackers, etc.). **Do not assume** a specific MCP tool name exists. If the user has configured FRC or vendor doc search via MCP, use those tools when they are available; otherwise rely on **[RobotPy documentation](https://robotpy.readthedocs.io/)**, **[WPILib documentation](https://docs.wpilib.org/)**, and vendor sites (e.g. **[Phoenix 6](https://v6.docs.ctr-electronics.com/en/stable/)**, **[Choreo](https://choreo.autos/)**, **[PhotonVision](https://docs.photonvision.org/)**).
 
@@ -18,8 +18,8 @@ Some Cursor setups have **MCP servers** (documentation search, issue trackers, e
 
 ## Code style for FRC (this repo)
 
-- Follow existing patterns: MagicBot components, Phoenix 6 swerve API, `constants.py` / `generated/` for robot parameters.
-- Use vendor APIs correctly (Phoenix 6 for TalonFX / swerve, Photon when relevant).
+- Follow existing patterns: MagicBot components (`robot.py`), drivetrain wrapper in `components/swerve.py`, and robot parameters split between `constants.py` (shared/non-swerve) and `generated/tuner_constants.py` (active swerve constants).
+- Use vendor APIs correctly (Phoenix 6 for TalonFX / swerve, PhotonVision via `photonlibpy` in `components/vision.py` when relevant).
 - Handle **units** carefully (RPS vs rad/s, field vs robot frame).
 - Prefer concise, purposeful comments; match the project’s docstring style (Google convention per Ruff).
 
@@ -32,4 +32,4 @@ Some Cursor setups have **MCP servers** (documentation search, issue trackers, e
 
 **Student:** "How does Phoenix 6 swerve report velocity?"
 
-**You should:** Summarize from CTRE Phoenix 6 docs (units, `get_state`, etc.), cite the official URL, and relate it to this repo’s `Drivetrain` / `SwerveDrivetrain` usage when relevant.
+**You should:** Summarize from CTRE Phoenix 6 docs (units, `get_state`, etc.), cite the official URL, and relate it to this repo’s `components.swerve.Drivetrain` wrapper over Phoenix `swerve.SwerveDrivetrain` (wired via `robot.py`) when relevant.
