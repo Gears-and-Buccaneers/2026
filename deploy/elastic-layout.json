@@ -8,9 +8,147 @@
         "layouts": [],
         "containers": [
           {
-            "title": "Autonomous Mode",
+            "title": "Match Time",
             "x": 0.0,
             "y": 0.0,
+            "width": 384.0,
+            "height": 256.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Scurvy/matchTimeRemaining",
+              "period": 0.1,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Shift",
+            "x": 384.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Scurvy/currentShiftName",
+              "period": 0.1,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Alliance",
+            "x": 640.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Scurvy/allianceColor",
+              "period": 0.1,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Hub Active",
+            "x": 384.0,
+            "y": 128.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Scurvy/hubIsActive",
+              "period": 0.1,
+              "true_color": 4283215696,
+              "false_color": 4290190364
+            }
+          },
+          {
+            "title": "Vision Lock",
+            "x": 512.0,
+            "y": 128.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Vision/HasLock",
+              "period": 0.1,
+              "true_color": 4283215696,
+              "false_color": 4294198070
+            }
+          },
+          {
+            "title": "Lock Status",
+            "x": 640.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Vision/LockStatus",
+              "period": 0.1,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Faults",
+            "x": 0.0,
+            "y": 256.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/SmartDashboard/Faults/HasFault",
+              "period": 0.1,
+              "true_color": 4294198070,
+              "false_color": 4283215696
+            }
+          },
+          {
+            "title": "Fault Summary",
+            "x": 128.0,
+            "y": 256.0,
+            "width": 512.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Faults/Summary",
+              "period": 0.1,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Battery (V)",
+            "x": 640.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Voltage View",
+            "properties": {
+              "topic": "/SmartDashboard/Faults/BatteryVoltage",
+              "period": 0.1,
+              "data_type": "double",
+              "min_value": 8.0,
+              "max_value": 13.0,
+              "divisions": 5,
+              "inverted": false,
+              "orientation": "horizontal"
+            }
+          },
+          {
+            "title": "Brownouts",
+            "x": 896.0,
+            "y": 256.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Faults/BrownoutCount",
+              "period": 0.1,
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Autonomous Mode",
+            "x": 0.0,
+            "y": 384.0,
             "width": 512.0,
             "height": 128.0,
             "type": "ComboBox Chooser",
@@ -23,7 +161,7 @@
           {
             "title": "FMSInfo",
             "x": 0.0,
-            "y": 128.0,
+            "y": 512.0,
             "width": 512.0,
             "height": 128.0,
             "type": "FMSInfo",
@@ -35,7 +173,7 @@
           {
             "title": "Fallback top RPS",
             "x": 0.0,
-            "y": 256.0,
+            "y": 640.0,
             "width": 512.0,
             "height": 128.0,
             "type": "Number Slider",
@@ -51,7 +189,7 @@
           {
             "title": "Fallback bottom RPS",
             "x": 0.0,
-            "y": 384.0,
+            "y": 768.0,
             "width": 512.0,
             "height": 128.0,
             "type": "Number Slider",
@@ -67,7 +205,7 @@
           {
             "title": "Fallback top RPS (readout)",
             "x": 512.0,
-            "y": 256.0,
+            "y": 640.0,
             "width": 384.0,
             "height": 128.0,
             "type": "Text Display",
@@ -80,7 +218,7 @@
           {
             "title": "Fallback bottom RPS (readout)",
             "x": 512.0,
-            "y": 384.0,
+            "y": 768.0,
             "width": 384.0,
             "height": 128.0,
             "type": "Text Display",

@@ -12,7 +12,7 @@ from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
 from photonlibpy.targeting import PhotonPipelineResult
 from robotpy_apriltag import AprilTagField, AprilTagFieldLayout
-from wpilib import RobotBase, Timer
+from wpilib import DriverStation, RobotBase, SmartDashboard, Timer
 from wpimath.geometry import Pose3d, Rotation2d, Transform3d
 
 import constants as const
@@ -66,6 +66,12 @@ class Vision:
     # Gyro consistency check - only applied to single-tag measurements
     MAX_GYRO_ROTATION_DIFF_RADIANS = math.radians(15.0)
 
+    # Lenient threshold used after enable until vision has provided initial corrections
+    STARTUP_GYRO_ROTATION_DIFF_RADIANS = math.radians(180.0)
+
+    # Number of accepted vision measurements before tightening the gyro check
+    STARTUP_MEASUREMENT_THRESHOLD = 40
+
     # Cross-camera outlier detection
     CROSS_CAMERA_MAX_DISAGREEMENT_METERS = 0.5
     CROSS_CAMERA_STD_DEV_PENALTY_MULTIPLIER = 3.0
@@ -110,6 +116,8 @@ class Vision:
         self._gyro_heading: Rotation2d | None = None
 
         self._nt = ntcore.NetworkTableInstance.getDefault().getTable("components").getSubTable("vision")
+        # Count accepted measurements after enable to know when vision has corrected the pose
+        self._accepted_measurement_count: int = 0
 
     def _setup_camera(self, name: str, robot_to_camera: Transform3d) -> None:
         """Set up a single camera with its pose estimator.
@@ -150,6 +158,10 @@ class Vision:
         """Called by MagicBot after injection."""
         pass
 
+    def on_enable(self) -> None:
+        """Called by MagicBot when the robot is enabled."""
+        self._accepted_measurement_count = 0
+
     def update_sim(self, robot_pose: Pose3d) -> None:
         """Update the vision simulation with the robot's current pose.
 
@@ -189,6 +201,21 @@ class Vision:
         camera_names = ", ".join(m.camera_name for m in valid) if valid else "none"
         self._nt.putString("ActiveCameras", camera_names)
 
+        # Driver-facing lock indicator. 0 = NONE, 1 = SINGLE, 2 = MULTI.
+        # Computed from `valid` so it reflects only measurements the drivetrain trusts.
+        if not valid:
+            lock_quality = 0
+        elif any(m.tag_count >= 2 for m in valid):
+            lock_quality = 2
+        else:
+            lock_quality = 1
+        SmartDashboard.putNumber("Vision/LockQuality", lock_quality)
+        SmartDashboard.putBoolean("Vision/HasLock", lock_quality > 0)
+        SmartDashboard.putString(
+            "Vision/LockStatus",
+            {0: "NO LOCK", 1: "SINGLE TAG", 2: "MULTI TAG"}[lock_quality],
+        )
+
         return valid
 
     def _passes_gyro_check(self, measurement: VisionMeasurement) -> bool:
@@ -196,7 +223,13 @@ class Vision:
 
         Multi-tag measurements always pass (they don't suffer from rotation flips,
         and must pass on startup before the gyro is corrected).
+
+        While disabled, all measurements pass so vision can correct the pose
+        before the gyro is trustworthy.
         """
+        if not DriverStation.isEnabled():
+            return True
+
         # Multi-tag always passes
         if measurement.tag_count >= 2:
             return True
@@ -204,13 +237,19 @@ class Vision:
         if self._gyro_heading is None:
             return True
 
+        # Use lenient threshold until vision has provided enough initial corrections
+        if self._accepted_measurement_count < self.STARTUP_MEASUREMENT_THRESHOLD:
+            threshold = self.STARTUP_GYRO_ROTATION_DIFF_RADIANS
+        else:
+            threshold = self.MAX_GYRO_ROTATION_DIFF_RADIANS
+
         vision_rotation = measurement.pose.toPose2d().rotation()
         diff = abs((vision_rotation - self._gyro_heading).radians())
         # Normalize to [0, pi]
         if diff > math.pi:
             diff = 2 * math.pi - diff
 
-        if diff > self.MAX_GYRO_ROTATION_DIFF_RADIANS:
+        if diff > threshold:
             self._nt.getSubTable(measurement.camera_name).putString(
                 "GyroReject",
                 f"diff={math.degrees(diff):.1f}deg",
@@ -457,6 +496,7 @@ class Vision:
                 )
 
                 self._latest_measurements[i] = measurement
+                self._accepted_measurement_count += 1
 
         # Update dashboard with camera status
         valid_count = sum(1 for m in self._latest_measurements if m is not None)
