@@ -3,6 +3,7 @@
 The order in which the devices are connected to the CAN FD bus, and their CAN IDs:
 
 | order | device                       | ID |
+| ----- | ---------------------------- | -- |
 |   a   | Pigeon 2.0                   | 19 |
 |   b   | Back left drive              | 18 |
 |   c   | Back left CANcoder           | 17 |
@@ -27,4 +28,6 @@ The order in which the devices are connected to the CAN FD bus, and their CAN ID
 
 ## TODO: this needs to be added to the CAN bus
 
+| order | device                       | ID |
+| ----- | ---------------------------- | -- |
 |       | CANdle                       |    |
