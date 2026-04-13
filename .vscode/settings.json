@@ -68,5 +68,7 @@
     "outline.showEnumMembers": false,
     "outline.showEvents": false,
     "outline.showOperators": false,
-    "outline.showTypeParameters": false
+    "outline.showTypeParameters": false,
+    "cursorpyright.analysis.diagnosticMode": "workspace",
+    "cursorpyright.analysis.typeCheckingMode": "standard"
 }

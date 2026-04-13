@@ -1,4 +1,6 @@
-The order in which the devices are connected to the Pigeon's CAN bus, and their CAN IDs:
+# Theseus CAN Devices
+
+The order in which the devices are connected to the CAN FD bus, and their CAN IDs:
 
 | order | device                       | ID |
 |   a   | Pigeon 2.0                   | 19 |
@@ -12,7 +14,7 @@ The order in which the devices are connected to the Pigeon's CAN bus, and their 
 |   i   | Back right CANcoder          | 11 |
 |   j   | Back right steer             | 10 |
 |   k   | Shooter motor top            |  9 |
-|   l   | Kicker motor                 |  8 |
+|   l   | (no longer used)             |  - |
 |   m   | Shooter motor bottom         |  7 |
 |   n   | Front right drive            |  6 |
 |   o   | Front right CANcoder         |  5 |
@@ -24,4 +26,5 @@ The order in which the devices are connected to the Pigeon's CAN bus, and their 
 |   u   | Front left steer             |  0 |
 
 ## TODO: this needs to be added to the CAN bus
+
 |       | CANdle                       |    |

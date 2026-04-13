@@ -25,11 +25,7 @@ class ShootMoveShoot(ChoreoStateMachine):
 
     def _prepare_to_fire(self):
         """Turn to face the hub and spin up the shooter."""
-        solution = self.pewpew.calculateShootingSolution(self.drivetrain.getVelocity())
-        self.pewpew.shooterMode = "auto"
-        self.pewpew.setTargetMuzzleSpeed(solution.muzzleSpeed)
-        self._target_heading = solution.targetHeading
-        self.intake.activelyTransit = True
+        self._target_heading = self.pewpew.spinUpAndTargetHub()
         self.drivetrain.driveFacingAngle(targetAngle=self._target_heading)
 
     def on_enable(self) -> None:

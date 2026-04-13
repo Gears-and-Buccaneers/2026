@@ -4,6 +4,7 @@ import math
 import os
 
 import magicbot
+import ntcore
 import phoenix6 as p6
 import wpilib
 import wpimath.geometry as geom
@@ -20,7 +21,7 @@ from generated.tuner_constants import TunerConstants
 MAX_ROTATION_SPEED = math.pi
 
 
-class Scurvy(magicbot.MagicRobot):
+class Theseus(magicbot.MagicRobot):
     """The main class for the robot."""
 
     # Components - the drivetrain now manages motors internally via CTRE swerve API
@@ -53,7 +54,7 @@ class Scurvy(magicbot.MagicRobot):
 
     def createObjects(self) -> None:
         """Create motors and stuff here."""
-        self.scurvy = self  # So auto modes can talk to the robot
+        self.theseus = self  # So auto modes can talk to the robot
         self.createMotors()
         self.createControllers()
         self.createLights()
@@ -148,7 +149,9 @@ class Scurvy(magicbot.MagicRobot):
 
         # Feed ALL valid vision measurements to drivetrain for pose estimation fusion
         measurements = self.vision.get_measurements()
-        wpilib.SmartDashboard.putNumber("Vision/MeasurementsFed", len(measurements))
+        ntcore.NetworkTableInstance.getDefault().getTable("components").getSubTable("vision").putNumber(
+            "MeasurementsFed", len(measurements)
+        )
         for measurement in measurements:
             self.drivetrain.addVisionMeasurement(
                 measurement.pose,
@@ -168,20 +171,18 @@ class Scurvy(magicbot.MagicRobot):
         Note: Swerve drive motors are now created internally by the CTRE SwerveDrivetrain API.
         Only create motors for non-swerve mechanisms here.
         """
-        self.kickerMotor = p6.hardware.TalonFX(const.CANID.KICKER_MOTOR, const.CANBUS_NAME)
         self.shooterMotorTop = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_TOP, const.CANBUS_NAME)
         self.shooterMotorBottom = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
-        self.intakeMotorExtendFore = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_FORE, const.CANBUS_NAME)
-        self.intakeMotorExtendAft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
+        self.intakeMotorLeft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_FORE, const.CANBUS_NAME)
+        self.intakeMotorRight = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
         self.intakeMotorIntake = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
 
         nonSwerveMotors = [
-            self.kickerMotor,
             self.shooterMotorTop,
             self.shooterMotorBottom,
-            self.intakeMotorExtendFore,
-            self.intakeMotorExtendAft,
+            self.intakeMotorLeft,
+            self.intakeMotorRight,
             self.intakeMotorIntake,
             self.transitMotor,
         ]
@@ -202,12 +203,27 @@ class Scurvy(magicbot.MagicRobot):
             )
 
             # Intake extension motors should be in brake mode so they hold position when not powered; others coast
-            if motor in (self.intakeMotorExtendFore, self.intakeMotorExtendAft):
+            if motor in (self.intakeMotorLeft, self.intakeMotorRight):
                 utils.setMotorNeutralBrake(motor, brake_in_neutral=True)
             else:
                 utils.setMotorNeutralBrake(motor, brake_in_neutral=False)
 
-        utils.setMotorMotionMagic(self.kickerMotor, k_p=9.6)
+            # Lower motor logging rate to not overwhelm the RoboRIO or log with messages
+            motor.optimize_bus_utilization(optimized_freq_hz=50.0)
+
+        # Shooter motors use velocity closed-loop; override Slot0 with velocity-tuned gains.
+        # kV ≈ 12V / free_speed_rps is the dominant feedforward term; kP corrects residual error.
+        shooter_slot0 = p6.configs.Slot0Configs()
+        # Velocity PID gains for targeting a specific flywheel RPM so that
+        # launched balls travel the right distance to land in the hub.
+        shooter_slot0.k_s = 0.15  # Static friction; ↑ if wheels stall at low targets
+        shooter_slot0.k_v = 0.12  # Main feedforward (~12V / 101 RPS); ↑ if undershooting, ↓ if overshooting
+        shooter_slot0.k_a = 0.01  # Acceleration feed; usually fine as-is
+        shooter_slot0.k_p = 0.1  # Error correction; ↑ if slow to converge, ↓ if oscillating
+        shooter_slot0.k_i = 0.0  # Steady-state fix; try 0.01 if small persistent offset remains
+        shooter_slot0.k_d = 0.0  # Damping; try 0.005 if ringing after a ball disturbs the wheels
+        for motor in (self.shooterMotorTop, self.shooterMotorBottom):
+            motor.configurator.apply(shooter_slot0)
 
     def createControllers(self) -> None:
         """Set up joystick and gamepad objects here.
@@ -271,19 +287,15 @@ class Scurvy(magicbot.MagicRobot):
 
         # Try and actively shoot; gets turned off if we're not in smart aim mode or fallback spin-up mode
         self.pewpew.activelyShoot = self.operatorController.shouldShoot()
-        self.intake.activelyTransit = self.intake.runIntake or self.pewpew.activelyShoot
         self.pewpew.activelyUnshoot = not self.pewpew.activelyShoot and self.operatorController.shouldUnShoot()
 
         # Handle shooter spin-up modes
         if self.operatorController.shouldSetFallbackShooterSpinSpeed():
-            self.pewpew.shooterMode = "fallback"
             self.pewpew.fallbackSpin()
         elif self.operatorController.shouldSmartAim():
-            # Rotate the bot and calculate flywheel speed to aim at the hub
-            self.pewpew.shooterMode = "auto"
+            # Rotate the bot and set flywheel duties from distance to hub
             self.dynamicallyTargetHub()
         else:
-            self.pewpew.shooterMode = None
             self.pewpew.spinDown()
             self.pewpew.activelyShoot = False
 
@@ -291,23 +303,9 @@ class Scurvy(magicbot.MagicRobot):
             self.intake.calibrateFullyExtendedNow()
 
     def dynamicallyTargetHub(self) -> None:
-        """Aim at the hub and set flywheel speed for shoot-while-moving.
+        """Aim at the hub from current position and set flywheel duties from distance (no velocity lead)."""
+        heading = self.pewpew.spinUpAndTargetHub()
 
-        Uses iterative solver to calculate both aim direction and muzzle speed,
-        accounting for robot velocity so the fuel lands in the hub while moving.
-        """
-        # Get shooting solution accounting for robot velocity
-        robotVelocity = self.drivetrain.getVelocity()
-        solution = self.pewpew.calculateShootingSolution(robotVelocity)
-
-        # Always update flywheel speed to track the solution
-        self.pewpew.setTargetMuzzleSpeed(solution.muzzleSpeed)
-
-        # Note: Even if solution.isValid is False, we keep rotating toward the hub
-        # so we're ready when the robot slows down. Shooting is prevented by
-        # isReadyToFire() which checks solution validity.
-
-        # Use drivetrain's facing-angle mode--with built-in PID--to rotate towards our desired heading.
         maxSpeed = TunerConstants.speed_at_12_volts
 
         # FIXME: If the driver is braking, we should not strafe at full speed just because smart aim is on.
@@ -315,7 +313,7 @@ class Scurvy(magicbot.MagicRobot):
         self.drivetrain.driveFacingAngle(
             velocityX=self.driverController.getMoveForwardPercent() * maxSpeed,
             velocityY=self.driverController.getMoveLeftPercent() * maxSpeed,
-            targetAngle=solution.targetHeading,
+            targetAngle=heading,
         )
 
     def maybeSetOperatorPerspective(self) -> None:
