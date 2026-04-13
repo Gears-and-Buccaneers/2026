@@ -59,11 +59,10 @@ class Theseus(magicbot.MagicRobot):
         self.createControllers()
         self.createLights()
         self.faultMonitor = components.FaultMonitor()
-        self.faultMonitor.register("kicker", self.kickerMotor)
         self.faultMonitor.register("shooterTop", self.shooterMotorTop)
         self.faultMonitor.register("shooterBottom", self.shooterMotorBottom)
-        self.faultMonitor.register("intakeExtendFore", self.intakeMotorExtendFore)
-        self.faultMonitor.register("intakeExtendAft", self.intakeMotorExtendAft)
+        self.faultMonitor.register("intakeLeft", self.intakeMotorLeft)
+        self.faultMonitor.register("intakeRight", self.intakeMotorRight)
         self.faultMonitor.register("intake", self.intakeMotorIntake)
         self.faultMonitor.register("transit", self.transitMotor)
 
