@@ -321,5 +321,5 @@ class VisionConfig:
     # Camera names - must match names configured in PhotonVision
     # GK: I believe that the camera names are wrong, and I'm fixing them to match here.
     FRONT_CAMERA_NAME: Final[str] = "back_right_camera"
-    LEFT_CAMERA_NAME: Final[str] = "front_camera"
-    REAR_CAMERA_NAME: Final[str] = "back_left_camera"
+    REAR_CAMERA_NAME: Final[str] = "front_camera"
+    LEFT_CAMERA_NAME: Final[str] = "back_left_camera"
