@@ -57,6 +57,14 @@ class Scurvy(magicbot.MagicRobot):
         self.createMotors()
         self.createControllers()
         self.createLights()
+        self.faultMonitor = components.FaultMonitor()
+        self.faultMonitor.register("kicker", self.kickerMotor)
+        self.faultMonitor.register("shooterTop", self.shooterMotorTop)
+        self.faultMonitor.register("shooterBottom", self.shooterMotorBottom)
+        self.faultMonitor.register("intakeExtendFore", self.intakeMotorExtendFore)
+        self.faultMonitor.register("intakeExtendAft", self.intakeMotorExtendAft)
+        self.faultMonitor.register("intake", self.intakeMotorIntake)
+        self.faultMonitor.register("transit", self.transitMotor)
 
     def autonomousInit(self) -> None:
         """Called when auto starts (regardless of which one is selected), after every components' on_enable()."""
@@ -157,6 +165,7 @@ class Scurvy(magicbot.MagicRobot):
             )
         self.maybeSetOperatorPerspective()
         self.updateLights()
+        self.faultMonitor.update()
 
     # ------------------------------------------------------------------------------------------------------------------
     # Helper methods
@@ -331,6 +340,26 @@ class Scurvy(magicbot.MagicRobot):
         if alliance in const.ALLIANCE_PERSPECTIVE_ROTATION:
             self.drivetrain.setOperatorPerspectiveForwardOrientation(const.ALLIANCE_PERSPECTIVE_ROTATION[alliance])
             self._alliance_perspective = alliance
+
+    @feedback
+    def matchTimeRemaining(self) -> float:
+        """Seconds remaining in the current match period (auto/teleop)."""
+        return wpilib.Timer.getMatchTime()
+
+    @feedback
+    def currentShiftName(self) -> str:
+        """Human-readable shift name for the dashboard."""
+        return self.currentShift().name
+
+    @feedback
+    def allianceColor(self) -> str:
+        """'Red', 'Blue', or 'Unknown' — primitives render in Elastic; the enum does not."""
+        a = wpilib.DriverStation.getAlliance()
+        if a == wpilib.DriverStation.Alliance.kRed:
+            return "Red"
+        if a == wpilib.DriverStation.Alliance.kBlue:
+            return "Blue"
+        return "Unknown"
 
     @feedback
     def hubIsActive(self) -> bool:

@@ -199,6 +199,21 @@ class Vision:
         camera_names = ", ".join(m.camera_name for m in valid) if valid else "none"
         SmartDashboard.putString("Vision/ActiveCameras", camera_names)
 
+        # Driver-facing lock indicator. 0 = NONE, 1 = SINGLE, 2 = MULTI.
+        # Computed from `valid` so it reflects only measurements the drivetrain trusts.
+        if not valid:
+            lock_quality = 0
+        elif any(m.tag_count >= 2 for m in valid):
+            lock_quality = 2
+        else:
+            lock_quality = 1
+        SmartDashboard.putNumber("Vision/LockQuality", lock_quality)
+        SmartDashboard.putBoolean("Vision/HasLock", lock_quality > 0)
+        SmartDashboard.putString(
+            "Vision/LockStatus",
+            {0: "NO LOCK", 1: "SINGLE TAG", 2: "MULTI TAG"}[lock_quality],
+        )
+
         return valid
 
     def _passes_gyro_check(self, measurement: VisionMeasurement) -> bool:
