@@ -23,7 +23,7 @@ class ShootingSolution2(NamedTuple):
 
 
 class Shooter:
-    """Shooter with top/bottom velocity targets lerped between 6 ft and 20 ft; transit feeds the wheels."""
+    """Shooter with top/bottom velocity targets lerped between 10 ft and 20 ft; transit feeds the wheels."""
 
     drivetrain: Drivetrain
     transitMotor: p6.hardware.TalonFX
@@ -34,8 +34,8 @@ class Shooter:
 
     # Motor velocity targets (RPS) at reference distances (lerped and extrapolated outside range).
     # Bottom > top gives backspin. 75% duty ≈ 76 RPS reached ~20 ft in testing.
-    topRPS6ft = magicbot.tunable(38.0)
-    bottomRPS6ft = magicbot.tunable(42.0)
+    topRPS10ft = magicbot.tunable(38.0)
+    bottomRPS10ft = magicbot.tunable(42.0)
     topRPS20ft = magicbot.tunable(72.0)
     bottomRPS20ft = magicbot.tunable(80.0)
 
@@ -96,12 +96,12 @@ class Shooter:
         self._smartAimTargetPublisher.set(geom.Pose2d(robotPose.translation(), targetRotation))
 
     def _getTargetMotorSpeeds(self, distance: units.meters) -> tuple[float, float]:
-        """Interpolate top/bottom velocity (RPS) between 6 ft and 20 ft (extrapolate outside)."""
-        dist_6 = units.feetToMeters(6)
+        """Interpolate top/bottom velocity (RPS) between 10 ft and 20 ft (extrapolate outside)."""
+        dist_10 = units.feetToMeters(10)
         dist_20 = units.feetToMeters(20)
-        t = (distance - dist_6) / (dist_20 - dist_6)
-        top = self.topRPS6ft + t * (self.topRPS20ft - self.topRPS6ft)
-        bottom = self.bottomRPS6ft + t * (self.bottomRPS20ft - self.bottomRPS6ft)
+        t = (distance - dist_10) / (dist_20 - dist_10)
+        top = self.topRPS10ft + t * (self.topRPS20ft - self.topRPS10ft)
+        bottom = self.bottomRPS10ft + t * (self.bottomRPS20ft - self.bottomRPS10ft)
         return top, bottom
 
     def getTargetHeading(self) -> geom.Rotation2d:
@@ -164,7 +164,7 @@ class Shooter:
         return True
 
     def spinUpAndTargetHub(self) -> geom.Rotation2d:
-        """Set flywheel velocity targets from distance to hub (lerp 6–20 ft) and return hub heading."""
+        """Set flywheel velocity targets from distance to hub (lerp 10-20 ft) and return hub heading."""
         self._shooterMode = "auto"
         distance = self.distanceToHub()
         self._targetTopRPS, self._targetBottomRPS = self._getTargetMotorSpeeds(distance)
@@ -218,7 +218,8 @@ class Shooter:
         self._ntActualTopRPS.set(actual_top)
         self._ntTargetBottomRPS.set(self._targetBottomRPS)
         self._ntActualBottomRPS.set(actual_bottom)
-        self._ntTopError.set(self._targetTopRPS - actual_top)
-        self._ntBottomError.set(self._targetBottomRPS - actual_bottom)
+        # Use fixed fallback targets for error telemetry so PID tuning has a stable reference.
+        self._ntTopError.set(self.fallbackTopRPS - actual_top)
+        self._ntBottomError.set(self.fallbackBottomRPS - actual_bottom)
         self._ntAtSpeed.set(self.isFlywheelNearTargetSpeed())
         self._publishSmartAimTelemetry()
