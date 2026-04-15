@@ -78,9 +78,9 @@ class RobotDimension:
     # FIXME: enter the actual left camera transform
     LEFT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(-12.348),
-            units.inchesToMeters(0.0),
-            units.inchesToMeters(19.898),
+            units.inchesToMeters(9.5),
+            units.inchesToMeters(14.75),
+            units.inchesToMeters(6.5),
         ),
         geom.Rotation3d(
             units.degreesToRadians(0.0),
