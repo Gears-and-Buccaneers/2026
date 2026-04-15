@@ -198,8 +198,8 @@ class Shooter:
             self.shooterMotorTop.set_control(self._neutralRequest)
             self.shooterMotorBottom.set_control(self._neutralRequest)
         else:
-            self._topVelocityRequest.velocity = self._targetTopRPS
-            self._bottomVelocityRequest.velocity = -self._targetBottomRPS
+            self._topVelocityRequest.velocity = -self._targetTopRPS
+            self._bottomVelocityRequest.velocity = self._targetBottomRPS
             self.shooterMotorTop.set_control(self._topVelocityRequest)
             self.shooterMotorBottom.set_control(self._bottomVelocityRequest)
 
