@@ -80,10 +80,8 @@ class Theseus(magicbot.MagicRobot):
 
         Called before all components' execute().
         """
-        self.pewpew.shooterMotorTop.set(-self.manualShootPercent)
-        self.pewpew.shooterMotorBottom.set(self.manualShootPercent)
-        # self.manuallyDrive()  # Assumes we always want to drive manually in teleop
-        # self.manuallyOperate()  # Assumes we always want to operate manually in teleop
+        self.manuallyDrive()  # Assumes we always want to drive manually in teleop
+        self.manuallyOperate()  # Assumes we always want to operate manually in teleop
 
     def disabledInit(self) -> None:
         """Called afer the on_disable() of all components."""
