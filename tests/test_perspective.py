@@ -31,15 +31,15 @@ def enable_robot():
 
 
 @pytest.fixture
-def bot() -> robot.Scurvy:
+def bot() -> robot.Theseus:
     """Provide a robot instance with a real drivetrain in sim."""
-    b = robot.Scurvy()
+    b = robot.Theseus()
     b.drivetrain = Drivetrain()
     return b
 
 
 def _exercise_drive(
-    bot: robot.Scurvy,
+    bot: robot.Theseus,
     alliance: hal.AllianceStationID,
     centric: str,
     cmd_vx: float,
@@ -95,21 +95,21 @@ def _exercise_drive(
     bot.drivetrain.execute()
 
 
-def test_operator_perspective_blue(bot: robot.Scurvy, monkeypatch: pytest.MonkeyPatch):
+def test_operator_perspective_blue(bot: robot.Theseus, monkeypatch: pytest.MonkeyPatch):
     """Operator-centric on blue should align with field (no inversion)."""
     _exercise_drive(bot, hal.AllianceStationID.kBlue1, "operator", 1.0, 2.0, 1.0, 2.0, monkeypatch)
 
 
-def test_operator_perspective_red(bot: robot.Scurvy, monkeypatch: pytest.MonkeyPatch):
+def test_operator_perspective_red(bot: robot.Theseus, monkeypatch: pytest.MonkeyPatch):
     """Operator-centric on red should be 180° rotated vs field (inverted x/y)."""
     _exercise_drive(bot, hal.AllianceStationID.kRed1, "operator", 1.0, 2.0, 1.0, 2.0, monkeypatch)
 
 
-def test_field_centric_blue(bot: robot.Scurvy, monkeypatch: pytest.MonkeyPatch):
+def test_field_centric_blue(bot: robot.Theseus, monkeypatch: pytest.MonkeyPatch):
     """Field-centric +X/+Y on blue stays in field frame."""
     _exercise_drive(bot, hal.AllianceStationID.kBlue1, "field", 1.0, 2.0, 1.0, 2.0, monkeypatch)
 
 
-def test_field_centric_red(bot: robot.Scurvy, monkeypatch: pytest.MonkeyPatch):
+def test_field_centric_red(bot: robot.Theseus, monkeypatch: pytest.MonkeyPatch):
     """Field-centric +X/+Y on red stays in field frame (no inversion)."""
     _exercise_drive(bot, hal.AllianceStationID.kRed1, "field", 1.0, 2.0, 1.0, 2.0, monkeypatch)

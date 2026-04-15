@@ -10,10 +10,12 @@ from ntcore import NetworkTableInstance, PubSubOptions
 
 import components
 import constants as const
-from robot import Scurvy
+from robot import Theseus
 
 # Publish to NetworkTables at 50Hz (20ms) to match robot loop rate
 _NT_PUBLISH_OPTIONS = PubSubOptions(periodic=0.02)
+
+_SHOOTER_COAST_DECEL_MULT: float = 0.2
 
 
 class DrivetrainSim(components.Drivetrain):
@@ -249,173 +251,185 @@ class FuelSim:
 
 
 class ShooterSim(components.Shooter):
-    """Simulation version of the shooter with flywheel dynamics.
+    """Simulation shooter: independent top/bottom wheel dynamics from duties; emits fuel via FuelSim."""
 
-    Tracks flywheel speed, simulates spin-up/spin-down, and emits balls at periodic intervals while shooting.
-    """
-
-    # MagicBot will inject this
     fuelSim: FuelSim
 
     def __init__(self) -> None:
-        """Initialize the shooter simulation."""
+        """Initialize sim flywheel state and shot timer."""
         super().__init__()
-
-        # Current (actual) flywheel speed in rad/s - lags behind target due to inertia
-        self._actualFlywheelSpeed: units.radians_per_second = 0.0
-
-        # Timer so we can periodically launch another ball while actively firing (holding down the "shoot" button)
+        self._actual_top_wheel_rad_s: units.radians_per_second = 0.0
+        self._actual_bottom_wheel_rad_s: units.radians_per_second = 0.0
         self._shootTimer = wpilib.Timer()
         self._shootTimer.start()
         self._nextEmitTime: units.seconds = 0.0
-
-        # Whether we're actively feeding balls to the shooter, aka "shooting"
         self._isShooting: bool = False
+        self._flywheel_physics_timer = wpilib.Timer()
+        self._flywheel_physics_timer.start()
+        self._last_flywheel_physics_t: float | None = None
+
+    def _target_wheel_speeds(self) -> tuple[units.radians_per_second, units.radians_per_second]:
+        """Steady-state wheel speeds (rad/s) from velocity PID targets (RPS) / gear ratio."""
+        ratio = const.RobotDimension.SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO
+        top_wheel = abs(self._targetTopRPS) * (2.0 * math.pi) / ratio
+        bottom_wheel = abs(self._targetBottomRPS) * (2.0 * math.pi) / ratio
+        return top_wheel, bottom_wheel
+
+    def _target_avg_wheel_speed(self) -> units.radians_per_second:
+        """Average target wheel speed (rad/s) for energy loss on shot and telemetry."""
+        top_t, bottom_t = self._target_wheel_speeds()
+        return (top_t + bottom_t) / 2.0
+
+    def _avg_actual_wheel_speed(self) -> units.radians_per_second:
+        return (self._actual_top_wheel_rad_s + self._actual_bottom_wheel_rad_s) / 2.0
+
+    @staticmethod
+    def _integrate_wheel_toward_target(
+        current: units.radians_per_second,
+        target: units.radians_per_second,
+        accel_rate: units.radians_per_second_squared,
+        decel_rate: units.radians_per_second_squared,
+        max_magnitude: units.radians_per_second,
+        dt: units.seconds,
+    ) -> units.radians_per_second:
+        """First-order slew toward clamped target; faster decel when coasting down."""
+        clamped = max(0.0, min(target, max_magnitude))
+        if current < clamped - 1e-9:
+            return min(clamped, current + accel_rate * dt)
+        if current > clamped + 1e-9:
+            return max(clamped, current - decel_rate * dt)
+        return clamped
 
     def setShooting(self, shooting: bool) -> None:
-        """Set whether balls should be emitted (whether feeder is running)."""
+        """Enable or disable periodic fuel emission while the shoot control is held."""
         if shooting and not self._isShooting:
-            # Just started shooting - schedule immediate first ball
             self._nextEmitTime = self._shootTimer.get()
         self._isShooting = shooting
 
     def execute(self) -> None:
-        """Update flywheel simulation and emit fuel."""
+        """Run hardware outputs, integrate flywheel, and maybe launch fuel."""
         super().execute()
-
-        # Update flywheel speed toward requested target speed, simulating inertia
         self._updateFlywheelSpeed()
-
-        # Launch fuel at ~regular intervals while we're actively shooting
         if self._isShooting:
             self._maybeEmitFuel()
 
+    def isFlywheelNearTargetSpeed(self) -> bool:
+        """Both wheels within tolerance of their duty-implied steady-state speeds."""
+        top_tgt, bottom_tgt = self._target_wheel_speeds()
+        top_act = self._actual_top_wheel_rad_s
+        bottom_act = self._actual_bottom_wheel_rad_s
+        tol = self.flywheelSpeedTolerance
+        for tgt, act in ((top_tgt, top_act), (bottom_tgt, bottom_act)):
+            if abs(tgt) < 1e-6:
+                if abs(act) >= 1e-6:
+                    return False
+            elif abs(act - tgt) / abs(tgt) > tol:
+                return False
+        return True
+
     def _updateFlywheelSpeed(self) -> None:
-        """Simulate flywheel spin-up/spin-down dynamics.
+        """Integrate top and bottom wheels toward open-loop targets with distance-tuned accel."""
+        now = self._flywheel_physics_timer.get()
+        if self._last_flywheel_physics_t is None:
+            self._last_flywheel_physics_t = now
+            dt: units.seconds = 0.02
+        else:
+            dt = now - self._last_flywheel_physics_t
+            self._last_flywheel_physics_t = now
+            if dt <= 0.0 or dt > 0.1:
+                dt = 0.02
 
-        Uses realistic spin-up times based on ShooterSpec measurements,
-        interpolated by distance:
-        - 8ft (2.44m): 56ms full spin-up, 28ms between shots
-        - 20ft (6.10m): 96ms full spin-up, 40ms between shots
-
-        Kraken X60 motor with 2:1 gear ratio, 3.6 lb-in² MOI.
-        """
-        # Target speed comes from parent's _targetFlywheelSpeed (set by setTargetFuelSpeed)
-        targetSpeed: units.radians_per_second = self._targetFlywheelSpeed
-
-        # Get current distance to hub for distance-dependent spin-up
+        top_tgt, bottom_tgt = self._target_wheel_speeds()
         distance: units.meters = self.distanceToHub()
 
-        # Interpolate spin-up times based on distance
-        DIST_8FT: units.meters = units.feetToMeters(8)  # 2.438m
-        DIST_20FT: units.meters = units.feetToMeters(20)  # 6.096m
+        DIST_8FT: units.meters = units.feetToMeters(8)
+        DIST_20FT: units.meters = units.feetToMeters(20)
+        t_dist: float = max(0.0, min(1.0, (distance - DIST_8FT) / (DIST_20FT - DIST_8FT)))
 
-        # TODO(rami): Why does this need to be clamped?
-        # Clamp distance to range and calculate interpolation factor (0 = 8ft, 1 = 20ft)
-        t: float = max(0.0, min(1.0, (distance - DIST_8FT) / (DIST_20FT - DIST_8FT)))
-
-        # Interpolate spin-up times
-        fullSpinupTime: units.seconds = const.ShooterSpec.SPINUP_TIME_8FT + t * (
+        full_spinup: units.seconds = const.ShooterSpec.SPINUP_TIME_8FT + t_dist * (
             const.ShooterSpec.SPINUP_TIME_20FT - const.ShooterSpec.SPINUP_TIME_8FT
         )
-        betweenShotsTime: units.seconds = const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT + t * (
+        between_shots: units.seconds = const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT + t_dist * (
             const.ShooterSpec.SPINUP_BETWEEN_SHOTS_20FT - const.ShooterSpec.SPINUP_BETWEEN_SHOTS_8FT
         )
 
-        # RPM range from spec: 1479-2215 RPM
-        # Convert to rad/s for calculations
-        # maxRadPerSec = const.ShooterSpec.RPM_MAX * 2.0 * math.pi / 60.0
-        maxRadPerSec = units.rotationsPerMinuteToRadiansPerSecond(const.ShooterSpec.RPM_MAX)
+        ref_max_wheel = units.rotationsPerMinuteToRadiansPerSecond(const.ShooterSpec.RPM_MAX)
+        # FIXME: I do not know the new ratio between shooter motor and wheel axle speed
+        max_wheel_cap = units.rotationsPerMinuteToRadiansPerSecond(10)
+        speed_drop = ref_max_wheel * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
 
-        # Use between-shots spin-up time for recovery (more realistic)
-        # Full spin-up from 0 uses the longer time
-        speedDelta: units.radians_per_second = abs(targetSpeed - self._actualFlywheelSpeed)
-        speedDropFromMax: units.radians_per_second = maxRadPerSec * (const.ShooterSpec.SPEED_DROP_20FT_PERCENT / 100.0)
+        def pick_accel(current: float, target: float) -> units.radians_per_second_squared:
+            delta = abs(target - current)
+            if current < 0.1:
+                return ref_max_wheel / full_spinup
+            if delta <= speed_drop:
+                return speed_drop / between_shots
+            return ref_max_wheel / full_spinup
 
-        if self._actualFlywheelSpeed < 0.1:
-            # Starting from stopped - use full spin-up time (distance-dependent)
-            accelRate: units.radians_per_second_squared = maxRadPerSec / fullSpinupTime
-        elif speedDelta <= speedDropFromMax:
-            # Recovering from shot - use between-shots spin-up time (distance-dependent)
-            accelRate: units.radians_per_second_squared = speedDropFromMax / betweenShotsTime
-        else:
-            # Large speed change - use full spin-up time
-            accelRate: units.radians_per_second_squared = maxRadPerSec / fullSpinupTime
+        a_top = pick_accel(self._actual_top_wheel_rad_s, min(top_tgt, max_wheel_cap))
+        a_bot = pick_accel(self._actual_bottom_wheel_rad_s, min(bottom_tgt, max_wheel_cap))
+        d_top = a_top * _SHOOTER_COAST_DECEL_MULT
+        d_bot = a_bot * _SHOOTER_COAST_DECEL_MULT
 
-        # Assume 20ms loop time
-        dt = 0.02
-
-        # Calculate motor RPM limit at wheel (after gear reduction)
-        # Kraken X60 free speed is 6065 RPM, with 2:1 ratio wheel max is 3032.5 RPM
-        # maxWheelRadPerSec = const.ShooterSpec.WHEEL_MAX_RPM * 2.0 * math.pi / 60.0
-        maxWheelRadPerSec = units.rotationsPerMinuteToRadiansPerSecond(const.ShooterSpec.WHEEL_MAX_RPM)
-
-        # Clamp target speed to motor capability
-        clampedTarget = min(targetSpeed, maxWheelRadPerSec)
-
-        if self._actualFlywheelSpeed < clampedTarget:
-            # Spin up
-            self._actualFlywheelSpeed = min(clampedTarget, self._actualFlywheelSpeed + accelRate * dt)
-        elif self._actualFlywheelSpeed > clampedTarget:
-            # Spin down (same rate for now)
-            self._actualFlywheelSpeed = max(clampedTarget, self._actualFlywheelSpeed - accelRate * dt)
-
-        # Hard clamp to motor limit (safety)
-        self._actualFlywheelSpeed = min(self._actualFlywheelSpeed, maxWheelRadPerSec)
+        self._actual_top_wheel_rad_s = self._integrate_wheel_toward_target(
+            self._actual_top_wheel_rad_s,
+            top_tgt,
+            a_top,
+            d_top,
+            max_wheel_cap,
+            dt,
+        )
+        self._actual_bottom_wheel_rad_s = self._integrate_wheel_toward_target(
+            self._actual_bottom_wheel_rad_s,
+            bottom_tgt,
+            a_bot,
+            d_bot,
+            max_wheel_cap,
+            dt,
+        )
 
     def _maybeEmitFuel(self) -> None:
-        """Emit fuel if enough time has passed since the last one."""
+        """Launch one fuel if the shot interval has elapsed."""
         now = self._shootTimer.get()
-
         if now >= self._nextEmitTime:
             self._emitFuel()
-            # Schedule next fuel shot time with random interval
-            self._nextEmitTime: units.seconds = now + random.uniform(
+            self._nextEmitTime = now + random.uniform(
                 const.Simulation.FUEL_EMIT_INTERVAL_MIN,
                 const.Simulation.FUEL_EMIT_INTERVAL_MAX,
             )
 
     def _emitFuel(self) -> None:
-        """Emit a single fuel and slow down the flywheel.
-
-        Only fires if isReadyToFire() returns True (which checks wheel speed,
-        valid solution, and heading alignment).
-        """
-        # Check all firing conditions (wheel speed, valid solution, heading)
+        """Spawn fuel at average wheel surface speed; both wheels lose energy to the ball."""
         if not self.isReadyToFire():
             return
 
-        # Calculate exit velocity from flywheel surface speed
-        exitSpeed = self._flywheelSpeedToFuelSpeed(self._actualFlywheelSpeed)
-
-        # Calculate wheel recovery factor (how close to target speed)
-        # This affects slip variation - wheels at full speed have better grip
-        if self._targetFlywheelSpeed > 0.1:
-            wheelRecoveryFactor = min(1.0, self._actualFlywheelSpeed / self._targetFlywheelSpeed)
+        omega_avg = self._avg_actual_wheel_speed()
+        exit_speed = omega_avg * const.RobotDimension.FLYWHEEL_RADIUS
+        target_avg = self._target_avg_wheel_speed()
+        if target_avg > 0.1:
+            wheel_recovery_factor = min(1.0, omega_avg / target_avg)
         else:
-            wheelRecoveryFactor = 1.0
+            wheel_recovery_factor = 1.0
 
-        # Slow down flywheel by configured percentage
-        self._actualFlywheelSpeed *= const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
-
-        # Launch the fuel from the shooter's current position
+        retain = const.Simulation.FLYWHEEL_SLOWDOWN_PER_SHOT
+        self._actual_top_wheel_rad_s *= retain
+        self._actual_bottom_wheel_rad_s *= retain
         self.fuelSim.launchFuel(
-            speed=exitSpeed,
+            speed=exit_speed,
             shooterPosition=self.getPosition(),
-            wheelRecoveryFactor=wheelRecoveryFactor,
+            wheelRecoveryFactor=wheel_recovery_factor,
         )
 
     def getActualFlywheelSpeed(self) -> units.radians_per_second:
-        """Get the current actual flywheel speed in rad/s."""
-        return self._actualFlywheelSpeed
+        """Simulated average wheel angular velocity (rad/s)."""
+        return self._avg_actual_wheel_speed()
 
     def getActualFlywheelRPM(self) -> units.revolutions_per_minute:
-        """Get the current actual flywheel speed in RPM."""
-        # return self._actualFlywheelSpeed * 60.0 / (2.0 * math.pi)
-        return units.radiansPerSecondToRotationsPerMinute(self._actualFlywheelSpeed)
+        """Simulated average wheel speed in RPM."""
+        return units.radiansPerSecondToRotationsPerMinute(self._avg_actual_wheel_speed())
 
 
-class ScurvySim(Scurvy):
+class TheseusSim(Theseus):
     """A simulation version of the robot for use in the WPILib robot simulator."""
 
     # Simulation-specific components

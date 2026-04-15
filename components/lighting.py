@@ -33,7 +33,18 @@ LIGHTS_IN_STRIP: int = 50
 LIGHTS_ON_SIDE_LEFT = range(0, 19)
 LIGHTS_ON_SIDE_RIGHT = range(49, 30, -1)
 LIGHTS_ON_BOTTOM = range(19, 31)
+
+# The color to show when the LED is off.
 OFF_COLOR: wpilib.Color8Bit = wpilib.Color8Bit(0, 0, 0)
+
+# Pulse the brightness of the color.
+FADE_PULSING_MIN_BRIGHTNESS: float = 0.75
+FADE_PULSING_MAX_BRIGHTNESS: float = 0.9
+FADE_PULSING_RATE: units.hertz = 0.5
+
+# Bright spark that travels from middle to ends.
+SPARK_LIGHTS_PER_SECOND: float = 15.0
+SPARK_BLEND_PERCENT: float = 0.6
 
 
 class Lighting:
@@ -48,6 +59,8 @@ class Lighting:
         """
         self._desiredPercent: float = 1.0
         self._desiredColor: wpilib.Color8Bit = wpilib.Color8Bit(255, 0, 255)
+        self._pulsePosition: float = 0.0
+        self._lastPulseTime: float = 0.0
 
         # Specify how many lights are in the LED strip
         self.ledController.setLength(LIGHTS_IN_STRIP)
@@ -95,16 +108,16 @@ class Lighting:
 
     def setColor(self, color: wpilib.Color8Bit) -> None:
         """Set the LED color."""
-        self._desiredColor: wpilib.Color8Bit = color
+        self._desiredColor = color
 
     def execute(self) -> None:
         """Update the LED hardware states based on the current settings."""
-        # Pulse the brightness of the color at 2Hz, between 50% and 100% brightness.
+        # Pulse the brightness of the color.
         t = wpilib.Timer.getFPGATimestamp()
-        pulse_scale: float = math.sin(2.0 * math.pi * 2.0 * t) * 0.25 + 0.75
+        fade_range: float = FADE_PULSING_MAX_BRIGHTNESS - FADE_PULSING_MIN_BRIGHTNESS
+        pulse_scale: float = math.sin(2.0 * math.pi * FADE_PULSING_RATE * t) * fade_range + FADE_PULSING_MIN_BRIGHTNESS
         self._desiredColor = utils.scaleColor(self._desiredColor, pulse_scale)
 
-        # TODO: can we improve performance by only updating when something changes?
         litCountSideLeft = int(len(LIGHTS_ON_SIDE_LEFT) * self._desiredPercent)
         litCountSideRight = int(len(LIGHTS_ON_SIDE_RIGHT) * self._desiredPercent)
         for idx, i in enumerate(LIGHTS_ON_SIDE_LEFT):
@@ -121,8 +134,6 @@ class Lighting:
             else:
                 led.setLED(OFF_COLOR)
 
-        left_active = litCountSideLeft >= len(LIGHTS_ON_SIDE_LEFT)
-        right_active = litCountSideRight >= len(LIGHTS_ON_SIDE_RIGHT)
         bottom_on = litCountSideLeft > 0 or litCountSideRight > 0
         for i in LIGHTS_ON_BOTTOM:
             led = self.ledBuffer[i]
@@ -130,5 +141,28 @@ class Lighting:
                 led.setLED(self._desiredColor)
             else:
                 led.setLED(OFF_COLOR)
+
+        # White pulse traveling from middle of bottom to the lit edge on each side
+        halfBottom = len(LIGHTS_ON_BOTTOM) // 2
+        if litCountSideLeft > 0:
+            pathLength = halfBottom + litCountSideLeft
+            if self._lastPulseTime > 0:
+                dt = t - self._lastPulseTime
+                self._pulsePosition += SPARK_LIGHTS_PER_SECOND * dt
+                while self._pulsePosition >= pathLength:
+                    self._pulsePosition -= pathLength
+            self._lastPulseTime = t
+
+            pulseBlend = wpilib.Color8Bit(
+                int(self._desiredColor.red + (255 - self._desiredColor.red) * SPARK_BLEND_PERCENT),
+                int(self._desiredColor.green + (255 - self._desiredColor.green) * SPARK_BLEND_PERCENT),
+                int(self._desiredColor.blue + (255 - self._desiredColor.blue) * SPARK_BLEND_PERCENT),
+            )
+            pos = int(self._pulsePosition)
+            self.ledBuffer[LIGHTS_ON_BOTTOM[halfBottom - 1] - pos].setLED(pulseBlend)
+            self.ledBuffer[LIGHTS_ON_BOTTOM[halfBottom] + pos].setLED(pulseBlend)
+        else:
+            self._lastPulseTime = t
+            self._pulsePosition = 0.0
 
         self.ledController.setData(self.ledBuffer)

@@ -7,6 +7,7 @@ to the drivetrain for sensor fusion with distance-based confidence scaling.
 import math
 from dataclasses import dataclass
 
+import ntcore
 from photonlibpy.photonCamera import PhotonCamera
 from photonlibpy.photonPoseEstimator import PhotonPoseEstimator
 from photonlibpy.targeting import PhotonPipelineResult
@@ -114,6 +115,7 @@ class Vision:
         # Gyro heading for consistency checks (set each cycle by robot.py)
         self._gyro_heading: Rotation2d | None = None
 
+        self._nt = ntcore.NetworkTableInstance.getDefault().getTable("components").getSubTable("vision")
         # Count accepted measurements after enable to know when vision has corrected the pose
         self._accepted_measurement_count: int = 0
 
@@ -195,9 +197,9 @@ class Vision:
         # Cross-camera outlier detection (penalizes std_devs, does not reject)
         valid = self._apply_cross_camera_validation(valid)
 
-        SmartDashboard.putNumber("Vision/MeasurementsReturned", len(valid))
+        self._nt.putNumber("MeasurementsReturned", len(valid))
         camera_names = ", ".join(m.camera_name for m in valid) if valid else "none"
-        SmartDashboard.putString("Vision/ActiveCameras", camera_names)
+        self._nt.putString("ActiveCameras", camera_names)
 
         # Driver-facing lock indicator. 0 = NONE, 1 = SINGLE, 2 = MULTI.
         # Computed from `valid` so it reflects only measurements the drivetrain trusts.
@@ -248,8 +250,8 @@ class Vision:
             diff = 2 * math.pi - diff
 
         if diff > threshold:
-            SmartDashboard.putString(
-                f"Vision/{measurement.camera_name}/GyroReject",
+            self._nt.getSubTable(measurement.camera_name).putString(
+                "GyroReject",
                 f"diff={math.degrees(diff):.1f}deg",
             )
             return False
@@ -285,13 +287,13 @@ class Vision:
                     avg_tag_distance=m.avg_tag_distance,
                     std_devs=(m.std_devs[0] * penalty, m.std_devs[1] * penalty, m.std_devs[2] * penalty),
                 )
-                SmartDashboard.putString(
-                    f"Vision/{m.camera_name}/CrossCamStatus",
+                self._nt.getSubTable(m.camera_name).putString(
+                    "CrossCamStatus",
                     f"OUTLIER dist={dist_from_median:.2f}m",
                 )
                 result.append(penalized)
             else:
-                SmartDashboard.putString(f"Vision/{m.camera_name}/CrossCamStatus", "OK")
+                self._nt.getSubTable(m.camera_name).putString("CrossCamStatus", "OK")
                 result.append(m)
 
         return result
@@ -339,25 +341,22 @@ class Vision:
         # Check ambiguity threshold
         max_ambiguity = self.MAX_POSE_AMBIGUITY_MULTI_TAG if is_multi_tag else self.MAX_POSE_AMBIGUITY_SINGLE_TAG
         if ambiguity > max_ambiguity:
-            SmartDashboard.putString(
-                "Vision/RejectReason",
-                f"ambiguity {ambiguity:.3f} > {max_ambiguity}",
-            )
+            self._nt.putString("RejectReason", f"ambiguity {ambiguity:.3f} > {max_ambiguity}")
             return False
 
         # Check distance threshold (stricter for single-tag)
         max_distance = self.MAX_MULTI_TAG_DISTANCE if is_multi_tag else self.MAX_SINGLE_TAG_DISTANCE
         if avg_distance > max_distance:
-            SmartDashboard.putString("Vision/RejectReason", f"distance {avg_distance:.2f} > {max_distance}")
+            self._nt.putString("RejectReason", f"distance {avg_distance:.2f} > {max_distance}")
             return False
 
         # Check if pose is on the field (basic sanity check)
         pose_2d = pose.toPose2d()
         if pose_2d.X() < -2.0 or pose_2d.X() > 18.0:  # Field is ~16.5m long
-            SmartDashboard.putString("Vision/RejectReason", f"X out of bounds: {pose_2d.X():.2f}")
+            self._nt.putString("RejectReason", f"X out of bounds: {pose_2d.X():.2f}")
             return False
         if pose_2d.Y() < -2.0 or pose_2d.Y() > 10.0:  # Field is ~8m wide
-            SmartDashboard.putString("Vision/RejectReason", f"Y out of bounds: {pose_2d.Y():.2f}")
+            self._nt.putString("RejectReason", f"Y out of bounds: {pose_2d.Y():.2f}")
             return False
 
         return True
@@ -421,8 +420,8 @@ class Vision:
         Updates all camera pose estimates and stores valid measurements.
         """
         # DEBUG: Confirm execute() is running and cameras are initialized
-        SmartDashboard.putBoolean("Vision/ExecuteRunning", True)
-        SmartDashboard.putNumber("Vision/CameraCount", len(self._cameras))
+        self._nt.putBoolean("ExecuteRunning", True)
+        self._nt.putNumber("CameraCount", len(self._cameras))
 
         # Process each camera
         for i, (camera, estimator, robot_to_camera, name) in enumerate(self._cameras):
@@ -432,13 +431,13 @@ class Vision:
             results = camera.getAllUnreadResults()
 
             # DEBUG: Log result count per camera
-            SmartDashboard.putNumber(f"Vision/{name}/ResultCount", len(results))
+            self._nt.getSubTable(name).putNumber("ResultCount", len(results))
 
             for result in results:
                 # Get tag count and distance info
                 tag_count, avg_distance = self._get_tag_distances(result, robot_to_camera)
 
-                SmartDashboard.putNumber(f"Vision/{name}/TagsSeen", tag_count)
+                self._nt.getSubTable(name).putNumber("TagsSeen", tag_count)
 
                 if tag_count == 0:
                     continue
@@ -447,8 +446,9 @@ class Vision:
                 is_multi_tag = tag_count >= 2
                 estimated_pose = self._estimate_pose(estimator, result, tag_count)
 
-                SmartDashboard.putBoolean(f"Vision/{name}/EstimateSuccess", estimated_pose is not None)
-                SmartDashboard.putBoolean(f"Vision/{name}/IsMultiTag", is_multi_tag)
+                cam_nt = self._nt.getSubTable(name)
+                cam_nt.putBoolean("EstimateSuccess", estimated_pose is not None)
+                cam_nt.putBoolean("IsMultiTag", is_multi_tag)
 
                 if estimated_pose is None:
                     continue
@@ -461,21 +461,21 @@ class Vision:
 
                 # DEBUG: Log pre-validation values
                 pose = estimated_pose.estimatedPose
-                SmartDashboard.putNumber(f"Vision/{name}/RawPoseX", pose.toPose2d().X())
-                SmartDashboard.putNumber(f"Vision/{name}/RawPoseY", pose.toPose2d().Y())
-                SmartDashboard.putNumber(f"Vision/{name}/Ambiguity", ambiguity)
-                SmartDashboard.putNumber(f"Vision/{name}/AvgDist", avg_distance)
-                SmartDashboard.putNumber(f"Vision/{name}/Timestamp", estimated_pose.timestampSeconds)
+                cam_nt.putNumber("RawPoseX", pose.toPose2d().X())
+                cam_nt.putNumber("RawPoseY", pose.toPose2d().Y())
+                cam_nt.putNumber("Ambiguity", ambiguity)
+                cam_nt.putNumber("AvgDist", avg_distance)
+                cam_nt.putNumber("Timestamp", estimated_pose.timestampSeconds)
 
                 # DEBUG: Dig into timestamp components
-                SmartDashboard.putNumber(f"Vision/{name}/NtReceiveMicros", result.ntReceiveTimestampMicros)
-                SmartDashboard.putNumber(f"Vision/{name}/PublishMicros", result.metadata.publishTimestampMicros)
-                SmartDashboard.putNumber(f"Vision/{name}/CaptureMicros", result.metadata.captureTimestampMicros)
-                SmartDashboard.putNumber(f"Vision/{name}/PipelineLatencyMs", result.getLatencyMillis())
+                cam_nt.putNumber("NtReceiveMicros", result.ntReceiveTimestampMicros)
+                cam_nt.putNumber("PublishMicros", result.metadata.publishTimestampMicros)
+                cam_nt.putNumber("CaptureMicros", result.metadata.captureTimestampMicros)
+                cam_nt.putNumber("PipelineLatencyMs", result.getLatencyMillis())
 
                 # Validate the measurement
                 valid = self._is_valid_measurement(pose, ambiguity, tag_count, avg_distance)
-                SmartDashboard.putBoolean(f"Vision/{name}/ValidationPass", valid)
+                cam_nt.putBoolean("ValidationPass", valid)
                 if not valid:
                     continue
 
@@ -500,12 +500,13 @@ class Vision:
 
         # Update dashboard with camera status
         valid_count = sum(1 for m in self._latest_measurements if m is not None)
-        SmartDashboard.putNumber("Vision/ValidCameras", valid_count)
-        SmartDashboard.putNumber("Vision/TotalCameras", len(self._cameras))
+        self._nt.putNumber("ValidCameras", valid_count)
+        self._nt.putNumber("TotalCameras", len(self._cameras))
 
         # Log detailed info for debugging
         for m in self._latest_measurements:
             if m is not None:
-                SmartDashboard.putNumber(f"Vision/{m.camera_name}/TagCount", m.tag_count)
-                SmartDashboard.putNumber(f"Vision/{m.camera_name}/AvgDistance", m.avg_tag_distance)
-                SmartDashboard.putNumber(f"Vision/{m.camera_name}/StdDevXY", m.std_devs[0])
+                sub = self._nt.getSubTable(m.camera_name)
+                sub.putNumber("TagCount", m.tag_count)
+                sub.putNumber("AvgDistance", m.avg_tag_distance)
+                sub.putNumber("StdDevXY", m.std_devs[0])

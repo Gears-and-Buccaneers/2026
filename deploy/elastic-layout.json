@@ -171,59 +171,59 @@
             }
           },
           {
-            "title": "Fallback Shooter Speed (m/s)",
+            "title": "Fallback top RPS",
             "x": 0.0,
             "y": 640.0,
             "width": 512.0,
             "height": 128.0,
             "type": "Number Slider",
             "properties": {
-              "topic": "/components/pewpew/fallbackFuelSpeed",
+              "topic": "/components/pewpew/fallbackTopRPS",
               "period": 0.033,
               "min_value": 0.0,
-              "max_value": 20.0,
-              "divisions": 21,
+              "max_value": 120.0,
+              "divisions": 24,
               "update_continuously": false
             }
           },
           {
-            "title": "Smart Aim Shooter Multiplier",
+            "title": "Fallback bottom RPS",
             "x": 0.0,
             "y": 768.0,
             "width": 512.0,
             "height": 128.0,
             "type": "Number Slider",
             "properties": {
-              "topic": "/components/pewpew/shooterSpeedMultiplier",
+              "topic": "/components/pewpew/fallbackBottomRPS",
               "period": 0.033,
               "min_value": 0.0,
-              "max_value": 3.0,
-              "divisions": 13,
+              "max_value": 120.0,
+              "divisions": 24,
               "update_continuously": false
             }
           },
           {
-            "title": "Fallback Speed (readout)",
+            "title": "Fallback top RPS (readout)",
             "x": 512.0,
             "y": 640.0,
             "width": 384.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
-              "topic": "/components/pewpew/fallbackFuelSpeed",
+              "topic": "/components/pewpew/fallbackTopRPS",
               "period": 0.033,
               "show_submit_button": true
             }
           },
           {
-            "title": "Smart Aim Multiplier (readout)",
+            "title": "Fallback bottom RPS (readout)",
             "x": 512.0,
             "y": 768.0,
             "width": 384.0,
             "height": 128.0,
             "type": "Text Display",
             "properties": {
-              "topic": "/components/pewpew/shooterSpeedMultiplier",
+              "topic": "/components/pewpew/fallbackBottomRPS",
               "period": 0.033,
               "show_submit_button": true
             }

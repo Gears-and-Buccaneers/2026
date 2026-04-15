@@ -19,7 +19,7 @@ from generated.tuner_constants import TunerConstants
 # Simulation period in seconds (20ms = 0.020s for standard robot loop)
 SIM_LOOP_PERIOD = 0.020
 
-# How often to publish AdvantageScope transform telemetry (in seconds). 0.02 = every loop.
+# How often to publish pose3d NetworkTables telemetry (in seconds). 0.02 = every loop.
 _NT_PUBLISH_OPTIONS = ntcore.PubSubOptions(periodic=0.02)
 
 
@@ -94,8 +94,9 @@ class Drivetrain:
         # Track if we're running in simulation
         self._isSimulation = RobotBase.isSimulation()
 
-        # Optional publisher for AdvantageScope transform telemetry.
-        self._advantageScopeTransformPublisher = None
+        # Optional publishers (initialized in setup()).
+        self._pose3dPublisher = None
+        self._nt_vision_input = None
 
         # PID controllers for trajectory following
         self._xController = PIDController(self.TRAJECTORY_X_KP, 0.0, 0.0)
@@ -274,14 +275,16 @@ class Drivetrain:
         # Phoenix 6 SwerveDrivetrain accepts Pose2d and std devs for vision measurements
         now = Timer.getFPGATimestamp()
         latency = now - timestamp
-        SmartDashboard.putNumber("Vision/FPGA_Now", now)
-        SmartDashboard.putNumber("Vision/MeasureTimestamp", timestamp)
-        SmartDashboard.putNumber("Vision/Latency", latency)
-        SmartDashboard.putNumber("Vision/StdDevX", stdDevs[0])
-        SmartDashboard.putNumber("Vision/StdDevY", stdDevs[1])
-        SmartDashboard.putNumber("Vision/StdDevRot", stdDevs[2])
-        SmartDashboard.putNumber("Vision/InputPoseX", pose.toPose2d().X())
-        SmartDashboard.putNumber("Vision/InputPoseY", pose.toPose2d().Y())
+        if self._nt_vision_input is not None:
+            vi = self._nt_vision_input
+            vi.putNumber("FPGA_Now", now)
+            vi.putNumber("MeasureTimestamp", timestamp)
+            vi.putNumber("Latency", latency)
+            vi.putNumber("StdDevX", stdDevs[0])
+            vi.putNumber("StdDevY", stdDevs[1])
+            vi.putNumber("StdDevRot", stdDevs[2])
+            vi.putNumber("InputPoseX", pose.toPose2d().X())
+            vi.putNumber("InputPoseY", pose.toPose2d().Y())
         self._drivetrain.add_vision_measurement(pose.toPose2d(), fpga_to_current_time(timestamp), stdDevs)
 
     def getVelocity(self) -> Translation2d:
@@ -293,11 +296,11 @@ class Drivetrain:
 
     def setup(self) -> None:
         """Run one-time component initialization after injection is complete."""
-        # Create an AdvantageScope publisher for the robot's Transform3d if AdvantageScope is enabled.
-        self._advantageScopeTransformPublisher = (
-            ntcore.NetworkTableInstance.getDefault()
-            .getStructTopic("/AdvantageScope/RobotTransform", Transform3d)
-            .publish(_NT_PUBLISH_OPTIONS)
+        nt = ntcore.NetworkTableInstance.getDefault()
+        dt = nt.getTable("components").getSubTable("drivetrain")
+        self._nt_vision_input = dt.getSubTable("VisionInput")
+        self._pose3dPublisher = nt.getStructTopic("/components/drivetrain/pose3d", Transform3d).publish(
+            _NT_PUBLISH_OPTIONS
         )
 
     def getTransform(self) -> Transform3d:
@@ -348,6 +351,5 @@ class Drivetrain:
         # Update field visualization
         self._field.setRobotPose(self.getPose())
 
-        # Publish Transform3d for AdvantageScope if enabled.
-        if self._advantageScopeTransformPublisher is not None:
-            self._advantageScopeTransformPublisher.set(self.getTransform())
+        if self._pose3dPublisher is not None:
+            self._pose3dPublisher.set(self.getTransform())

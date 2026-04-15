@@ -33,8 +33,6 @@ class CANID(enum.IntEnum):
     SHOOTER_MOTOR_TOP = 9
     SHOOTER_MOTOR_BOTTOM = 7
 
-    KICKER_MOTOR = 8  # Sends fuel from the bottom of the shooter to the shooting wheels
-
     INTAKE_MOTOR_EXTEND_FORE = 3  # Extends/retracts the intake mechanism; on the forward side
     INTAKE_MOTOR_EXTEND_AFT = 14  # Extends/retracts the intake mechanism; on the rear side of the bot
     INTAKE_MOTOR_INTAKE = 15  # Runs the intake rollers
@@ -56,52 +54,52 @@ class RobotDimension:
     WIDTH: Final[units.meters] = units.inchesToMeters(25.0)  # Side to side
     LENGTH: Final[units.meters] = units.inchesToMeters(30.0)  # Front to back
 
-    # Location of center of fuel when it launches, relative to robot center (X=forward, Y=left, Z=up)
+    # FIXME: enter the center of the actual shooter location, relative to bot center
     SHOOTER_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
-        units.inchesToMeters(4.456),  # Forward from the center of the robot
-        units.inchesToMeters(-8.25),  # Left from the center of the robot
-        units.inchesToMeters(16.375),  # Height from ground to center of fuel
+        units.inchesToMeters(8.25),
+        units.inchesToMeters(4.456),
+        units.inchesToMeters(16.375),
     )
 
-    # The camera in front of the shooter
+    # FIXME: enter the actual front camera transform
     FRONT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(14.75),  # Near the front edge of the robot
-            units.inchesToMeters(-8.5),  # On the right side of center
-            units.inchesToMeters(16.0),  # Up from the ground
+            units.inchesToMeters(8.5),
+            units.inchesToMeters(14.75),
+            units.inchesToMeters(16.0),
         ),
         geom.Rotation3d(
-            units.degreesToRadians(0.0),  # No roll (hopefully)
-            units.degreesToRadians(-28.0),  # 28° CW around +Y to tilt slightly up
-            units.degreesToRadians(0.0),  # No yaw, camera faces straight forward
+            units.degreesToRadians(0.0),
+            units.degreesToRadians(-28.0),  # Pitched 28° up
+            units.degreesToRadians(0.0),  # Yawed 0°, facing forward
         ),
     )
 
-    # The camera centered above the intake
+    # FIXME: enter the actual left camera transform
     LEFT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(0.0),  # Centered on the forward axis
-            units.inchesToMeters(12.348),  # On the left side
-            units.inchesToMeters(19.898),  # Up from the ground
+            units.inchesToMeters(-12.348),
+            units.inchesToMeters(0.0),
+            units.inchesToMeters(19.898),
         ),
         geom.Rotation3d(
-            units.degreesToRadians(0.0),  # No roll (hopefully)
-            units.degreesToRadians(-18.0),  # CW around +Y to tilt slightly up, before…
-            units.degreesToRadians(90.0),  # …yawing 90° CCW around +Z to point left
+            units.degreesToRadians(0.0),
+            units.degreesToRadians(-18.0),  # Pitched 18° up
+            units.degreesToRadians(90.0),  # Yawed 90° around up axis, facing left
         ),
     )
 
-    # The camera behind the shooter
+    # FIXME: enter the actual rear camera transform
     REAR_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(-15.0),  # Back of the robot
-            units.inchesToMeters(-9.5),  # On the right side of center
-            units.inchesToMeters(16.25),  # Up from the ground
+            units.inchesToMeters(9.5),
+            units.inchesToMeters(-15.0),
+            units.inchesToMeters(16.25),
         ),
         geom.Rotation3d(
-            units.degreesToRadians(0.0),  # No roll (hopefully)
-            units.degreesToRadians(-18.0),  # CW around +Y to tilt slightly up, before…
-            units.degreesToRadians(180.0),  # …yawing 180° around Z to point backwards
+            units.degreesToRadians(0.0),
+            units.degreesToRadians(-18.0),  # Pitched 18° up
+            units.degreesToRadians(180.0),  # Yawed 180° around up axis, facing backward
         ),
     )
 
@@ -109,12 +107,11 @@ class RobotDimension:
 
     # Flywheel/wheel radius for shooter (wheels only, no flywheel)
     FLYWHEEL_RADIUS: Final[units.meters] = units.inchesToMeters(1.985)  # 4" diameter wheels, slightly degraded
-    KICKER_RADIUS: Final[units.meters] = units.inchesToMeters(4.0)  # 8" diameter kicker wheel
-
-    SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 42 / 20  # 42T motor driving 20T axle; 2.1x speed increase
-    KICKER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 32 / 20  # 32T motor driving 20T axle; 1.6x speed increase
 
     MAX_INTAKE_EXTENSION_SPEED: Final[units.meters_per_second] = units.inchesToMeters(236)  # Max speed it slides (Rami)
+
+    # FIXME: enter the actual shooter motor to wheel axle gear ratio
+    SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO: Final[float] = 1.0
 
 
 class ControllerPort:
@@ -183,10 +180,6 @@ class ShooterSpec:
     # Motor and mechanical specs
     MOTORS_PER_SIDE: Final[int] = 1
     WHEELS_PER_SIDE: Final[int] = 2
-
-    # Derived motor limits at wheel (after gear reduction)
-    # Motor runs 2x faster than wheel, so wheel max = motor free speed / gear ratio
-    WHEEL_MAX_RPM: Final[float] = MOTOR_FREE_SPEED_RPM / RobotDimension.SHOOTER_MOTOR_TO_AXLE_TEETH_RATIO  # 3032.5 RPM
 
     # Moment of inertia (converted from lb-in² to kg-m²)
     # 3.6 lb-in² = 3.6 * 0.0002926397 kg-m² ≈ 0.00105 kg-m²
@@ -328,5 +321,5 @@ class VisionConfig:
     # Camera names - must match names configured in PhotonVision
     # GK: I believe that the camera names are wrong, and I'm fixing them to match here.
     FRONT_CAMERA_NAME: Final[str] = "back_right_camera"
-    LEFT_CAMERA_NAME: Final[str] = "front_camera"
-    REAR_CAMERA_NAME: Final[str] = "back_left_camera"
+    REAR_CAMERA_NAME: Final[str] = "front_camera"
+    LEFT_CAMERA_NAME: Final[str] = "back_left_camera"
