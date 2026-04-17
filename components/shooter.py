@@ -34,10 +34,10 @@ class Shooter:
 
     # Motor velocity targets (RPS) at reference distances (lerped and extrapolated outside range).
     # Bottom > top gives backspin. 75% duty ≈ 76 RPS reached ~20 ft in testing.
-    topRPS10ft = magicbot.tunable(38.0)
-    bottomRPS10ft = magicbot.tunable(42.0)
-    topRPS20ft = magicbot.tunable(72.0)
-    bottomRPS20ft = magicbot.tunable(80.0)
+    topRPS10ft = magicbot.tunable(30.0)
+    bottomRPS10ft = magicbot.tunable(46.0)
+    topRPS20ft = magicbot.tunable(40.0)
+    bottomRPS20ft = magicbot.tunable(55.0)
 
     fallbackTopRPS = magicbot.tunable(52.0)
     fallbackBottomRPS = magicbot.tunable(58.0)
@@ -198,8 +198,8 @@ class Shooter:
             self.shooterMotorTop.set_control(self._neutralRequest)
             self.shooterMotorBottom.set_control(self._neutralRequest)
         else:
-            self._topVelocityRequest.velocity = self._targetTopRPS
-            self._bottomVelocityRequest.velocity = -self._targetBottomRPS
+            self._topVelocityRequest.velocity = -self._targetTopRPS
+            self._bottomVelocityRequest.velocity = self._targetBottomRPS
             self.shooterMotorTop.set_control(self._topVelocityRequest)
             self.shooterMotorBottom.set_control(self._bottomVelocityRequest)
 
