@@ -188,7 +188,7 @@ class TunerConstants:
         _front_left_encoder_offset,
         _front_left_x_pos,
         _front_left_y_pos,
-        _invert_left_side,
+        _invert_right_side,
         _front_left_steer_motor_inverted,
         _front_left_encoder_inverted,
     )
@@ -221,7 +221,7 @@ class TunerConstants:
         _back_right_encoder_offset,
         _back_right_x_pos,
         _back_right_y_pos,
-        _invert_right_side,
+        _invert_left_side,
         _back_right_steer_motor_inverted,
         _back_right_encoder_inverted,
     )

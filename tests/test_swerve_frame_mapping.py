@@ -42,3 +42,14 @@ def test_logical_corner_positions_match_clockwise_90deg_rotation() -> None:
 
     assert TunerConstants._back_right_x_pos == pytest.approx(inchesToMeters(-9.8125))
     assert TunerConstants._back_right_y_pos == pytest.approx(inchesToMeters(-12.3125))
+
+
+def test_drive_inversion_matches_physical_modules_after_remap() -> None:
+    """Ensure each logical corner keeps the expected physical drive inversion."""
+    # These reflect original hardware side behavior after remapping:
+    # old FR->new FL (True), old BR->new FR (True),
+    # old FL->new BL (False), old BL->new BR (False).
+    assert TunerConstants.front_left.drive_motor_inverted is True
+    assert TunerConstants.front_right.drive_motor_inverted is True
+    assert TunerConstants.back_left.drive_motor_inverted is False
+    assert TunerConstants.back_right.drive_motor_inverted is False
