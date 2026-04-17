@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING, overload
-
 from phoenix6 import CANBus, configs, hardware, signals, swerve, units
 from wpimath.units import inchesToMeters
 
@@ -25,11 +24,20 @@ class TunerConstants:
         .with_k_s(0.1)
         .with_k_v(2.66)
         .with_k_a(0)
-        .with_static_feedforward_sign(signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN)
+        .with_static_feedforward_sign(
+            signals.StaticFeedforwardSignValue.USE_CLOSED_LOOP_SIGN
+        )
     )
     # When using closed-loop control, the drive motor uses the control
     # output type specified by SwerveModuleConstants.DriveMotorClosedLoopOutput
-    _drive_gains = configs.Slot0Configs().with_k_p(0.1).with_k_i(0).with_k_d(0).with_k_s(0).with_k_v(0.124)
+    _drive_gains = (
+        configs.Slot0Configs()
+        .with_k_p(0.1)
+        .with_k_i(0)
+        .with_k_d(0)
+        .with_k_s(0)
+        .with_k_v(0.124)
+    )
 
     # The closed-loop output type to use for the steer motors;
     # This affects the PID/FF gains for the steer motors
@@ -53,18 +61,12 @@ class TunerConstants:
 
     # Initial configs for the drive and steer motors and the azimuth encoder; these cannot be null.
     # Some configs will be overwritten; check the `with_*_initial_configs()` API documentation.
-    _drive_initial_configs = configs.TalonFXConfiguration().with_current_limits(
-        configs.CurrentLimitsConfigs()
-        # Swerve azimuth does not require much torque output, so we can set a relatively low
-        # stator current limit to help avoid brownouts without impacting performance.
-        .with_stator_current_limit(55.0)
-        .with_stator_current_limit_enable(True)
-    )
+    _drive_initial_configs = configs.TalonFXConfiguration()
     _steer_initial_configs = configs.TalonFXConfiguration().with_current_limits(
         configs.CurrentLimitsConfigs()
         # Swerve azimuth does not require much torque output, so we can set a relatively low
         # stator current limit to help avoid brownouts without impacting performance.
-        .with_stator_current_limit(45.0)
+        .with_stator_current_limit(50.0)
         .with_stator_current_limit_enable(True)
     )
     _encoder_initial_configs = configs.CANcoderConfiguration()
@@ -85,7 +87,7 @@ class TunerConstants:
 
     _drive_gear_ratio = 7.125
     _steer_gear_ratio = 21.428571428571427
-    _wheel_radius: units.meter = inchesToMeters(1.985)  # 4" diameter wheels, slightly degraded; RE-MEASURE OCCASIONALLY
+    _wheel_radius: units.meter = inchesToMeters(2)
 
     _invert_left_side = False
     _invert_right_side = True
@@ -134,49 +136,51 @@ class TunerConstants:
         .with_drive_friction_voltage(_drive_friction_voltage)
     )
 
+
     # Front Left
-    _front_left_drive_motor_id = 2
-    _front_left_steer_motor_id = 0
-    _front_left_encoder_id = 1
-    _front_left_encoder_offset: units.rotation = 0.136962890625
+    _front_left_drive_motor_id = 6
+    _front_left_steer_motor_id = 4
+    _front_left_encoder_id = 5
+    _front_left_encoder_offset: units.rotation = 0.365966796875
     _front_left_steer_motor_inverted = True
     _front_left_encoder_inverted = False
 
-    _front_left_x_pos: units.meter = inchesToMeters(12.3125)
-    _front_left_y_pos: units.meter = inchesToMeters(9.8125)
+    _front_left_x_pos: units.meter = inchesToMeters(9.8125)
+    _front_left_y_pos: units.meter = inchesToMeters(12.3125)
 
     # Front Right
-    _front_right_drive_motor_id = 6
-    _front_right_steer_motor_id = 4
-    _front_right_encoder_id = 5
-    _front_right_encoder_offset: units.rotation = -0.37744140625
+    _front_right_drive_motor_id = 12
+    _front_right_steer_motor_id = 10
+    _front_right_encoder_id = 11
+    _front_right_encoder_offset: units.rotation = 0.26416015625
     _front_right_steer_motor_inverted = True
     _front_right_encoder_inverted = False
 
-    _front_right_x_pos: units.meter = inchesToMeters(12.3125)
-    _front_right_y_pos: units.meter = inchesToMeters(-9.8125)
+    _front_right_x_pos: units.meter = inchesToMeters(9.8125)
+    _front_right_y_pos: units.meter = inchesToMeters(-12.3125)
 
     # Back Left
-    _back_left_drive_motor_id = 18
-    _back_left_steer_motor_id = 16
-    _back_left_encoder_id = 17
-    _back_left_encoder_offset: units.rotation = 0.466552734375
+    _back_left_drive_motor_id = 2
+    _back_left_steer_motor_id = 0
+    _back_left_encoder_id = 1
+    _back_left_encoder_offset: units.rotation = 0.395751953125
     _back_left_steer_motor_inverted = True
     _back_left_encoder_inverted = False
 
-    _back_left_x_pos: units.meter = inchesToMeters(-12.3125)
-    _back_left_y_pos: units.meter = inchesToMeters(9.8125)
+    _back_left_x_pos: units.meter = inchesToMeters(-9.8125)
+    _back_left_y_pos: units.meter = inchesToMeters(12.3125)
 
     # Back Right
-    _back_right_drive_motor_id = 12
-    _back_right_steer_motor_id = 10
-    _back_right_encoder_id = 11
-    _back_right_encoder_offset: units.rotation = 0.004638671875
+    _back_right_drive_motor_id = 18
+    _back_right_steer_motor_id = 16
+    _back_right_encoder_id = 17
+    _back_right_encoder_offset: units.rotation = 0.208740234375
     _back_right_steer_motor_inverted = True
     _back_right_encoder_inverted = False
 
-    _back_right_x_pos: units.meter = inchesToMeters(-12.3125)
-    _back_right_y_pos: units.meter = inchesToMeters(-9.8125)
+    _back_right_x_pos: units.meter = inchesToMeters(-9.8125)
+    _back_right_y_pos: units.meter = inchesToMeters(-12.3125)
+
 
     front_left = _constants_creator.create_module_constants(
         _front_left_steer_motor_id,
@@ -242,7 +246,9 @@ class TunerConstants:
         )
 
 
-class TunerSwerveDrivetrain(swerve.SwerveDrivetrain[hardware.TalonFX, hardware.TalonFX, hardware.CANcoder]):
+class TunerSwerveDrivetrain(
+    swerve.SwerveDrivetrain[hardware.TalonFX, hardware.TalonFX, hardware.CANcoder]
+):
     """Swerve Drive class utilizing CTR Electronics' Phoenix 6 API with the selected device types."""
 
     @overload

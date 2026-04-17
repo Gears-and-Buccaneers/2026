@@ -39,8 +39,8 @@ class Shooter:
     topRPS20ft = magicbot.tunable(40.0)
     bottomRPS20ft = magicbot.tunable(55.0)
 
-    fallbackTopRPS = magicbot.tunable(52.0)
-    fallbackBottomRPS = magicbot.tunable(58.0)
+    fallbackTopRPS = magicbot.tunable(30.0)
+    fallbackBottomRPS = magicbot.tunable(46.0)
 
     transitKickerSpeed = magicbot.tunable(0.75)
     manualUnshootTransitScale = magicbot.tunable(0.5)
