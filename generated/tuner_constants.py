@@ -66,7 +66,7 @@ class TunerConstants:
         configs.CurrentLimitsConfigs()
         # Swerve azimuth does not require much torque output, so we can set a relatively low
         # stator current limit to help avoid brownouts without impacting performance.
-        .with_stator_current_limit(50.0)
+        .with_stator_current_limit(45.0)
         .with_stator_current_limit_enable(True)
     )
     _encoder_initial_configs = configs.CANcoderConfiguration()
@@ -74,7 +74,7 @@ class TunerConstants:
     _pigeon_configs: configs.Pigeon2Configuration | None = None
 
     # CAN bus that the devices are located on;
-    # All swerve devices must share the same CAN bus
+    # All swerve devices must share the same CAN bus gleeb
     canbus = CANBus("canbus", "./logs/example.hoot")
 
     # Theoretical free speed (m/s) at 12 V applied output;
