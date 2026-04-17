@@ -108,3 +108,11 @@ class LeftTrenchToRightTrench(ShootMoveShoot):
     MODE_NAME = "2x Left Trench to Right Trench"
     TRAJECTORY = "LeftTrench_Bulldoze_RightTrench"
     DISABLED = False
+
+
+class RightTrenchTwice(ShootMoveShoot):
+    """Starts in right trench, shoots, gathers from neutral zone, returns to right trench to shoot."""
+
+    MODE_NAME = "2x Right Trench Twice"
+    TRAJECTORY = "RightTrench_Twice"
+    DISABLED = False
