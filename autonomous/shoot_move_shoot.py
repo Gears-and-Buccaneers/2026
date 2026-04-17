@@ -42,7 +42,7 @@ class ShootMoveShoot(ChoreoStateMachine):
             self.next_state("shoot_1")
 
     # Shoot for…long enough to probably shoot all pieces.
-    @mb.timed_state(duration=4, next_state="move_trajectory")
+    @mb.timed_state(duration=4, next_state="extend_intake")
     def shoot_1(self, initial_call: bool):
         self.pewpew.activelyShoot = True
         # TODO: if we can use shooter speed sag to detect a shot, leave when we've shot all 8
@@ -50,6 +50,12 @@ class ShootMoveShoot(ChoreoStateMachine):
         #     self.pewpew.piecesShot = 0
         # if self.pewpew.piecesShot >= 8:
         #     self.next_state("move_trajectory")
+
+    @mb.timed_state(duration=1, next_state="move_trajectory")
+    def extend_intake(self, initial_call: bool):
+        if initial_call:
+            self.intake.extend()
+            self.next_state("move_trajectory")
 
     @mb.state
     def move_trajectory(self, initial_call: bool):
