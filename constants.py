@@ -77,7 +77,7 @@ class RobotDimension:
         geom.Translation3d(
             units.inchesToMeters(9.5),
             units.inchesToMeters(14.75),
-            units.inchesToMeters(6.5),
+            units.inchesToMeters(7),
         ),
         geom.Rotation3d(
             units.degreesToRadians(0.0),
@@ -90,7 +90,7 @@ class RobotDimension:
         geom.Translation3d(
             units.inchesToMeters(-12.25),
             units.inchesToMeters(0.0),
-            units.inchesToMeters(16.25),
+            units.inchesToMeters(20.25),
         ),
         geom.Rotation3d(
             units.degreesToRadians(0.0),
