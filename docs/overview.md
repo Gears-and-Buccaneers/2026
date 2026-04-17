@@ -1,5 +1,8 @@
 # Robot Code Overview
 
+Current drivetrain convention: the shooter edge is robot-front. During setup,
+point the shooter edge away from the driver station and then zero heading.
+
 A high-level overview of the robot code called (during teleop).
 
 ```txt
@@ -10,7 +13,7 @@ Theseus.teleopPeriodic()                                        | Just during te
     …if not braking…                                           |
       Drivetrain.drive()                                       | Record desired field-centric driving
     if DriverController.shouldZeroGyro()                       | Does the driver want to zero the robot's gyro heading?
-      Drivetrain.zeroHeading()                                 | I swear the bot is exactly facing the other alliance now
+      Drivetrain.zeroHeading()                                 | Seed field-centric heading using current shooter-forward orientation
   Theseus.manuallyOperate()                                     |
     if OperatorController.shouldToggleLEDMode()                | Does the operator want to toggle manual lighting?
       …toggle an internal variable                             |

@@ -134,6 +134,9 @@ class TunerConstants:
         .with_drive_friction_voltage(_drive_friction_voltage)
     )
 
+    # Logical corner definitions are now based on shooter side as +X (forward).
+    # Keep this mapping in sync with tests/test_swerve_frame_mapping.py.
+
     # Front Left (was old front-right corner)
     _front_left_drive_motor_id = 6
     _front_left_steer_motor_id = 4

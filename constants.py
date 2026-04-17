@@ -54,19 +54,17 @@ class RobotDimension:
     WIDTH: Final[units.meters] = units.inchesToMeters(30.0)  # Side to side
     LENGTH: Final[units.meters] = units.inchesToMeters(25.0)  # Front to back
 
-    # FIXME: enter the center of the actual shooter location, relative to bot center
     SHOOTER_LOCATION: Final[geom.Translation3d] = geom.Translation3d(
-        units.inchesToMeters(10.0),
-        units.inchesToMeters(0.0),
-        units.inchesToMeters(16.375),
+        units.inchesToMeters(4.5),
+        units.inchesToMeters(-2.5),  # Center is slightly right of center
+        units.inchesToMeters(15.5),
     )
 
-    # FIXME: enter the actual front camera transform
     FRONT_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(8.5),
-            units.inchesToMeters(14.75),
-            units.inchesToMeters(16.0),
+            units.inchesToMeters(12.0),
+            units.inchesToMeters(6.0),
+            units.inchesToMeters(8.25),
         ),
         geom.Rotation3d(
             units.degreesToRadians(0.0),
@@ -88,10 +86,9 @@ class RobotDimension:
         ),
     )
 
-    # FIXME: enter the actual rear camera transform
     REAR_CAMERA_TRANSFORM: Final[geom.Transform3d] = geom.Transform3d(
         geom.Translation3d(
-            units.inchesToMeters(-9.5),
+            units.inchesToMeters(-12.25),
             units.inchesToMeters(0.0),
             units.inchesToMeters(16.25),
         ),
