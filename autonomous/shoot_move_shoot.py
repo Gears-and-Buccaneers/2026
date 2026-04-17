@@ -55,7 +55,6 @@ class ShootMoveShoot(ChoreoStateMachine):
     def extend_intake(self, initial_call: bool):
         if initial_call:
             self.intake.extend()
-            self.next_state("move_trajectory")
 
     @mb.state
     def move_trajectory(self, initial_call: bool):
