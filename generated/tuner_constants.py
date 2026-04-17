@@ -134,49 +134,49 @@ class TunerConstants:
         .with_drive_friction_voltage(_drive_friction_voltage)
     )
 
-    # Front Left
-    _front_left_drive_motor_id = 2
-    _front_left_steer_motor_id = 0
-    _front_left_encoder_id = 1
-    _front_left_encoder_offset: units.rotation = 0.136962890625
+    # Front Left (was old front-right corner)
+    _front_left_drive_motor_id = 6
+    _front_left_steer_motor_id = 4
+    _front_left_encoder_id = 5
+    _front_left_encoder_offset: units.rotation = -0.37744140625
     _front_left_steer_motor_inverted = True
     _front_left_encoder_inverted = False
 
-    _front_left_x_pos: units.meter = inchesToMeters(12.3125)
-    _front_left_y_pos: units.meter = inchesToMeters(9.8125)
+    _front_left_x_pos: units.meter = inchesToMeters(9.8125)
+    _front_left_y_pos: units.meter = inchesToMeters(12.3125)
 
-    # Front Right
-    _front_right_drive_motor_id = 6
-    _front_right_steer_motor_id = 4
-    _front_right_encoder_id = 5
-    _front_right_encoder_offset: units.rotation = -0.37744140625
+    # Front Right (was old back-right corner)
+    _front_right_drive_motor_id = 12
+    _front_right_steer_motor_id = 10
+    _front_right_encoder_id = 11
+    _front_right_encoder_offset: units.rotation = 0.004638671875
     _front_right_steer_motor_inverted = True
     _front_right_encoder_inverted = False
 
-    _front_right_x_pos: units.meter = inchesToMeters(12.3125)
-    _front_right_y_pos: units.meter = inchesToMeters(-9.8125)
+    _front_right_x_pos: units.meter = inchesToMeters(9.8125)
+    _front_right_y_pos: units.meter = inchesToMeters(-12.3125)
 
-    # Back Left
-    _back_left_drive_motor_id = 18
-    _back_left_steer_motor_id = 16
-    _back_left_encoder_id = 17
-    _back_left_encoder_offset: units.rotation = 0.466552734375
+    # Back Left (was old front-left corner)
+    _back_left_drive_motor_id = 2
+    _back_left_steer_motor_id = 0
+    _back_left_encoder_id = 1
+    _back_left_encoder_offset: units.rotation = 0.136962890625
     _back_left_steer_motor_inverted = True
     _back_left_encoder_inverted = False
 
-    _back_left_x_pos: units.meter = inchesToMeters(-12.3125)
-    _back_left_y_pos: units.meter = inchesToMeters(9.8125)
+    _back_left_x_pos: units.meter = inchesToMeters(-9.8125)
+    _back_left_y_pos: units.meter = inchesToMeters(12.3125)
 
-    # Back Right
-    _back_right_drive_motor_id = 12
-    _back_right_steer_motor_id = 10
-    _back_right_encoder_id = 11
-    _back_right_encoder_offset: units.rotation = 0.004638671875
+    # Back Right (was old back-left corner)
+    _back_right_drive_motor_id = 18
+    _back_right_steer_motor_id = 16
+    _back_right_encoder_id = 17
+    _back_right_encoder_offset: units.rotation = 0.466552734375
     _back_right_steer_motor_inverted = True
     _back_right_encoder_inverted = False
 
-    _back_right_x_pos: units.meter = inchesToMeters(-12.3125)
-    _back_right_y_pos: units.meter = inchesToMeters(-9.8125)
+    _back_right_x_pos: units.meter = inchesToMeters(-9.8125)
+    _back_right_y_pos: units.meter = inchesToMeters(-12.3125)
 
     front_left = _constants_creator.create_module_constants(
         _front_left_steer_motor_id,
