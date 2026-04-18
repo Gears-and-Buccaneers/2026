@@ -35,14 +35,14 @@ class ShootMoveShoot(ChoreoStateMachine):
 
     # This is only a timed state as a fallback, in case the robot never thinks it's ready to fire.
     # When all is well, the robot should quickly transition to shoot_1 as soon as it's ready to fire.
-    @mb.timed_state(first=True, duration=2, next_state="shoot_1")
+    @mb.timed_state(first=True, duration=0.5, next_state="shoot_1")
     def prep1(self):
         self._prepare_to_fire()
-        if self.pewpew.isReadyToFire():
-            self.next_state("shoot_1")
+        # if self.pewpew.isReadyToFire():
+        #    self.next_state("shoot_1")
 
     # Shoot for…long enough to probably shoot all pieces.
-    @mb.timed_state(duration=4, next_state="extend_intake")
+    @mb.timed_state(duration=2, next_state="extend_intake")
     def shoot_1(self, initial_call: bool):
         self.pewpew.activelyShoot = True
         # TODO: if we can use shooter speed sag to detect a shot, leave when we've shot all 8
@@ -51,7 +51,7 @@ class ShootMoveShoot(ChoreoStateMachine):
         # if self.pewpew.piecesShot >= 8:
         #     self.next_state("move_trajectory")
 
-    @mb.timed_state(duration=1, next_state="move_trajectory")
+    @mb.timed_state(duration=0.75, next_state="move_trajectory")
     def extend_intake(self, initial_call: bool):
         if initial_call:
             self.intake.extend()
@@ -113,6 +113,15 @@ class LeftTrenchToRightTrench(ShootMoveShoot):
     MODE_NAME = "2x Left Trench to Right Trench"
     TRAJECTORY = "LeftTrench_Bulldoze_RightTrench"
     DISABLED = False
+
+
+class LateSweepRight(ShootMoveShoot):
+    """Starts in right trench, shoots, gathers from neutral zone, returns to right trench to shoot."""
+
+    MODE_NAME = "2x Late Sweep Right"
+    TRAJECTORY = "Late_Sweep_Right"
+    DISABLED = False
+    # SLOW_TRAJECTORY = 2.0
 
 
 class RightTrenchTwice(ShootMoveShoot):
