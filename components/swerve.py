@@ -203,7 +203,7 @@ class Drivetrain:
         """Stop all motors (coast)."""
         self._pendingRequest = self._idleRequest
 
-    def followTrajectory(self, sample: SwerveSample) -> None:
+    def followTrajectory(self, sample: SwerveSample, time_scale: float = 1.0) -> None:
         """Follow a Choreo trajectory sample.
 
         This method takes a trajectory sample and generates the appropriate
@@ -215,6 +215,9 @@ class Drivetrain:
         Args:
             sample: A SwerveSample from a Choreo trajectory containing
                     the desired pose and velocities at this point in time.
+            time_scale: Multiplier for trajectory duration. Values > 1 slow
+                the robot down (2.0 = half speed). Feedforward velocities
+                are divided by this factor.
         """
         # Get the current pose of the robot
         pose = self.getPose()
@@ -225,11 +228,11 @@ class Drivetrain:
         yFeedback = self._yController.calculate(pose.Y(), sample.y)
         headingFeedback = self._headingController.calculate(pose.rotation().radians(), sample.heading)
 
-        # Combine feedforward (from trajectory) with feedback (from PID)
+        # Combine feedforward (from trajectory, scaled) with feedback (from PID)
         speeds = kinematics.ChassisSpeeds(
-            sample.vx + xFeedback,  # Forward velocity + X correction
-            sample.vy + yFeedback,  # Sideways velocity + Y correction
-            sample.omega + headingFeedback,  # Angular velocity + heading correction
+            sample.vx / time_scale + xFeedback,  # Forward velocity + X correction
+            sample.vy / time_scale + yFeedback,  # Sideways velocity + Y correction
+            sample.omega / time_scale + headingFeedback,  # Angular velocity + heading correction
         )
 
         # Apply the speeds using field-relative control

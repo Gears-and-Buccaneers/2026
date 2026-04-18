@@ -641,6 +641,7 @@ class ChoreoStateMachine(mb.AutonomousStateMachine):
 
     MODE_NAME = "(Replace this with your own Auto Name)"
     DISABLED = True
+    SLOW_TRAJECTORY = 1.0  # time_scale: 1.0 = normal speed, 2.0 = half speed
 
     # Injected by MagicBot
     drivetrain: components.Drivetrain
@@ -687,6 +688,10 @@ class ChoreoStateMachine(mb.AutonomousStateMachine):
         will be followed automatically each loop. Use ``is_trajectory_done()`` to
         detect completion and transition to the next state.
 
+        The trajectory speed is controlled by the ``SLOW_TRAJECTORY`` class
+        attribute. Values > 1 slow the robot proportionally (2.0 = half speed,
+        twice the time). Default is 1.0 (normal speed).
+
         Args:
             name: Trajectory name (without .traj). Use ``"Name[N]"`` for a split segment.
             event_callbacks: Optional dict mapping event marker names to callback
@@ -718,7 +723,7 @@ class ChoreoStateMachine(mb.AutonomousStateMachine):
         """Return True when the active trajectory has finished (or none is loaded)."""
         if self._current_trajectory is None:
             return True
-        return self._traj_timer.get() >= self._current_trajectory.get_total_time()
+        return self._traj_timer.get() >= self._current_trajectory.get_total_time() * self.SLOW_TRAJECTORY
 
     def on_iteration(self, tm: float) -> None:
         """Run the state machine, then advance the active trajectory."""
@@ -732,20 +737,21 @@ class ChoreoStateMachine(mb.AutonomousStateMachine):
 
         elapsed = self._traj_timer.get()
         total = self._current_trajectory.get_total_time()
+        traj_time = elapsed / self.SLOW_TRAJECTORY  # Scale wall-clock time to trajectory time
 
-        # Fire event markers up to the current (or final) time
+        # Fire event markers up to the current (or final) trajectory time
         if self._event_tracker is not None:
-            self._event_tracker.fire_up_to(min(elapsed, total))
+            self._event_tracker.fire_up_to(min(traj_time, total))
 
-        if elapsed >= total:
+        if traj_time >= total:
             # Trajectory finished — clear it so is_trajectory_done() returns True
             # and we don't keep sampling past the end
             self._current_trajectory = None
             self._event_tracker = None
             return
 
-        sample = self._current_trajectory.sample_at(elapsed, ChoreoAuto.is_red_alliance())
+        sample = self._current_trajectory.sample_at(traj_time, ChoreoAuto.is_red_alliance())
         if sample is not None:
-            self.drivetrain.followTrajectory(sample)
+            self.drivetrain.followTrajectory(sample, self.SLOW_TRAJECTORY)
         else:
             self.drivetrain.stop()

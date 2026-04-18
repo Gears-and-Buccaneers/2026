@@ -121,3 +121,4 @@ class RightTrenchTwice(ShootMoveShoot):
     MODE_NAME = "2x Right Trench Twice"
     TRAJECTORY = "RightTrench_Twice"
     DISABLED = False
+    # SLOW_TRAJECTORY = 2.0
