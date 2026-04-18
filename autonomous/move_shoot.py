@@ -131,3 +131,11 @@ class LeftBumpCollect(MoveShoot):
     MODE_NAME = "1x LeftBumpNeutralLeft"
     TRAJECTORY = "LeftBump_Collect"
     DISABLED = False
+
+
+class TrickyBackupShoot(MoveShoot):
+    """Start at left bump, collect balls from neutral zone, return over bump and shoot."""
+
+    MODE_NAME = "Tricky Backup Shoot"
+    TRAJECTORY = "TheTrick_Backup"
+    DISABLED = False
