@@ -34,8 +34,8 @@ class Shooter:
 
     # Motor velocity targets (RPS) at reference distances (lerped and extrapolated outside range).
     # Bottom > top gives backspin. 75% duty ≈ 76 RPS reached ~20 ft in testing.
-    topRPS10ft = magicbot.tunable(30.0)
-    bottomRPS10ft = magicbot.tunable(46.0)
+    topRPS10ft = magicbot.tunable(50.0)
+    bottomRPS10ft = magicbot.tunable(22.0)
     topRPS20ft = magicbot.tunable(40.0)
     bottomRPS20ft = magicbot.tunable(55.0)
 
