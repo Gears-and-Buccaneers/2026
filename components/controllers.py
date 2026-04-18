@@ -491,6 +491,10 @@ class OperatorController(MappedController):
         """Determine if the LED mode toggle button was pressed since the last check."""
         return self.getLeftStickButtonPressed()
 
+    def useVisionSystem(self) -> bool:
+        """Determine if the vision system should be used for localization."""
+        return self.getLeftTriggerAxis() > 0.5
+
     def customLEDColor(self) -> wpilib.Color8Bit:
         """Use the left stick to pick a color based on its position.
 

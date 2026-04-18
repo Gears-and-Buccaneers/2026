@@ -76,6 +76,9 @@ class Vision:
     CROSS_CAMERA_MAX_DISAGREEMENT_METERS = 0.5
     CROSS_CAMERA_STD_DEV_PENALTY_MULTIPLIER = 3.0
 
+    # Vision is only enabled when the operator allows it, to prevent bad measurements from throwing off the driver.
+    enabled: bool = False
+
     def __init__(self) -> None:
         """Initialize the vision subsystem with all configured cameras."""
         # Load the AprilTag field layout for the current game
@@ -420,8 +423,12 @@ class Vision:
         Updates all camera pose estimates and stores valid measurements.
         """
         # DEBUG: Confirm execute() is running and cameras are initialized
-        self._nt.putBoolean("ExecuteRunning", True)
+        self._nt.putBoolean("ExecuteRunning", self.enabled)
         self._nt.putNumber("CameraCount", len(self._cameras))
+
+        # Don't waste energy processing vision if it's not enabled
+        if not self.enabled:
+            return
 
         # Process each camera
         for i, (camera, estimator, robot_to_camera, name) in enumerate(self._cameras):

@@ -69,7 +69,7 @@ class Theseus(magicbot.MagicRobot):
 
     def autonomousInit(self) -> None:
         """Called when auto starts (regardless of which one is selected), after every components' on_enable()."""
-        pass
+        self.vision.enabled = True
 
     def teleopInit(self) -> None:
         """Called when teleop starts, after all components' on_enable()."""
@@ -146,26 +146,31 @@ class Theseus(magicbot.MagicRobot):
         # show a permanent "Selected value has not been published" warning.
         super().robotPeriodic()
 
-        # Update vision simulation with current robot pose
-        if RobotBase.isSimulation():
-            pose_2d = self.drivetrain.getPose()
-            pose_3d = geom.Pose3d(pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians()))
-            self.vision.update_sim(pose_3d)
+        # This is set every frame during teleop by the operator controller
+        if self.vision.enabled:
+            # Update vision simulation with current robot pose
+            if RobotBase.isSimulation():
+                pose_2d = self.drivetrain.getPose()
+                pose_3d = geom.Pose3d(
+                    pose_2d.X(), pose_2d.Y(), 0.0, geom.Rotation3d(0, 0, pose_2d.rotation().radians())
+                )
+                self.vision.update_sim(pose_3d)
 
-        # Give vision the current gyro heading for single-tag consistency checking
-        self.vision.set_gyro_heading(self.drivetrain.getHeading())
+            # Give vision the current gyro heading for single-tag consistency checking
+            self.vision.set_gyro_heading(self.drivetrain.getHeading())
 
-        # Feed ALL valid vision measurements to drivetrain for pose estimation fusion
-        measurements = self.vision.get_measurements()
-        ntcore.NetworkTableInstance.getDefault().getTable("components").getSubTable("vision").putNumber(
-            "MeasurementsFed", len(measurements)
-        )
-        for measurement in measurements:
-            self.drivetrain.addVisionMeasurement(
-                measurement.pose,
-                measurement.timestamp,
-                measurement.std_devs,
+            # Feed ALL valid vision measurements to drivetrain for pose estimation fusion
+            measurements = self.vision.get_measurements()
+            ntcore.NetworkTableInstance.getDefault().getTable("components").getSubTable("vision").putNumber(
+                "MeasurementsFed", len(measurements)
             )
+            for measurement in measurements:
+                self.drivetrain.addVisionMeasurement(
+                    measurement.pose,
+                    measurement.timestamp,
+                    measurement.std_devs,
+                )
+
         self.maybeSetOperatorPerspective()
         self.updateLights()
         self.faultMonitor.update()
@@ -310,6 +315,8 @@ class Theseus(magicbot.MagicRobot):
 
         if self.operatorController.calibrateIntakeAsFullyExtended():
             self.intake.calibrateFullyExtendedNow()
+
+        self.vision.enabled = self.operatorController.useVisionSystem()
 
     def dynamicallyTargetHub(self) -> None:
         """Aim at the hub from current position and set flywheel duties from distance (no velocity lead)."""
