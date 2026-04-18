@@ -22,5 +22,5 @@ class justShoot(magicbot.AutonomousStateMachine):
         self.drivetrain.driveFacingAngle(targetAngle=self._target_heading)
 
     @magicbot.state
-    def shoot(self, initial_call, duration=4):
+    def shoot(self):
         self.pewpew.activelyShoot = True
