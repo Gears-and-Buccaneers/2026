@@ -89,7 +89,7 @@ class MoveShootMove(ChoreoStateMachine):
         elif self.is_trajectory_done():
             self.next_state("finished")
 
-    @mb.timed_state(duration=2, next_state="shoot_2")
+    @mb.timed_state(duration=4, next_state="shoot_2")
     def prep2(self):
         self._prepare_to_fire()
         if self.pewpew.isReadyToFire():
