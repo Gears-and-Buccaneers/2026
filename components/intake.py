@@ -27,8 +27,7 @@ class Intake:
     """
 
     # Motors+ injected by MagicBot when the robot sets an attribute of the same name on the robot class.
-    intakeMotorLeft: p6.hardware.TalonFX
-    intakeMotorRight: p6.hardware.TalonFX
+    intakeMotor: p6.hardware.TalonFX
     intakeMotorIntake: p6.hardware.TalonFX
 
     runIntake: bool = False
@@ -65,7 +64,7 @@ class Intake:
         The motor position is zeroed in `on_enable()` rather than here so the driver can
         reposition the intake while disabled and have it recalibrated at enable time.
         """
-        self._position = self.intakeMotorRight.get_position(False)
+        self._position = self.intakeMotor.get_position(False)
         self._position.set_update_frequency(50.0)
 
     def on_enable(self) -> None:
@@ -73,7 +72,7 @@ class Intake:
 
         Assumes the intake is fully retracted (in) at enable time.
         """
-        status = self.intakeMotorRight.set_position(0.0)
+        status = self.intakeMotor.set_position(0.0)
         if status.is_error():
             print(f"Intake aft motor zero failed: {status.name}: {status.description}")
 
@@ -91,7 +90,7 @@ class Intake:
         Re-zeroes the motor position so that the current physical position corresponds to
         `intakeExtendedRotations`.
         """
-        self.intakeMotorRight.set_position(self.intakeExtendedRotations)
+        self.intakeMotor.set_position(self.intakeExtendedRotations)
 
     def ingest(self) -> None:
         """Start the intake to pick up fuel."""
@@ -134,17 +133,14 @@ class Intake:
 
         if self._extendState == "extend":
             if not self.isFullyExtended():
-                self.intakeMotorLeft.set(-self.intakeExtendSpeed)
-                self.intakeMotorRight.set(self.intakeExtendSpeed)
+                self.intakeMotor.set(self.intakeExtendSpeed)
             else:
                 self._extendState = "hold"
         elif self._extendState == "retract":
             if not self.isFullyRetracted():
-                self.intakeMotorLeft.set(-self.intakeRetractSpeed)
-                self.intakeMotorRight.set(self.intakeRetractSpeed)
+                self.intakeMotor.set(self.intakeRetractSpeed)
             else:
                 self._extendState = "hold"
 
         if self._extendState == "hold":
-            self.intakeMotorLeft.set(0)
-            self.intakeMotorRight.set(0)
+            self.intakeMotor.set(0)

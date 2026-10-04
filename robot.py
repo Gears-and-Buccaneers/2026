@@ -62,8 +62,7 @@ class Theseus(magicbot.MagicRobot):
         self.faultMonitor = components.FaultMonitor()
         self.faultMonitor.register("shooterTop", self.shooterMotorTop)
         self.faultMonitor.register("shooterBottom", self.shooterMotorBottom)
-        self.faultMonitor.register("intakeLeft", self.intakeMotorLeft)
-        self.faultMonitor.register("intakeRight", self.intakeMotorRight)
+        self.faultMonitor.register("intakeRight", self.intakeMotor)
         self.faultMonitor.register("intake", self.intakeMotorIntake)
         self.faultMonitor.register("transit", self.transitMotor)
 
@@ -187,16 +186,14 @@ class Theseus(magicbot.MagicRobot):
         """
         self.shooterMotorTop = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_TOP, const.CANBUS_NAME)
         self.shooterMotorBottom = p6.hardware.TalonFX(const.CANID.SHOOTER_MOTOR_BOTTOM, const.CANBUS_NAME)
-        self.intakeMotorLeft = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_FORE, const.CANBUS_NAME)
-        self.intakeMotorRight = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
+        self.intakeMotor = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_EXTEND_AFT, const.CANBUS_NAME)
         self.intakeMotorIntake = p6.hardware.TalonFX(const.CANID.INTAKE_MOTOR_INTAKE, const.CANBUS_NAME)
         self.transitMotor = p6.hardware.TalonFX(const.CANID.TRANSIT_MOTOR, const.CANBUS_NAME)
 
         nonSwerveMotors = [
             self.shooterMotorTop,
             self.shooterMotorBottom,
-            self.intakeMotorLeft,
-            self.intakeMotorRight,
+            self.intakeMotor,
             self.intakeMotorIntake,
             self.transitMotor,
         ]
@@ -217,7 +214,7 @@ class Theseus(magicbot.MagicRobot):
             )
 
             # Intake extension motors should be in brake mode so they hold position when not powered; others coast
-            if motor in (self.intakeMotorLeft, self.intakeMotorRight):
+            if motor is self.intakeMotor:
                 utils.setMotorNeutralBrake(motor, brake_in_neutral=True)
             else:
                 utils.setMotorNeutralBrake(motor, brake_in_neutral=False)
