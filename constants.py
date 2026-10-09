@@ -33,7 +33,6 @@ class CANID(enum.IntEnum):
     SHOOTER_MOTOR_TOP = 9
     SHOOTER_MOTOR_BOTTOM = 7
 
-    INTAKE_MOTOR_EXTEND_FORE = 3  # Extends/retracts the intake mechanism; on the forward side
     INTAKE_MOTOR_EXTEND_AFT = 14  # Extends/retracts the intake mechanism; on the rear side of the bot
     INTAKE_MOTOR_INTAKE = 15  # Runs the intake rollers
 
