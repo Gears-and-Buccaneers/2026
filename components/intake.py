@@ -44,7 +44,9 @@ class Intake:
     # Extension setpoints in aft-extend-motor rotations. On enable we assume the intake
     # is fully retracted (0 rotations), and it takes 5.667 rotations to go fully out.
     intakeRetractedRotations = magicbot.tunable(0.0)
-    intakeExtendedRotations = magicbot.tunable(5.667)
+   #  intakeExtendedRotations = magicbot.tunable(5.667)
+    intakeExtendedRotations = magicbot.tunable(4.38)
+
 
     # How close to the target we need to be to consider it "close enough" for control purposes
     intakeToleranceRotations = magicbot.tunable(0.25)
