@@ -140,7 +140,7 @@ class Intake:
                 self._extendState = "hold"
         elif self._extendState == "retract":
             if not self.isFullyRetracted():
-                self.intakeMotor.set(-self.intakeRetractSpeed)
+                self.intakeMotor.set(self.intakeRetractSpeed)
             else:
                 self._extendState = "hold"
 
