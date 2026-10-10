@@ -158,4 +158,4 @@ class Intake:
                 self._extendState = "hold"
 
         if self._extendState == "hold":
-            self.intakeMotor.set(0)
+            self.intakeMotor.set(-0.1)
