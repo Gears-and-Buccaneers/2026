@@ -208,7 +208,7 @@ class Shooter:
         if self.activelyShoot:
             self.transitMotor.set(self.transitKickerSpeed)
         elif self.activelyUnshoot:
-            self.transitMotor.set(-self.transitKickerSpeed * self.manualUnshootTransitScale)
+            self.transitMotor.set(self.transitKickerSpeed * self.manualUnshootTransitScale)
         else:
             self.transitMotor.set(0.0)
 
