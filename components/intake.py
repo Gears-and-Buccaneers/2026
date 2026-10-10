@@ -60,10 +60,10 @@ class Intake:
 
         self._position: p6.StatusSignal[p6_units.rotation] | None = None
         
-        to_apply = p6.configs.TalonFXConfiguration()
-        to_apply.motor_output.neutral_mode = p6.signals.NeutralModeValue.BRAKE
+        #to_apply = p6.configs.TalonFXConfiguration()
+        #to_apply.motor_output.neutral_mode = p6.signals.NeutralModeValue.BRAKE
 
-        self.intakeMotor.configurator.apply(to_apply)
+        #self.intakeMotor.configurator.apply(to_apply)
 
     def setup(self) -> None:
         """Cache the aft extend motor's position status signal.
