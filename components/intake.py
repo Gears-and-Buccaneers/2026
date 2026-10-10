@@ -83,11 +83,13 @@ class Intake:
         if status.is_error():
             print(f"Intake aft motor zero failed: {status.name}: {status.description}")
 
-    def on_disable(self) -> None:
         to_apply = p6.configs.TalonFXConfiguration()
         to_apply.motor_output.neutral_mode = p6.signals.NeutralModeValue.BRAKE
 
         self.intakeMotor.configurator.apply(to_apply)
+
+
+    #def on_disable(self) -> None:
 
 
     @magicbot.feedback
