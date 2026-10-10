@@ -59,6 +59,11 @@ class Intake:
         self.runIntake = False
 
         self._position: p6.StatusSignal[p6_units.rotation] | None = None
+        
+        to_apply = p6.configs.TalonFXConfiguration()
+        to_apply.motor_output.neutral_mode = p6.signals.NeutralModeValue.BRAKE
+
+        self.intakeMotor.configurator.apply(to_apply)
 
     def setup(self) -> None:
         """Cache the aft extend motor's position status signal.
@@ -82,12 +87,6 @@ class Intake:
         status = self.intakeMotor.set_position(0.0)
         if status.is_error():
             print(f"Intake aft motor zero failed: {status.name}: {status.description}")
-
-        to_apply = p6.configs.TalonFXConfiguration()
-        to_apply.motor_output.neutral_mode = p6.signals.NeutralModeValue.BRAKE
-
-        self.intakeMotor.configurator.apply(to_apply)
-
 
     #def on_disable(self) -> None:
 
