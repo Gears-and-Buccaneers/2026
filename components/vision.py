@@ -325,7 +325,7 @@ class Vision:
                 xy_std /= 1.5
                 rot_std /= 1.5
 
-        return (xy_std, xy_std, rot_std)
+        return (xy_std, xy_std, 9999999.0)
 
     def _is_valid_measurement(self, pose: Pose3d, ambiguity: float, tag_count: int, avg_distance: float) -> bool:
         """Check if a vision measurement is valid and should be used.
