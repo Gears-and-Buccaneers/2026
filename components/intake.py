@@ -68,6 +68,11 @@ class Intake:
         """
         self._position = self.intakeMotor.get_position(False)
         self._position.set_update_frequency(50.0)
+        to_apply = p6.configs.TalonFXConfiguration()
+        to_apply.motor_output.neutral_mode = p6.signals.NeutralModeValue.BRAKE
+
+        self.intakeMotor.configurator.apply(to_apply)
+
 
     def on_enable(self) -> None:
         """Zero the aft extend motor's position each time the robot is enabled.
